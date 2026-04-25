@@ -93,7 +93,7 @@ export default function HomePage() {
           </ul>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <Link href="/auth/login" style={{ fontSize:13, color:v.text2, textDecoration:'none', padding:'5px 4px' }}>Connexion</Link>
-            <button onClick={()=>setPaywall(true)} style={{ padding:'7px 17px', borderRadius:100, fontSize:13, fontWeight:500, background:v.blue, color:'#fff', border:'none', cursor:'pointer', fontFamily:'inherit' }}>Commencer</button>
+            <button onClick={()=>window.location.href='/auth/register'} style={{ padding:'7px 17px', borderRadius:100, fontSize:13, fontWeight:500, background:v.blue, color:'#fff', border:'none', cursor:'pointer', fontFamily:'inherit' }}>Commencer</button>
           </div>
         </div>
       </nav>
@@ -151,7 +151,7 @@ export default function HomePage() {
         </div>
 
         <div style={{ marginTop:14 }}>
-          <button onClick={()=>setPaywall(true)} style={{ padding:'12px 30px', borderRadius:100, background:v.white, color:v.text, border:`1px solid ${v.line2}`, fontFamily:'inherit', fontSize:15, fontWeight:400, cursor:'pointer', boxShadow:v.shadow }}>Commencer gratuitement</button>
+          <button onClick={()=>window.location.href='/auth/register'} style={{ padding:'12px 30px', borderRadius:100, background:v.white, color:v.text, border:`1px solid ${v.line2}`, fontFamily:'inherit', fontSize:15, fontWeight:400, cursor:'pointer', boxShadow:v.shadow }}>Commencer gratuitement</button>
         </div>
       </div>
 
