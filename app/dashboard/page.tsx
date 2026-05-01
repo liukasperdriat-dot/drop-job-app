@@ -10,7 +10,6 @@ export default async function DashboardPage() {
 
   if (!user) redirect('/auth/login')
 
-  // Récupérer le vrai profil depuis Supabase
   const { data: profile } = await supabase
     .from('profiles')
     .select('is_premium, cv_count_this_month')
@@ -21,6 +20,15 @@ export default async function DashboardPage() {
   const cvUsed = profile?.cv_count_this_month || 0
   const cvMax = isPremium ? '∞' : 1
   const cvPct = isPremium ? 0 : Math.min((cvUsed / 1) * 100, 100)
+
+  // Salutation dynamique
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
+
+  // Prénom depuis l'email (liukas.perdriat@gmail.com → Liukas)
+  const rawName = user.email?.split('@')[0] || ''
+  const firstName = rawName.split(/[._-]/)[0]
+  const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
 
   const v = {
     bg: '#f5f5f7', white: '#fff',
@@ -59,9 +67,9 @@ export default async function DashboardPage() {
         {/* Header */}
         <div style={{ marginBottom: 36 }}>
           <h1 style={{ fontSize: 'clamp(28px,4vw,42px)', fontWeight: 600, letterSpacing: '-0.04em', marginBottom: 4 }}>
-            Bonjour 👋
+            {greeting}, {displayName}.
           </h1>
-          <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>{user.email}</p>
+          <p style={{ fontSize: 14, color: v.text3, fontWeight: 400 }}>{user.email}</p>
         </div>
 
         {/* Bento grid */}
@@ -96,7 +104,7 @@ export default async function DashboardPage() {
               Abonnement
             </div>
             <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.03em', color: isPremium ? '#fff' : v.text, marginBottom: 8 }}>
-              {isPremium ? 'Premium ✨' : 'Gratuit'}
+              {isPremium ? 'Premium' : 'Gratuit'}
             </div>
             {!isPremium && (
               <div style={{ marginTop: 12 }}>
@@ -104,7 +112,7 @@ export default async function DashboardPage() {
               </div>
             )}
             {isPremium && (
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Merci de votre confiance !</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Merci de votre confiance.</div>
             )}
           </div>
 
