@@ -1,32 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-
-const JOBS = [
-  { id: 1, title: 'Développeur React Senior', company: 'Contentsquare', loc: 'Paris', remote: 'Hybride', contract: 'CDI', salary: '55k — 70k€', g: 'haut', gt: '12% au-dessus', src: 'LinkedIn', cat: 'tech', skills: ['React','TypeScript','GraphQL','Jest'], desc: "Rejoignez l'équipe Frontend pour développer des interfaces d'analytics performantes utilisées par plus de 1 000 clients enterprise." },
-  { id: 2, title: 'Product Designer', company: 'Doctolib', loc: 'Paris', remote: 'Full remote', contract: 'CDI', salary: '45k — 60k€', g: 'haut', gt: 'Au-dessus', src: 'WTTJ', cat: 'design', skills: ['Figma','Design System','UX Research'], desc: "Repensez les parcours de prise de rendez-vous pour plus de 80 millions d'utilisateurs européens." },
-  { id: 3, title: 'Data Scientist ML', company: 'BlaBlaCar', loc: 'Paris', remote: 'Hybride', contract: 'CDI', salary: '50k — 65k€', g: 'juste', gt: 'Juste marché', src: 'Indeed', cat: 'data', skills: ['Python','PyTorch','SQL','dbt'], desc: "Prédisez les comportements de covoiturage et optimisez le matching offre/demande." },
-  { id: 4, title: 'Backend Engineer Go', company: 'Qonto', loc: 'Berlin', remote: 'Full remote', contract: 'CDI', salary: '60k — 80k€', g: 'haut', gt: 'Au-dessus', src: 'HelloWork', cat: 'tech', skills: ['Go','Kubernetes','PostgreSQL'], desc: "Concevez des microservices ultra-performants pour traiter des millions de transactions par jour." },
-  { id: 5, title: 'Product Manager', company: 'Leboncoin', loc: 'Paris', remote: 'Hybride', contract: 'CDI', salary: '48k — 62k€', g: 'bas', gt: 'Sous le marché', src: 'France Travail', cat: 'product', skills: ['Roadmap','OKR','SQL'], desc: "Gérez l'une des plus grandes marketplaces françaises." },
-  { id: 6, title: 'DevOps / SRE', company: 'OVHcloud', loc: 'Roubaix', remote: 'Remote possible', contract: 'CDI', salary: '45k — 58k€', g: 'juste', gt: 'Juste marché', src: 'LinkedIn', cat: 'tech', skills: ['Kubernetes','Ansible','Terraform'], desc: "Maintenez l'infrastructure qui héberge 1,6 million de serveurs." },
-];
 
 const GAUGE: Record<string, { col: string; bg: string; badge: string; desc: string; rot: number; dash: number }> = {
   bas:   { col: '#c0392b', bg: 'rgba(192,57,43,.07)',  badge: 'Sous le marché',      desc: 'Cette offre est <strong>18% en-dessous</strong> de la moyenne.', rot: -50, dash: 140 },
   juste: { col: '#1d8348', bg: 'rgba(29,131,72,.07)',  badge: 'Dans la moyenne',     desc: 'Cette offre est dans la <strong>fourchette normale</strong>.', rot: 0, dash: 82 },
   haut:  { col: '#b45309', bg: 'rgba(180,83,9,.07)',   badge: 'Au-dessus du marché', desc: 'Cette offre est <strong>12% au-dessus</strong> de la moyenne à Lyon.', rot: 50, dash: 18 },
-};
-
-const gc = (g: string) => GAUGE[g]?.col || '#aeaeb2';
-
-const LOGOS: Record<string, string> = {
-  'Contentsquare': '<rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/>',
-  'Doctolib':      '<circle cx="9" cy="7" r="4"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6"/>',
-  'BlaBlaCar':     '<path d="M2 10h1.5l2-5h7l2 5H16a1 1 0 0 1 1 1v2H5l-1-3z"/><circle cx="6" cy="14" r="1.5"/><circle cx="12" cy="14" r="1.5"/>',
-  'Qonto':         '<rect x="2" y="4" width="14" height="10" rx="2"/><path d="M6 8h6M6 11h4"/>',
-  'Leboncoin':     '<circle cx="9" cy="9" r="7"/><path d="M6 9h6M9 6v6"/>',
-  'OVHcloud':      '<path d="M14 11a5 5 0 0 0-10 0"/><path d="M5 11v3a2 2 0 0 0 4 0v-3"/><path d="M9 14v-3"/>',
 };
 
 const GEN_STEPS = ['Analyse des mots-clés ATS','Interrogation de votre profil','Adaptation du vocabulaire','Calcul du score de matching','Génération du PDF'];
@@ -41,24 +21,33 @@ const v = {
 };
 
 export default function HomePage() {
-  const [filter, setFilter]   = useState('all');
+  const [search, setSearch]   = useState('');
   const [billing, setBilling] = useState<'monthly'|'weekly'>('monthly');
   const [salMin, setSalMin]   = useState(40);
   const [salMax, setSalMax]   = useState(65);
   const [gauge, setGauge]     = useState('haut');
   const [paywall, setPaywall] = useState(false);
-  const [job, setJob]         = useState<typeof JOBS[0]|null>(null);
   const [genOpen, setGenOpen] = useState(false);
   const [genStep, setGenStep] = useState(0);
 
-  const filtered = JOBS.filter(j =>
-    filter === 'all' ? true :
-    filter === 'remote' ? j.remote.toLowerCase().includes('remote') :
-    j.cat === filter
-  );
+  // Vraies offres
+  const [realJobs, setRealJobs]       = useState<any[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/jobs?keyword=&location=')
+      .then(r => r.json())
+      .then(d => { setRealJobs(d.jobs || []); setJobsLoading(false); })
+      .catch(() => setJobsLoading(false));
+  }, []);
+
+  const handleSearch = () => {
+    window.location.href = `/jobs?q=${encodeURIComponent(search)}`;
+  };
 
   const startGen = () => {
-    setJob(null); setGenStep(0); setGenOpen(true);
+    setSelectedJob(null); setGenStep(0); setGenOpen(true);
     let s = 0;
     const iv = setInterval(() => {
       s++;
@@ -113,38 +102,30 @@ export default function HomePage() {
             <div style={{ padding:'0 10px 0 18px', display:'flex', color:v.text3, flexShrink:0 }}>
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width={15} height={15}><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
             </div>
-            <input type="text" placeholder="Chercher un métier, une entreprise…" style={{ flex:1, padding:'13px 0', minWidth:0, background:'transparent', border:'none', outline:'none', fontFamily:'inherit', fontSize:15, color:v.text }} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              placeholder="Chercher un métier, une entreprise…"
+              style={{ flex:1, padding:'13px 0', minWidth:0, background:'transparent', border:'none', outline:'none', fontFamily:'inherit', fontSize:15, color:v.text }}
+            />
             <div style={{ width:1, height:20, background:v.line2, flexShrink:0 }} />
             <div style={{ display:'flex', alignItems:'center', gap:5, padding:'0 14px', flexShrink:0 }}>
               <svg viewBox="0 0 12 16" fill="none" stroke={v.text3} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 9 4 9s4-5.7 4-9c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.3"/></svg>
               <input type="text" defaultValue="Lyon" style={{ border:'none', background:'transparent', outline:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, color:v.text2, width:72 }} />
             </div>
-            <button style={{ margin:5, padding:'8px 20px', borderRadius:100, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', flexShrink:0 }}>Rechercher</button>
+            <button onClick={handleSearch} style={{ margin:5, padding:'8px 20px', borderRadius:100, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', flexShrink:0 }}>Rechercher</button>
           </div>
 
-          {/* Salary strip — overflow:visible partout pour que les thumbs soient visibles */}
+          {/* Salary strip */}
           <div style={{ display:'flex', alignItems:'center', gap:14, width:'100%', maxWidth:620, background:v.white, borderRadius:12, border:`1px solid ${v.line}`, padding:'16px 20px', boxShadow:v.shadow, overflow:'visible' }}>
             <span style={{ fontSize:12, fontWeight:500, color:v.text2, flexShrink:0, whiteSpace:'nowrap' }}>Rémunération (Annuelle)</span>
-            {/* Dual range wrapper */}
             <div style={{ flex:1, position:'relative', height:20, overflow:'visible' }}>
-              {/* Track background */}
               <div style={{ position:'absolute', left:0, right:0, top:'50%', transform:'translateY(-50%)', height:3, background:v.bg2, borderRadius:2 }} />
-              {/* Track fill */}
               <div style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', height:3, background:v.blue, borderRadius:2, left:`${pct(salMin)}%`, width:`${pct(salMax)-pct(salMin)}%` }} />
-              {/* Min thumb */}
-              <input
-                type="range" min={20} max={120} step={1} value={salMin}
-                onChange={e => { const n = +e.target.value; if (n < salMax - 5) setSalMin(n); }}
-                className="dualrange"
-                style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:2 }}
-              />
-              {/* Max thumb */}
-              <input
-                type="range" min={20} max={120} step={1} value={salMax}
-                onChange={e => { const n = +e.target.value; if (n > salMin + 5) setSalMax(n); }}
-                className="dualrange"
-                style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:3 }}
-              />
+              <input type="range" min={20} max={120} step={1} value={salMin} onChange={e => { const n = +e.target.value; if (n < salMax - 5) setSalMin(n); }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:2 }} />
+              <input type="range" min={20} max={120} step={1} value={salMax} onChange={e => { const n = +e.target.value; if (n > salMin + 5) setSalMax(n); }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:3 }} />
             </div>
             <span style={{ fontSize:13, fontWeight:600, color:v.text, flexShrink:0, minWidth:108, textAlign:'right', letterSpacing:'-0.02em' }}>{salMin}k€ — {salMax}k€</span>
           </div>
@@ -229,44 +210,62 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* JOBS */}
+      {/* JOBS — vraies offres */}
       <div id="jobs" style={{ maxWidth:1080, margin:'0 auto', padding:'0 24px 72px' }}>
         <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:18 }}>
           <div style={{ fontSize:22, fontWeight:600, letterSpacing:'-0.03em' }}>Offres du moment</div>
-          <div style={{ fontSize:13, color:v.text3 }}>{filtered.length} offres</div>
+          {!jobsLoading && <div style={{ fontSize:13, color:v.text3 }}>{realJobs.length} offres</div>}
         </div>
-        <div style={{ display:'flex', gap:5, marginBottom:16, flexWrap:'wrap' }}>
-          {[['all','Tout'],['tech','Tech'],['design','Design'],['data','Data'],['product','Product'],['remote','Remote']].map(([val,label])=>(
-            <span key={val} onClick={()=>setFilter(val)} style={{ padding:'5px 14px', borderRadius:100, background: filter===val ? 'rgba(0,113,227,.07)' : v.white, border:`1px solid ${filter===val ? 'rgba(0,113,227,.18)' : v.line}`, fontSize:12, fontWeight:500, color: filter===val ? v.blue : v.text2, cursor:'pointer', userSelect:'none' }}>{label}</span>
-          ))}
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:10 }}>
-          {filtered.map(j=>(
-            <div key={j.id} onClick={()=>setJob(j)} style={{ background:v.white, border:`1px solid ${v.line}`, borderRadius:18, padding:20, cursor:'pointer', boxShadow:v.shadow, transition:'all .18s' }}
-              onMouseEnter={e=>{ (e.currentTarget as HTMLDivElement).style.boxShadow=v.shadow2; (e.currentTarget as HTMLDivElement).style.transform='translateY(-2px)'; }}
-              onMouseLeave={e=>{ (e.currentTarget as HTMLDivElement).style.boxShadow=v.shadow; (e.currentTarget as HTMLDivElement).style.transform='none'; }}>
-              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:14 }}>
-                <div style={{ width:38, height:38, borderRadius:9, background:v.bg, border:`1px solid ${v.line}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" width={18} height={18} dangerouslySetInnerHTML={{ __html: LOGOS[j.company]||'' }} />
+
+        {jobsLoading && (
+          <div style={{ textAlign:'center', padding:'60px 0', color:v.text2 }}>
+            <div style={{ width:28, height:28, borderRadius:'50%', border:'2px solid #e8e8ed', borderTopColor:v.blue, animation:'spin .7s linear infinite', margin:'0 auto 12px' }} />
+            <div style={{ fontSize:13 }}>Chargement des offres…</div>
+          </div>
+        )}
+
+        {!jobsLoading && (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:10 }}>
+            {realJobs.slice(0, 6).map((job, i) => (
+              <div key={job.id || i}
+                onClick={() => setSelectedJob(job)}
+                style={{ background:v.white, border:`1px solid ${v.line}`, borderRadius:18, padding:20, cursor:'pointer', boxShadow:v.shadow, transition:'all .18s' }}
+                onMouseEnter={e=>{ (e.currentTarget as HTMLDivElement).style.boxShadow=v.shadow2; (e.currentTarget as HTMLDivElement).style.transform='translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.borderColor='rgba(0,0,0,.14)'; }}
+                onMouseLeave={e=>{ (e.currentTarget as HTMLDivElement).style.boxShadow=v.shadow; (e.currentTarget as HTMLDivElement).style.transform='none'; (e.currentTarget as HTMLDivElement).style.borderColor=v.line; }}>
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:14 }}>
+                  <div style={{ width:38, height:38, borderRadius:9, background:v.bg, border:`1px solid ${v.line}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>
+                    🏢
+                  </div>
+                  <span style={{ fontSize:10, fontWeight:500, padding:'3px 8px', borderRadius:100, textTransform:'uppercase', letterSpacing:'.02em', background:v.bg, border:`1px solid ${v.line}`, color:v.text3 }}>{job.source}</span>
                 </div>
-                <span style={{ fontSize:10, fontWeight:500, padding:'3px 8px', borderRadius:100, textTransform:'uppercase', letterSpacing:'.02em', background:v.bg, border:`1px solid ${v.line}`, color:v.text3 }}>{j.src}</span>
-              </div>
-              <div style={{ fontSize:15, fontWeight:600, letterSpacing:'-0.02em', marginBottom:3 }}>{j.title}</div>
-              <div style={{ fontSize:13, color:v.text2 }}>{j.company} · {j.loc}</div>
-              <div style={{ display:'flex', gap:5, marginTop:12, flexWrap:'wrap' }}>
-                {[j.contract, j.remote].map(t=><span key={t} style={{ padding:'3px 9px', borderRadius:100, fontSize:11, background:v.bg, border:`1px solid ${v.line}`, color:v.text2 }}>{t}</span>)}
-              </div>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14, paddingTop:14, borderTop:`1px solid ${v.line}` }}>
-                <span style={{ fontSize:14, fontWeight:600, letterSpacing:'-0.02em' }}>{j.salary}</span>
-                <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, fontWeight:500 }}>
-                  <div style={{ width:6, height:6, borderRadius:'50%', background:gc(j.g) }} />
-                  <span style={{ color:gc(j.g) }}>{j.gt}</span>
+                <div style={{ fontSize:15, fontWeight:600, letterSpacing:'-0.02em', marginBottom:3, color:v.text }}>{job.title}</div>
+                <div style={{ fontSize:13, color:v.text2, marginBottom:12 }}>{job.company} · {job.location}</div>
+                <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:14 }}>
+                  {[job.contract, job.remote].filter(Boolean).map((t:string) => (
+                    <span key={t} style={{ padding:'3px 9px', borderRadius:100, fontSize:11, background:v.bg, border:`1px solid ${v.line}`, color:v.text2 }}>{t}</span>
+                  ))}
                 </div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingTop:14, borderTop:`1px solid ${v.line}` }}>
+                  <span style={{ fontSize:14, fontWeight:600, letterSpacing:'-0.02em' }}>{job.salary || 'Salaire NC'}</span>
+                </div>
+                <button
+                  onClick={e => { e.stopPropagation(); window.location.href = `/cv?jobTitle=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&jobDescription=${encodeURIComponent(job.description||'')}`; }}
+                  style={{ display:'block', width:'100%', marginTop:12, padding:9, background:'rgba(0,113,227,.07)', color:v.blue, border:'1px solid rgba(0,113,227,.14)', borderRadius:8, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}
+                >
+                  Postuler avec CV IA
+                </button>
               </div>
-              <button style={{ display:'block', width:'100%', marginTop:12, padding:9, background:'rgba(0,113,227,.07)', color:v.blue, border:'1px solid rgba(0,113,227,.14)', borderRadius:8, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Postuler avec CV IA</button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+
+        {!jobsLoading && realJobs.length > 6 && (
+          <div style={{ textAlign:'center', marginTop:24 }}>
+            <button onClick={() => window.location.href='/jobs'} style={{ padding:'10px 28px', borderRadius:100, background:v.white, color:v.text, border:`1px solid ${v.line2}`, fontFamily:'inherit', fontSize:14, fontWeight:500, cursor:'pointer', boxShadow:v.shadow }}>
+              Voir toutes les offres →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* PRICING */}
@@ -363,34 +362,24 @@ export default function HomePage() {
     )}
 
     {/* JOB DETAIL */}
-    {job && (
-      <div onClick={e=>e.target===e.currentTarget&&setJob(null)} style={{ display:'flex', position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,.2)', backdropFilter:'blur(8px)', alignItems:'center', justifyContent:'center', padding:24 }}>
+    {selectedJob && (
+      <div onClick={e=>e.target===e.currentTarget&&setSelectedJob(null)} style={{ display:'flex', position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,.2)', backdropFilter:'blur(8px)', alignItems:'center', justifyContent:'center', padding:24 }}>
         <div style={{ background:'#fff', borderRadius:18, border:'1px solid rgba(0,0,0,.08)', width:'100%', maxWidth:500, maxHeight:'88vh', overflowY:'auto', padding:26, boxShadow:'0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)' }}>
-          <button onClick={()=>setJob(null)} style={{ float:'right', width:26, height:26, borderRadius:'50%', background:'#f5f5f7', border:'1px solid rgba(0,0,0,.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#6e6e73' }}>
+          <button onClick={()=>setSelectedJob(null)} style={{ float:'right', width:26, height:26, borderRadius:'50%', background:'#f5f5f7', border:'1px solid rgba(0,0,0,.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#6e6e73' }}>
             <svg viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" width={11} height={11}><line x1="1" y1="1" x2="10" y2="10"/><line x1="10" y1="1" x2="1" y2="10"/></svg>
           </button>
-          <div style={{ fontSize:12, color:'#aeaeb2', marginBottom:4 }}>{job.company} · {job.loc}</div>
-          <div style={{ fontSize:22, fontWeight:500, letterSpacing:'-0.03em', marginBottom:16 }}>{job.title}</div>
+          <div style={{ fontSize:12, color:'#aeaeb2', marginBottom:4 }}>{selectedJob.company} · {selectedJob.location}</div>
+          <div style={{ fontSize:22, fontWeight:500, letterSpacing:'-0.03em', marginBottom:16 }}>{selectedJob.title}</div>
           <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:16 }}>
-            {[job.contract,job.remote,job.src].map(t=><span key={t} style={{ padding:'3px 9px', borderRadius:100, fontSize:11, background:'#f5f5f7', border:'1px solid rgba(0,0,0,.08)', color:'#6e6e73' }}>{t}</span>)}
+            {[selectedJob.contract, selectedJob.remote, selectedJob.source].filter(Boolean).map((t:string)=><span key={t} style={{ padding:'3px 9px', borderRadius:100, fontSize:11, background:'#f5f5f7', border:'1px solid rgba(0,0,0,.08)', color:'#6e6e73' }}>{t}</span>)}
           </div>
-          <div style={{ marginBottom:16 }}>
-            <div style={{ fontSize:10, fontWeight:600, letterSpacing:'.06em', textTransform:'uppercase', color:'#aeaeb2', marginBottom:7 }}>Description</div>
-            <p style={{ fontSize:13, color:'#6e6e73', lineHeight:1.65 }}>{job.desc}</p>
-          </div>
-          <div style={{ marginBottom:16 }}>
-            <div style={{ fontSize:10, fontWeight:600, letterSpacing:'.06em', textTransform:'uppercase', color:'#aeaeb2', marginBottom:7 }}>Compétences</div>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
-              {job.skills.map(s=><span key={s} style={{ padding:'4px 10px', borderRadius:100, fontSize:11, background:'#f5f5f7', border:'1px solid rgba(0,0,0,.08)', color:'#6e6e73' }}>{s}</span>)}
+          {selectedJob.salary && <div style={{ fontSize:20, fontWeight:500, letterSpacing:'-0.03em', marginBottom:16 }}>{selectedJob.salary}</div>}
+          {selectedJob.description && (
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:10, fontWeight:600, letterSpacing:'.06em', textTransform:'uppercase', color:'#aeaeb2', marginBottom:7 }}>Description</div>
+              <p style={{ fontSize:13, color:'#6e6e73', lineHeight:1.65 }}>{selectedJob.description?.slice(0,500)}{selectedJob.description?.length > 500 ? '…' : ''}</p>
             </div>
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-            <div style={{ fontSize:20, fontWeight:500, letterSpacing:'-0.03em' }}>{job.salary}</div>
-            <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, fontWeight:500 }}>
-              <div style={{ width:6, height:6, borderRadius:'50%', background:gc(job.g) }} />
-              <span style={{ color:gc(job.g) }}>{job.gt}</span>
-            </div>
-          </div>
+          )}
           <button onClick={startGen} style={{ width:'100%', padding:12, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, cursor:'pointer' }}>Générer mon CV pour cette offre</button>
         </div>
       </div>
@@ -417,47 +406,11 @@ export default function HomePage() {
     <style>{`
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html { scroll-behavior: smooth; }
-
-      /* ── Dual range slider ── */
-      input.dualrange {
-        -webkit-appearance: none;
-        appearance: none;
-        height: 20px;
-        background: transparent;
-        pointer-events: none;
-        outline: none;
-        margin: 0;
-      }
-      input.dualrange::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: #ffffff;
-        border: 2px solid #0071e3;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-        cursor: pointer;
-        pointer-events: all;
-      }
-      input.dualrange::-webkit-slider-thumb:hover {
-        transform: scale(1.1);
-        box-shadow: 0 0 0 4px rgba(0,113,227,0.15);
-      }
-      input.dualrange::-moz-range-thumb {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: #ffffff;
-        border: 2px solid #0071e3;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-        cursor: pointer;
-        pointer-events: all;
-      }
-      input.dualrange::-webkit-slider-runnable-track {
-        background: transparent;
-        height: 20px;
-      }
-
+      input.dualrange { -webkit-appearance: none; appearance: none; height: 20px; background: transparent; pointer-events: none; outline: none; margin: 0; }
+      input.dualrange::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #ffffff; border: 2px solid #0071e3; box-shadow: 0 1px 4px rgba(0,0,0,0.2); cursor: pointer; pointer-events: all; }
+      input.dualrange::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 0 0 4px rgba(0,113,227,0.15); }
+      input.dualrange::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #ffffff; border: 2px solid #0071e3; box-shadow: 0 1px 4px rgba(0,0,0,0.2); cursor: pointer; pointer-events: all; }
+      input.dualrange::-webkit-slider-runnable-track { background: transparent; height: 20px; }
       @keyframes spin { to { transform: rotate(360deg); } }
     `}</style>
     </>

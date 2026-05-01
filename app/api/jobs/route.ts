@@ -15,24 +15,50 @@ async function getFranceTravailToken() {
   return data.access_token
 }
 
+function toTitleCase(str: string): string {
+  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function formatSalaire(libelle: string): string {
+  if (!libelle) return 'Salaire NC'
+
+  const match = libelle.match(/(\d+(?:[.,]\d+)?)\s*Euros?\s*(?:à\s*(\d+(?:[.,]\d+)?)\s*Euros?)?/i)
+  if (!match) return 'Salaire NC'
+
+  const min = Math.round(parseFloat(match[1].replace(',', '.')))
+  const max = match[2] ? Math.round(parseFloat(match[2].replace(',', '.'))) : null
+
+  const isAnnuel = libelle.toLowerCase().includes('annuel')
+
+  if (isAnnuel) {
+    const annMin = Math.round(min / 1000)
+    const annMax = max ? Math.round(max / 1000) : null
+    if (annMin === 0) return 'Salaire NC'
+    return annMax ? `${annMin}k€ — ${annMax}k€ / an` : `${annMin}k€ / an`
+  }
+
+  // Mensuel → annuel
+  const annMin = Math.round((min * 12) / 1000)
+  const annMax = max ? Math.round((max * 12) / 1000) : null
+  if (annMin === 0) return 'Salaire NC'
+  return annMax ? `${annMin}k€ — ${annMax}k€ / an` : `${annMin}k€ / an`
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const keyword  = searchParams.get('keyword') || ''
+    const keyword  = searchParams.get('keyword') || searchParams.get('q') || ''
     const location = searchParams.get('location') || ''
     const salMin   = searchParams.get('salMin') || ''
     const salMax   = searchParams.get('salMax') || ''
 
     const token = await getFranceTravailToken()
 
-    const params = new URLSearchParams({
-      motsCles: keyword,
-      commune: location,
-      range: '0-19',
-    })
-
-    if (salMin) params.append('salaireMin', salMin)
-    if (salMax) params.append('salaireMax', salMax)
+    const params = new URLSearchParams({ range: '0-19' })
+    if (keyword)  params.append('motsCles', keyword)
+    if (location) params.append('commune', location)
+    if (salMin)   params.append('salaireMin', salMin)
+    if (salMax)   params.append('salaireMax', salMax)
 
     const res = await fetch(
       `https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search?${params}`,
@@ -48,11 +74,11 @@ export async function GET(request: Request) {
 
     const jobs = (data.resultats || []).map((j: any) => ({
       id: j.id,
-      title: j.intitule,
+      title: toTitleCase(j.intitule),
       company: j.entreprise?.nom || 'Entreprise non précisée',
       location: j.lieuTravail?.libelle || '',
       contract: j.typeContratLibelle || 'CDI',
-      salary: j.salaire?.libelle || 'Salaire non précisé',
+      salary: formatSalaire(j.salaire?.libelle || ''),
       description: j.description || '',
       url: j.origineOffre?.urlOrigine || '',
       source: 'France Travail',
