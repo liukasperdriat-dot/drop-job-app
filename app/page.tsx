@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import CompanyLogo from '@/components/CompanyLogo';
 
 const GAUGE: Record<string, { col: string; bg: string; badge: string; desc: string; rot: number; dash: number }> = {
   bas:   { col: '#c0392b', bg: 'rgba(192,57,43,.07)',  badge: 'Sous le marché',      desc: 'Cette offre est <strong>18% en-dessous</strong> de la moyenne.', rot: -50, dash: 140 },
@@ -233,9 +234,7 @@ export default function HomePage() {
                 onMouseEnter={e=>{ (e.currentTarget as HTMLDivElement).style.boxShadow=v.shadow2; (e.currentTarget as HTMLDivElement).style.transform='translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.borderColor='rgba(0,0,0,.14)'; }}
                 onMouseLeave={e=>{ (e.currentTarget as HTMLDivElement).style.boxShadow=v.shadow; (e.currentTarget as HTMLDivElement).style.transform='none'; (e.currentTarget as HTMLDivElement).style.borderColor=v.line; }}>
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:14 }}>
-                  <div style={{ width:38, height:38, borderRadius:9, background:v.bg, border:`1px solid ${v.line}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>
-                    🏢
-                  </div>
+                  <CompanyLogo company={job.company} />
                   <span style={{ fontSize:10, fontWeight:500, padding:'3px 8px', borderRadius:100, textTransform:'uppercase', letterSpacing:'.02em', background:v.bg, border:`1px solid ${v.line}`, color:v.text3 }}>{job.source}</span>
                 </div>
                 <div style={{ fontSize:15, fontWeight:600, letterSpacing:'-0.02em', marginBottom:3, color:v.text }}>{job.title}</div>
@@ -249,7 +248,7 @@ export default function HomePage() {
                   <span style={{ fontSize:14, fontWeight:600, letterSpacing:'-0.02em' }}>{job.salary || 'Salaire NC'}</span>
                 </div>
                 <button
-                  onClick={e => { e.stopPropagation(); window.location.href = `/cv?jobTitle=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&jobDescription=${encodeURIComponent(job.description||'')}`; }}
+                  onClick={e => { e.stopPropagation(); window.location.href = `/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description||'')}`; }}
                   style={{ display:'block', width:'100%', marginTop:12, padding:9, background:'rgba(0,113,227,.07)', color:v.blue, border:'1px solid rgba(0,113,227,.14)', borderRadius:8, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}
                 >
                   Postuler avec CV IA
