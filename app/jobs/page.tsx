@@ -54,6 +54,26 @@ export default function JobsPage() {
     searchJobs()
   }
 
+  async function handleCVWithSave(job: any) {
+    try {
+      await fetch('/api/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_id: job.id,
+          job_title: job.title,
+          company: job.company,
+          location: job.location,
+          contract: job.contract,
+          salary: job.salary,
+        }),
+      })
+    } catch {
+      // Ne pas bloquer la navigation si la sauvegarde échoue
+    }
+    router.push(`/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description || '')}`)
+  }
+
   return (
     <>
     <div style={{ background: v.bg, color: v.text, fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif", minHeight: '100vh', WebkitFontSmoothing: 'antialiased' }}>
@@ -154,7 +174,7 @@ export default function JobsPage() {
         {!loading && jobs.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
             {jobs.map(job => (
-              <JobCard key={job.id} job={job} onOpen={() => setSelectedJob(job)} onCV={() => router.push(`/cv?jobTitle=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&jobDescription=${encodeURIComponent(job.description)}`)} />
+              <JobCard key={job.id} job={job} onOpen={() => setSelectedJob(job)} onCV={() => handleCVWithSave(job)} />
             ))}
           </div>
         )}
@@ -169,8 +189,13 @@ export default function JobsPage() {
             <svg viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" width={11} height={11}><line x1="1" y1="1" x2="10" y2="10"/><line x1="10" y1="1" x2="1" y2="10"/></svg>
           </button>
 
-          <div style={{ fontSize: 12, color: v.text3, marginBottom: 4 }}>{selectedJob.company} · {selectedJob.location}</div>
-          <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.03em', marginBottom: 16 }}>{selectedJob.title}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <CompanyLogo company={selectedJob.company} size={44} />
+            <div>
+              <div style={{ fontSize: 12, color: v.text3, marginBottom: 2 }}>{selectedJob.company} · {selectedJob.location}</div>
+              <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.03em' }}>{selectedJob.title}</div>
+            </div>
+          </div>
 
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 20 }}>
             {[selectedJob.contract, selectedJob.remote, selectedJob.source].filter(Boolean).map((t: string) => (
@@ -190,7 +215,7 @@ export default function JobsPage() {
           )}
 
           <button
-            onClick={() => { setSelectedJob(null); router.push(`/cv?jobTitle=${encodeURIComponent(selectedJob.title)}&company=${encodeURIComponent(selectedJob.company)}&jobDescription=${encodeURIComponent(selectedJob.description)}`); }}
+            onClick={() => { setSelectedJob(null); handleCVWithSave(selectedJob); }}
             style={{ width: '100%', padding: 13, borderRadius: 10, background: v.blue, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
           >
             Générer mon CV pour cette offre
@@ -219,9 +244,7 @@ function JobCard({ job, onOpen, onCV }: { job: any; onOpen: () => void; onCV: ()
       onClick={onOpen}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 9, background: '#f5f5f7', border: '1px solid rgba(0,0,0,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
-          🏢
-        </div>
+        <CompanyLogo company={job.company} />
         <span style={{ fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 100, textTransform: 'uppercase', letterSpacing: '.02em', background: '#f5f5f7', border: '1px solid rgba(0,0,0,.08)', color: '#aeaeb2' }}>{job.source}</span>
       </div>
 
@@ -244,6 +267,81 @@ function JobCard({ job, onOpen, onCV }: { job: any; onOpen: () => void; onCV: ()
       >
         Générer mon CV pour cette offre
       </button>
+    </div>
+  )
+}
+
+// ─── Company logo helpers ─────────────────────────────────────────────────────
+
+const STOP_WORDS = new Set([
+  'interim','intérim','emploi','group','groupe','rh','conseil','consulting',
+  'france','recrutement','recruitment','solutions','services','management',
+  'international','sa','sas','sarl','srl','inc','ltd','gmbh','bv','nv',
+  'the','and','et','de','du','le','la','les','en','par',
+])
+
+function companyToDomain(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // strip accents
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 1 && !STOP_WORDS.has(w))
+    .join('')
+  const base = slug || name.toLowerCase().replace(/\s+/g, '')
+  // Prefer .fr for most French companies; Clearbit handles .com too
+  return `${base}.fr`
+}
+
+function nameColor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h)
+  const palette = [
+    '#1d1d1f','#0071e3','#1d8348','#b45309','#7d3c98',
+    '#154360','#0e6655','#784212','#922b21','#1a5276',
+  ]
+  return palette[Math.abs(h) % palette.length]
+}
+
+function companyInitials(name: string): string {
+  const words = name.trim().replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[1][0]).toUpperCase()
+}
+
+function CompanyLogo({ company, size = 38 }: { company: string; size?: number }) {
+  const [failed, setFailed] = useState(false)
+  const domain  = companyToDomain(company)
+  const logoUrl = `https://logo.clearbit.com/${domain}`
+  const radius  = Math.round(size * 0.24)
+
+  if (failed) {
+    return (
+      <div style={{
+        width: size, height: size, borderRadius: radius,
+        background: nameColor(company),
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: Math.round(size * 0.34), fontWeight: 600, color: '#fff',
+        letterSpacing: '-0.01em', flexShrink: 0,
+      }}>
+        {companyInitials(company)}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: radius,
+      background: '#f5f5f7', border: '1px solid rgba(0,0,0,.06)',
+      overflow: 'hidden', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', flexShrink: 0,
+    }}>
+      <img
+        src={logoUrl}
+        alt={company}
+        onError={() => setFailed(true)}
+        style={{ width: Math.round(size * 0.74), height: Math.round(size * 0.74), objectFit: 'contain' }}
+      />
     </div>
   )
 }

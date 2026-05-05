@@ -2,20 +2,56 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-async function getFranceTravailToken() {
-  const res = await fetch('https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: process.env.FRANCE_TRAVAIL_CLIENT_ID!,
-      client_secret: process.env.FRANCE_TRAVAIL_CLIENT_SECRET!,
-      scope: 'api_offresdemploiv2 o2dsoffre',
-    }),
-  })
+// France Travail allows only ONE active token per client_id at a time.
+// Two concurrent requests both seeing cachedToken=null would each fetch a new
+// token, with the second invalidating the first → 401. The inflight promise
+// deduplicates concurrent fetches so only one token is ever requested at once.
+let cachedToken: string | null = null
+let tokenExpiresAt = 0
+let inflightFetch: Promise<string> | null = null
+
+async function fetchNewToken(): Promise<string> {
+  const rawBody = `grant_type=client_credentials&client_id=${process.env.FRANCE_TRAVAIL_CLIENT_ID}&client_secret=${process.env.FRANCE_TRAVAIL_CLIENT_SECRET}&scope=api_offresdemploiv2+o2dsoffre`
+  console.log('[FT] token request body:', rawBody.replace(process.env.FRANCE_TRAVAIL_CLIENT_SECRET || 'SECRET', '***'))
+  const res = await fetch(
+    'https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: rawBody,
+      cache: 'no-store',
+    }
+  )
+  console.log('[FT] token response status:', res.status)
   const data = await res.json()
-  return data.access_token
+  if (!data.access_token) throw new Error(`Token fetch failed: ${JSON.stringify(data)}`)
+  cachedToken = data.access_token
+  tokenExpiresAt = Date.now() + data.expires_in * 1000
+  console.log('[FT] token refreshed, expires in', data.expires_in, 's')
+  return cachedToken!
 }
+
+function getToken(): Promise<string> {
+  if (cachedToken && Date.now() < tokenExpiresAt - 60_000) {
+    return Promise.resolve(cachedToken)
+  }
+  // Reuse the inflight fetch if one is already running
+  if (!inflightFetch) {
+    inflightFetch = fetchNewToken().finally(() => { inflightFetch = null })
+  }
+  return inflightFetch
+}
+
+function invalidateToken() {
+  cachedToken = null
+  tokenExpiresAt = 0
+  // Do NOT reset inflightFetch: if another concurrent request is already fetching
+  // a new token, clearing inflightFetch would let this request start a competing
+  // fetch. France Travail allows only one active token per client_id — two
+  // concurrent fetches would each invalidate the other → cascading 401 loop.
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function toTitleCase(str: string): string {
   return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
@@ -23,27 +59,42 @@ function toTitleCase(str: string): string {
 
 function formatSalaire(libelle: string): string {
   if (!libelle) return 'Salaire NC'
-
   const match = libelle.match(/(\d+(?:[.,]\d+)?)\s*Euros?\s*(?:à\s*(\d+(?:[.,]\d+)?)\s*Euros?)?/i)
   if (!match) return 'Salaire NC'
-
   const min = Math.round(parseFloat(match[1].replace(',', '.')))
   const max = match[2] ? Math.round(parseFloat(match[2].replace(',', '.'))) : null
-
   const isAnnuel = libelle.toLowerCase().includes('annuel')
-
   if (isAnnuel) {
-    const annMin = Math.round(min / 1000)
-    const annMax = max ? Math.round(max / 1000) : null
-    if (annMin === 0) return 'Salaire NC'
-    return annMax ? `${annMin}k€ — ${annMax}k€ / an` : `${annMin}k€ / an`
+    const a = Math.round(min / 1000), b = max ? Math.round(max / 1000) : null
+    return a === 0 ? 'Salaire NC' : b ? `${a}k€ — ${b}k€ / an` : `${a}k€ / an`
   }
+  const a = Math.round((min * 12) / 1000), b = max ? Math.round((max * 12) / 1000) : null
+  return a === 0 ? 'Salaire NC' : b ? `${a}k€ — ${b}k€ / an` : `${a}k€ / an`
+}
 
-  // Mensuel → annuel
-  const annMin = Math.round((min * 12) / 1000)
-  const annMax = max ? Math.round((max * 12) / 1000) : null
-  if (annMin === 0) return 'Salaire NC'
-  return annMax ? `${annMin}k€ — ${annMax}k€ / an` : `${annMin}k€ / an`
+function mapJob(j: any) {
+  return {
+    id:          j.id,
+    title:       toTitleCase(j.intitule),
+    company:     j.entreprise?.nom || 'Entreprise non précisée',
+    location:    j.lieuTravail?.libelle || '',
+    contract:    j.typeContratLibelle || 'CDI',
+    salary:      formatSalaire(j.salaire?.libelle || ''),
+    description: j.description || '',
+    url:         j.origineOffre?.urlOrigine || '',
+    source:      'France Travail',
+    remote:      j.teleTravailLibelle || '',
+  }
+}
+
+async function searchJobs(token: string, params: URLSearchParams) {
+  const url = `https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search?${params}`
+  console.log('[FT] search url:', url)
+  console.log('[FT] token prefix:', token.slice(0, 20) + '...')
+  return fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    cache: 'no-store',
+  })
 }
 
 export async function GET(request: Request) {
@@ -54,42 +105,36 @@ export async function GET(request: Request) {
     const salMin   = searchParams.get('salMin') || ''
     const salMax   = searchParams.get('salMax') || ''
 
-    const token = await getFranceTravailToken()
-
     const params = new URLSearchParams({ range: '0-19' })
     if (keyword)  params.append('motsCles', keyword)
     if (location) params.append('commune', location)
     if (salMin)   params.append('salaireMin', salMin)
     if (salMax)   params.append('salaireMax', salMax)
 
-    const res = await fetch(
-      `https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search?${params}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      }
-    )
+    let token = await getToken()
+    let res   = await searchJobs(token, params)
+
+    // If 401, the cached token was externally invalidated — refresh once and retry
+    if (res.status === 401) {
+      console.log('[FT] 401 on search — refreshing token and retrying')
+      invalidateToken()
+      token = await getToken()
+      res   = await searchJobs(token, params)
+    }
+
+    if (!res.ok) {
+      const body = await res.text()
+      console.error('[FT] search failed', res.status, body.slice(0, 200))
+      return NextResponse.json({ error: `Search error ${res.status}` }, { status: 500 })
+    }
 
     const data = await res.json()
-
-    const jobs = (data.resultats || []).map((j: any) => ({
-      id: j.id,
-      title: toTitleCase(j.intitule),
-      company: j.entreprise?.nom || 'Entreprise non précisée',
-      location: j.lieuTravail?.libelle || '',
-      contract: j.typeContratLibelle || 'CDI',
-      salary: formatSalaire(j.salaire?.libelle || ''),
-      description: j.description || '',
-      url: j.origineOffre?.urlOrigine || '',
-      source: 'France Travail',
-      remote: j.teleTravailLibelle || '',
-    }))
-
+    const jobs = (data.resultats || []).map(mapJob)
+    console.log('[FT] jobs returned:', jobs.length)
     return NextResponse.json({ jobs })
+
   } catch (err: any) {
-    console.error('France Travail error:', err)
+    console.error('[FT] error:', err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

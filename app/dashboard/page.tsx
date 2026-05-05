@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
 import CheckoutButton from '@/components/CheckoutButton'
+import ApplicationsTable from '@/components/ApplicationsTable'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -10,25 +11,23 @@ export default async function DashboardPage() {
 
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_premium, cv_count_this_month')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: applications }] = await Promise.all([
+    supabase.from('profiles').select('is_premium, cv_count_this_month').eq('id', user.id).single(),
+    supabase.from('applications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+  ])
 
   const isPremium = profile?.is_premium || false
   const cvUsed = profile?.cv_count_this_month || 0
   const cvMax = isPremium ? '∞' : 1
   const cvPct = isPremium ? 0 : Math.min((cvUsed / 1) * 100, 100)
 
-  // Salutation dynamique
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
-
-  // Prénom depuis l'email (liukas.perdriat@gmail.com → Liukas)
   const rawName = user.email?.split('@')[0] || ''
   const firstName = rawName.split(/[._-]/)[0]
   const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+
+  const apps = applications || []
 
   const v = {
     bg: '#f5f5f7', white: '#fff',
@@ -69,7 +68,7 @@ export default async function DashboardPage() {
           <h1 style={{ fontSize: 'clamp(28px,4vw,42px)', fontWeight: 600, letterSpacing: '-0.04em', marginBottom: 4 }}>
             {greeting}, {displayName}.
           </h1>
-          <p style={{ fontSize: 14, color: v.text3, fontWeight: 400 }}>{user.email}</p>
+          <p style={{ fontSize: 14, color: v.text3 }}>{user.email}</p>
         </div>
 
         {/* Bento grid */}
@@ -77,50 +76,36 @@ export default async function DashboardPage() {
 
           {/* Quota CV */}
           <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, padding: '24px 22px', boxShadow: v.shadow }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: v.text3, marginBottom: 14 }}>
-              CV ce mois-ci
-            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: v.text3, marginBottom: 14 }}>CV ce mois-ci</div>
             <div style={{ fontSize: 36, fontWeight: 300, letterSpacing: '-0.04em', marginBottom: 8 }}>
               {cvUsed}<span style={{ fontSize: 18, color: v.text3 }}> / {cvMax}</span>
             </div>
             {!isPremium && (
               <>
                 <div style={{ height: 4, background: '#e8e8ed', borderRadius: 2, marginBottom: 8, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${cvPct}%`, background: cvPct >= 100 ? '#c0392b' : v.blue, borderRadius: 2, transition: 'width .3s' }} />
+                  <div style={{ height: '100%', width: `${cvPct}%`, background: cvPct >= 100 ? '#c0392b' : v.blue, borderRadius: 2 }} />
                 </div>
                 <div style={{ fontSize: 12, color: cvPct >= 100 ? '#c0392b' : v.text3 }}>
                   {cvPct >= 100 ? 'Quota atteint ce mois-ci' : `${cvUsed} utilisé${cvUsed > 1 ? 's' : ''} sur 1`}
                 </div>
               </>
             )}
-            {isPremium && (
-              <div style={{ fontSize: 12, color: '#1d8348', fontWeight: 500 }}>✓ CV illimités</div>
-            )}
+            {isPremium && <div style={{ fontSize: 12, color: '#1d8348', fontWeight: 500 }}>✓ CV illimités</div>}
           </div>
 
-          {/* Statut abonnement */}
+          {/* Abonnement */}
           <div style={{ background: isPremium ? v.blue : v.white, borderRadius: 18, border: `1.5px solid ${isPremium ? v.blue : v.line}`, padding: '24px 22px', boxShadow: isPremium ? '0 0 0 3px rgba(0,113,227,.1)' : v.shadow }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: isPremium ? 'rgba(255,255,255,0.6)' : v.text3, marginBottom: 14 }}>
-              Abonnement
-            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: isPremium ? 'rgba(255,255,255,0.6)' : v.text3, marginBottom: 14 }}>Abonnement</div>
             <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.03em', color: isPremium ? '#fff' : v.text, marginBottom: 8 }}>
               {isPremium ? 'Premium' : 'Gratuit'}
             </div>
-            {!isPremium && (
-              <div style={{ marginTop: 12 }}>
-                <CheckoutButton />
-              </div>
-            )}
-            {isPremium && (
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Merci de votre confiance.</div>
-            )}
+            {!isPremium && <div style={{ marginTop: 12 }}><CheckoutButton /></div>}
+            {isPremium && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Merci de votre confiance.</div>}
           </div>
 
           {/* Accès rapide */}
           <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, padding: '24px 22px', boxShadow: v.shadow }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: v.text3, marginBottom: 14 }}>
-              Accès rapide
-            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: v.text3, marginBottom: 14 }}>Accès rapide</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <Link href="/jobs" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: v.bg, border: `1px solid ${v.line}`, textDecoration: 'none', color: v.text, fontSize: 13, fontWeight: 500 }}>
                 <span>🔍</span> Chercher des offres
@@ -133,17 +118,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Candidatures */}
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.025em', marginBottom: 16 }}>Vos candidatures</div>
-          <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, padding: '48px 24px', textAlign: 'center', boxShadow: v.shadow }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
-            <div style={{ fontSize: 15, fontWeight: 500, color: v.text, marginBottom: 6 }}>Aucune candidature pour l'instant.</div>
-            <div style={{ fontSize: 13, color: v.text2, marginBottom: 20 }}>Parcourez les offres et générez votre premier CV IA.</div>
-            <Link href="/jobs" style={{ display: 'inline-block', padding: '10px 24px', borderRadius: 100, background: v.blue, color: '#fff', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>
-              Voir les offres
-            </Link>
-          </div>
-        </div>
+        <ApplicationsTable initialApps={apps} />
       </div>
     </div>
   )
