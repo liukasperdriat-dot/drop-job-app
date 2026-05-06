@@ -27,14 +27,25 @@ export async function POST(request: Request) {
     }
 
     // ── Vérification du quota ──────────────────────────────────────────────
-    const { data: profile, error: profileError } = await supabase
+    let { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('is_premium, cv_count_this_month, cv_reset_date')
       .eq('id', user.id)
       .single()
 
+    // Aucune ligne → on crée la ligne quota avec les valeurs par défaut
     if (profileError || !profile) {
-      return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 })
+      const today = new Date().toISOString().split('T')[0]
+      const { data: created, error: createError } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, is_premium: false, cv_count_this_month: 0, cv_reset_date: today })
+        .select('is_premium, cv_count_this_month, cv_reset_date')
+        .single()
+
+      if (createError || !created) {
+        return NextResponse.json({ error: 'Impossible d\'initialiser le quota.' }, { status: 500 })
+      }
+      profile = created
     }
 
     const now = new Date()
