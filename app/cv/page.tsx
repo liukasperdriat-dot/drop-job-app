@@ -58,15 +58,10 @@ function CVPageInner() {
     setError('')
     setCv(null)
 
-    // Send structured profile; fallback wraps free-text in minimal object
-    const structuredProfile = profileState === 'loaded'
-      ? profileData
-      : { summary: userProfile }
-
     const res = await fetch('/api/generate-cv', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobTitle, company, jobDescription, structuredProfile }),
+      body: JSON.stringify({ jobTitle, company, jobDescription }),
     })
 
     const data = await res.json()
@@ -82,48 +77,46 @@ function CVPageInner() {
     const { jsPDF } = await import('jspdf')
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const pageW = 210
-    const margin = 20
+    const margin = 22
     const colW = pageW - margin * 2
     let y = 0
 
     // ── Header band ──────────────────────────────────────────────────────
+    const headerH = 62
     doc.setFillColor(29, 29, 31)
-    doc.rect(0, 0, pageW, 46, 'F')
+    doc.rect(0, 0, pageW, headerH, 'F')
 
+    // Nom — grand, impactant
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(22)
+    doc.setFontSize(28)
     doc.setFont('helvetica', 'bold')
-    doc.text(cv.name || '', margin, 18)
+    doc.text(cv.name || '', margin, 24)
 
-    doc.setFontSize(11)
+    // Titre de poste
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(174, 174, 178)
-    doc.text(cv.title || '', margin, 27)
+    doc.text(cv.title || '', margin, 36)
 
-    // Contact line
+    // Ligne séparatrice fine sous le titre
+    doc.setDrawColor(60, 60, 65)
+    doc.setLineWidth(0.25)
+    doc.line(margin, 41, pageW - margin, 41)
+
+    // Contact
     const contactParts = [
       profileData?.email, profileData?.phone,
       profileData?.location, profileData?.linkedin,
     ].filter(Boolean)
     if (contactParts.length) {
-      doc.setFontSize(7.5)
-      doc.setTextColor(100, 100, 105)
-      doc.text(contactParts.join('  ·  '), margin, 35)
+      doc.setFontSize(8.5)
+      doc.setTextColor(120, 120, 125)
+      doc.text(contactParts.join('   ·   '), margin, 52)
     }
 
-    // Match score badge
-    if (cv.matchScore) {
-      const sc = scoreColor(cv.matchScore)
-      const rgb = sc === '#1d8348' ? [29, 131, 72] : sc === '#b45309' ? [180, 83, 9] : [192, 57, 43]
-      doc.setFillColor(...rgb as [number, number, number])
-      doc.roundedRect(pageW - margin - 40, 12, 40, 9, 4, 4, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`Match : ${cv.matchScore}%`, pageW - margin - 20, 17.8, { align: 'center' })
-    }
+    // NB : match score intentionnellement absent du PDF (info interne uniquement)
 
-    y = 56
+    y = headerH + 14
 
     // ── Helpers ───────────────────────────────────────────────────────────
     const checkPage = (needed: number) => {
@@ -131,99 +124,103 @@ function CVPageInner() {
     }
 
     const sectionTitle = (label: string) => {
-      checkPage(14)
-      doc.setFontSize(7.5)
+      checkPage(18)
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(174, 174, 178)
+      doc.setTextColor(160, 160, 165)
       doc.text(label.toUpperCase(), margin, y)
-      doc.setDrawColor(232, 232, 237)
-      doc.setLineWidth(0.3)
-      doc.line(margin + doc.getTextWidth(label.toUpperCase()) + 3, y - 0.5, margin + colW, y - 0.5)
-      y += 6
+      doc.setDrawColor(220, 220, 224)
+      doc.setLineWidth(0.35)
+      doc.line(margin + doc.getTextWidth(label.toUpperCase()) + 4, y - 0.8, margin + colW, y - 0.8)
+      y += 8
     }
 
-    const bodyText = (text: string, color: [number, number, number] = [29, 29, 31]) => {
-      doc.setFontSize(9.5)
+    const bodyText = (text: string, color: [number, number, number] = [40, 40, 42]) => {
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(...color)
       const lines = doc.splitTextToSize(text, colW)
-      checkPage(lines.length * 5 + 3)
+      checkPage(lines.length * 5.5 + 3)
       doc.text(lines, margin, y)
-      y += lines.length * 5 + 3
+      y += lines.length * 5.5 + 3
     }
 
     // ── Sections ──────────────────────────────────────────────────────────
     if (cv.summary) {
       sectionTitle('Résumé')
       bodyText(cv.summary)
-      y += 3
+      y += 6
     }
 
     if (cv.experience?.length) {
       sectionTitle('Expérience')
       for (const exp of cv.experience) {
-        checkPage(24)
-        doc.setFontSize(10)
+        checkPage(28)
+        doc.setFontSize(11)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(29, 29, 31)
-        doc.text(`${exp.title} — ${exp.company}`, margin, y)
-        y += 5
-        doc.setFontSize(8.5)
+        doc.text(`${exp.title}`, margin, y)
+        y += 6
+        doc.setFontSize(10)
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(110, 110, 115)
-        doc.text(exp.period || '', margin, y)
-        y += 5
-        bodyText(exp.description || '')
-        y += 2
+        doc.setTextColor(80, 80, 85)
+        doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y)
+        y += 6
+        bodyText(exp.description || '', [90, 90, 95])
+        y += 4
       }
-      y += 2
+      y += 4
     }
 
     if (cv.skills?.length) {
       sectionTitle('Compétences')
-      const lines = doc.splitTextToSize(cv.skills.join('  ·  '), colW)
-      checkPage(lines.length * 5 + 6)
-      doc.setFontSize(9.5)
+      const skillLine = cv.skills.join('   ·   ')
+      const lines = doc.splitTextToSize(skillLine, colW)
+      checkPage(lines.length * 5.5 + 8)
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.setTextColor(29, 29, 31)
+      doc.setTextColor(40, 40, 42)
       doc.text(lines, margin, y)
-      y += lines.length * 5 + 6
+      y += lines.length * 5.5 + 8
     }
 
     if (cv.education?.length) {
       sectionTitle('Formation')
       for (const edu of cv.education) {
-        checkPage(14)
-        doc.setFontSize(10)
+        checkPage(18)
+        doc.setFontSize(11)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(29, 29, 31)
         doc.text(edu.degree || '', margin, y)
-        y += 5
-        doc.setFontSize(8.5)
+        y += 6
+        doc.setFontSize(9.5)
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(110, 110, 115)
-        doc.text(`${edu.school}${edu.period ? `  ·  ${edu.period}` : ''}`, margin, y)
-        y += 7
+        doc.setTextColor(80, 80, 85)
+        doc.text(`${edu.school}${edu.period ? `   ·   ${edu.period}` : ''}`, margin, y)
+        y += 8
       }
+      y += 2
     }
 
     if (cv.languages?.length) {
       sectionTitle('Langues')
-      const langLine = cv.languages.map((l: any) => `${l.name} (${l.level})`).join('  ·  ')
+      const langLine = cv.languages.map((l: any) => `${l.name} (${l.level})`).join('   ·   ')
       const lines = doc.splitTextToSize(langLine, colW)
-      checkPage(lines.length * 5 + 4)
-      doc.setFontSize(9.5)
+      checkPage(lines.length * 5.5 + 4)
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.setTextColor(29, 29, 31)
+      doc.setTextColor(40, 40, 42)
       doc.text(lines, margin, y)
-      y += lines.length * 5 + 4
+      y += lines.length * 5.5 + 6
     }
 
-    // Watermark
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(180, 180, 185)
-    doc.text('Généré par DROP-JOB', pageW - margin, 290, { align: 'right' })
+    // Watermark freemium : discret pour free, absent pour premium
+    if (cv.watermark) {
+      doc.setFontSize(6.5)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(200, 200, 205)
+      doc.text('drop-job.fr', pageW - margin, 291, { align: 'right' })
+    }
 
     doc.save(`CV_${(cv.name || 'cv').replace(/\s+/g, '_')}_${company || 'drop-job'}.pdf`)
     setDownloading(false)

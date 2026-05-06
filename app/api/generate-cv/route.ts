@@ -18,60 +18,67 @@ RÈGLES ABSOLUES — à respecter impérativement :
 - Tu réponds UNIQUEMENT en JSON valide selon le schéma demandé, sans markdown ni backticks.`
 
 export async function POST(request: Request) {
+  console.log('[generate-cv] START')
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('[generate-cv] auth:', user?.id ?? null, authError?.message ?? null)
 
     if (!user) {
       return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
     }
 
     // ── Vérification du quota ──────────────────────────────────────────────
-    let { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('is_premium, cv_count_this_month, cv_reset_date')
+      .select('is_premium, cv_count_this_month')
       .eq('id', user.id)
       .single()
+    console.log('[generate-cv] quota select → data:', JSON.stringify(profile), '| error:', profileError ? `${profileError.code} ${profileError.message}` : null)
 
-    // Aucune ligne → on crée la ligne quota avec les valeurs par défaut
-    if (profileError || !profile) {
-      const today = new Date().toISOString().split('T')[0]
+    if (profileError && profileError.code !== 'PGRST116') {
+      return NextResponse.json({ error: 'Erreur quota', code: profileError.code, details: profileError.message }, { status: 500 })
+    }
+
+    // Aucune ligne → on initialise avec les valeurs par défaut
+    let quota = profile
+    if (!quota) {
+      console.log('[generate-cv] no quota row, upserting…')
       const { data: created, error: createError } = await supabase
         .from('profiles')
-        .upsert({ id: user.id, is_premium: false, cv_count_this_month: 0, cv_reset_date: today })
-        .select('is_premium, cv_count_this_month, cv_reset_date')
+        .upsert({ id: user.id, is_premium: false, cv_count_this_month: 0 })
+        .select('is_premium, cv_count_this_month')
         .single()
+      console.log('[generate-cv] upsert → data:', JSON.stringify(created), '| error:', createError ? `${createError.code} ${createError.message} — ${createError.details}` : null)
 
       if (createError || !created) {
-        return NextResponse.json({ error: 'Impossible d\'initialiser le quota.' }, { status: 500 })
+        return NextResponse.json({ error: 'Impossible d\'initialiser le quota.', code: createError?.code, details: createError?.message }, { status: 500 })
       }
-      profile = created
+      quota = created
     }
 
-    const now = new Date()
-    const resetDate = new Date(profile.cv_reset_date)
-    const needsReset =
-      now.getMonth() !== resetDate.getMonth() ||
-      now.getFullYear() !== resetDate.getFullYear()
-
-    if (needsReset) {
-      await supabase
-        .from('profiles')
-        .update({ cv_count_this_month: 0, cv_reset_date: now.toISOString().split('T')[0] })
-        .eq('id', user.id)
-      profile.cv_count_this_month = 0
-    }
-
-    if (!profile.is_premium && profile.cv_count_this_month >= 1) {
+    if (!quota.is_premium && quota.cv_count_this_month >= 1) {
       return NextResponse.json(
         { error: 'QUOTA_EXCEEDED', message: 'Vous avez utilisé votre CV gratuit ce mois-ci. Passez à Premium pour en générer plus.' },
         { status: 403 }
       )
     }
 
-    // ── Génération ────────────────────────────────────────────────────────
-    const { jobTitle, company, jobDescription, structuredProfile } = await request.json()
+    // ── Profil structuré ──────────────────────────────────────────────────
+    const { jobTitle, company, jobDescription } = await request.json()
 
+    const { data: structuredProfile, error: spError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+    console.log('[generate-cv] user_profiles → found:', !!structuredProfile, '| error:', spError ? `${spError.code} ${spError.message}` : null)
+
+    if (spError || !structuredProfile) {
+      return NextResponse.json({ error: 'Profil introuvable. Complétez votre profil avant de générer un CV.', code: spError?.code, details: spError?.message }, { status: 404 })
+    }
+
+    // ── Génération ────────────────────────────────────────────────────────
     const userPrompt = `Génère un CV optimisé pour cette offre à partir du profil structuré ci-dessous.
 
 === OFFRE CIBLE ===
@@ -84,12 +91,14 @@ ${jobDescription}
 ${JSON.stringify(structuredProfile, null, 2)}
 
 === INSTRUCTIONS ===
-1. Reprends le nom complet du candidat (full_name) tel quel dans "name".
+Le profil contient les champs : full_name, title, summary, experiences (tableau avec title/company/location/start_date/end_date/current/description), education (tableau avec degree/school/start_date/end_date), skills (tableau de strings), languages (tableau avec name/level).
+
+1. Reprends full_name tel quel dans "name".
 2. Adapte "title" pour correspondre précisément au poste visé (en t'inspirant du titre existant du candidat).
 3. Rédige "summary" en 3-4 phrases qui connectent directement le profil à l'offre, en utilisant les mots-clés de la description.
-4. Dans "experience" : réordonne les postes par pertinence pour l'offre. Ne modifie JAMAIS entreprise, dates ni intitulé de poste — reformule uniquement les descriptions pour mettre en avant les mots-clés pertinents.
+4. Dans "experience" (sortie) : reprends les entrées de "experiences" (profil). Réordonne par pertinence pour l'offre. Ne modifie JAMAIS company, dates ni title — reformule uniquement description. Pour "period" : formate start_date/end_date en "MM/YYYY – MM/YYYY" ; si current=true, utilise "présent".
 5. Dans "skills" : sélectionne parmi les compétences existantes du profil et trie-les par pertinence décroissante pour cette offre. N'ajoute aucune compétence absente du profil.
-6. Inclus toutes les formations (education) du profil, sans modification.
+6. Dans "education" (sortie) : reprends toutes les entrées de "education" (profil). Pour "period" : formate start_date/end_date en "YYYY – YYYY".
 7. Inclus toutes les langues (languages) du profil, sans modification.
 8. Calcule "matchScore" (0–100) basé sur la correspondance objective compétences/expérience requises vs profil réel.
 9. Liste 2–3 "matchReasons" courtes (max 8 mots chacune) expliquant le score (points forts ou manques).
@@ -143,15 +152,15 @@ Réponds avec cette structure JSON exacte :
     // ── Incrémenter le compteur ────────────────────────────────────────────
     await supabase
       .from('profiles')
-      .update({ cv_count_this_month: profile.cv_count_this_month + 1 })
+      .update({ cv_count_this_month: quota.cv_count_this_month + 1 })
       .eq('id', user.id)
 
-    cv.watermark = !profile.is_premium
+    cv.watermark = !quota.is_premium
 
-    return NextResponse.json({ cv, isPremium: profile.is_premium })
+    return NextResponse.json({ cv, isPremium: quota.is_premium })
 
   } catch (err: any) {
-    console.error('generate-cv error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('[generate-cv] FATAL ERROR:', err?.message, '| code:', err?.code, '| stack:', err?.stack)
+    return NextResponse.json({ error: err?.message ?? 'Erreur inconnue', code: err?.code, details: err?.details }, { status: 500 })
   }
 }
