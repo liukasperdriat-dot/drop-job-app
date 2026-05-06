@@ -4,6 +4,19 @@ import OpenAI from 'openai'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
+const SYSTEM_PROMPT = `Tu es un expert en recrutement et rédaction de CV en France.
+Tu génères des CV professionnels, précis et optimisés ATS (Applicant Tracking Systems).
+
+RÈGLES ABSOLUES — à respecter impérativement :
+- Tu n'inventes JAMAIS de faits, diplômes, entreprises, dates, compétences ou langues absents du profil fourni.
+- Tu reformules et réordonnes uniquement ce qui existe dans le profil pour maximiser la pertinence avec l'offre.
+- Tu écris en français impeccable, professionnel, sans faute d'orthographe ni de grammaire.
+- Le résumé fait 3 à 4 phrases, personnalisé pour cette offre spécifique, en valorisant les atouts du candidat.
+- Les descriptions d'expérience sont réécrites pour intégrer les mots-clés de l'offre, sans déformer les faits.
+- Les compétences sont triées par pertinence décroissante pour cette offre.
+- Le matchScore reflète objectivement la correspondance réelle profil/offre (0–100).
+- Tu réponds UNIQUEMENT en JSON valide selon le schéma demandé, sans markdown ni backticks.`
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -24,7 +37,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 })
     }
 
-    // Reset mensuel : si cv_reset_date est dans un mois passé, on remet à 0
     const now = new Date()
     const resetDate = new Date(profile.cv_reset_date)
     const needsReset =
@@ -39,7 +51,6 @@ export async function POST(request: Request) {
       profile.cv_count_this_month = 0
     }
 
-    // Freemium : 1 CV max par mois
     if (!profile.is_premium && profile.cv_count_this_month >= 1) {
       return NextResponse.json(
         { error: 'QUOTA_EXCEEDED', message: 'Vous avez utilisé votre CV gratuit ce mois-ci. Passez à Premium pour en générer plus.' },
@@ -47,57 +58,76 @@ export async function POST(request: Request) {
       )
     }
 
-    // ── Génération du CV ───────────────────────────────────────────────────
-    const { jobTitle, company, jobDescription, userProfile } = await request.json()
+    // ── Génération ────────────────────────────────────────────────────────
+    const { jobTitle, company, jobDescription, structuredProfile } = await request.json()
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 1500,
-      messages: [
-        {
-          role: 'system',
-          content: `Tu es un expert en recrutement et rédaction de CV. 
-Tu génères des CV professionnels optimisés pour les ATS (Applicant Tracking Systems).
-Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`,
-        },
-        {
-          role: 'user',
-          content: `Génère un CV optimisé pour cette offre d'emploi.
-OFFRE:
-Poste: ${jobTitle}
-Entreprise: ${company}
-Description: ${jobDescription}
-PROFIL DU CANDIDAT:
-${userProfile}
-Réponds en JSON avec cette structure exacte:
+    const userPrompt = `Génère un CV optimisé pour cette offre à partir du profil structuré ci-dessous.
+
+=== OFFRE CIBLE ===
+Poste : ${jobTitle}
+Entreprise : ${company}
+Description :
+${jobDescription}
+
+=== PROFIL DU CANDIDAT ===
+${JSON.stringify(structuredProfile, null, 2)}
+
+=== INSTRUCTIONS ===
+1. Reprends le nom complet du candidat (full_name) tel quel dans "name".
+2. Adapte "title" pour correspondre précisément au poste visé (en t'inspirant du titre existant du candidat).
+3. Rédige "summary" en 3-4 phrases qui connectent directement le profil à l'offre, en utilisant les mots-clés de la description.
+4. Dans "experience" : réordonne les postes par pertinence pour l'offre. Ne modifie JAMAIS entreprise, dates ni intitulé de poste — reformule uniquement les descriptions pour mettre en avant les mots-clés pertinents.
+5. Dans "skills" : sélectionne parmi les compétences existantes du profil et trie-les par pertinence décroissante pour cette offre. N'ajoute aucune compétence absente du profil.
+6. Inclus toutes les formations (education) du profil, sans modification.
+7. Inclus toutes les langues (languages) du profil, sans modification.
+8. Calcule "matchScore" (0–100) basé sur la correspondance objective compétences/expérience requises vs profil réel.
+9. Liste 2–3 "matchReasons" courtes (max 8 mots chacune) expliquant le score (points forts ou manques).
+
+Réponds avec cette structure JSON exacte :
 {
   "name": "Prénom Nom",
-  "title": "Titre adapté au poste",
-  "summary": "Résumé professionnel de 3 lignes adapté à l'offre",
+  "title": "Titre adapté au poste visé",
+  "summary": "Résumé personnalisé de 3-4 phrases…",
   "experience": [
     {
-      "title": "Titre du poste",
-      "company": "Entreprise",
-      "period": "2022 - Present",
-      "description": "Description adaptée aux mots-clés de l'offre"
+      "title": "Intitulé exact du poste",
+      "company": "Entreprise exacte",
+      "period": "MM/YYYY – MM/YYYY ou MM/YYYY – présent",
+      "description": "Description réécrite orientée offre…"
     }
   ],
-  "skills": ["Compétence 1", "Compétence 2", "Compétence 3"],
+  "skills": ["Compétence 1", "Compétence 2"],
   "education": [
     {
-      "degree": "Diplôme",
-      "school": "École",
-      "year": "2020"
+      "degree": "Diplôme exact",
+      "school": "École exacte",
+      "period": "YYYY – YYYY"
     }
   ],
-  "matchScore": 85
-}`,
-        },
+  "languages": [
+    { "name": "Langue", "level": "Niveau" }
+  ],
+  "matchScore": 85,
+  "matchReasons": ["Point fort ou manque 1", "Point fort ou manque 2"]
+}`
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
       ],
     })
 
-    const content = completion.choices[0].message.content || ''
-    const cv = JSON.parse(content)
+    const content = completion.choices[0].message.content || '{}'
+    let cv: any
+    try {
+      cv = JSON.parse(content)
+    } catch {
+      return NextResponse.json({ error: 'Réponse IA invalide, réessayez.' }, { status: 500 })
+    }
 
     // ── Incrémenter le compteur ────────────────────────────────────────────
     await supabase
@@ -105,7 +135,6 @@ Réponds en JSON avec cette structure exacte:
       .update({ cv_count_this_month: profile.cv_count_this_month + 1 })
       .eq('id', user.id)
 
-    // Ajouter le filigrane si pas premium
     cv.watermark = !profile.is_premium
 
     return NextResponse.json({ cv, isPremium: profile.is_premium })

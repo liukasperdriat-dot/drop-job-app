@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -10,33 +10,12 @@ const v = {
   line: 'rgba(0,0,0,0.08)', line2: 'rgba(0,0,0,0.14)',
   blue: '#0071e3',
   shadow: '0 1px 2px rgba(0,0,0,.05), 0 2px 12px rgba(0,0,0,.05)',
-  shadow2: '0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)',
 }
 
-function profileToText(p: any): string {
-  const lines: string[] = []
-  if (p.full_name) lines.push(`Nom : ${p.full_name}`)
-  if (p.title) lines.push(`Poste : ${p.title}`)
-  if (p.location) lines.push(`Lieu : ${p.location}`)
-  if (p.summary) lines.push(`\nRésumé : ${p.summary}`)
-  if (p.experiences?.length) {
-    lines.push('\nExpériences :')
-    for (const e of p.experiences) {
-      const period = e.current ? `${e.start_date} – présent` : `${e.start_date}${e.end_date ? ` – ${e.end_date}` : ''}`
-      lines.push(`- ${e.title} chez ${e.company}${e.location ? ` (${e.location})` : ''} · ${period}`)
-      if (e.description) lines.push(`  ${e.description}`)
-    }
-  }
-  if (p.education?.length) {
-    lines.push('\nFormation :')
-    for (const e of p.education) {
-      lines.push(`- ${e.degree} – ${e.school}${e.location ? ` (${e.location})` : ''}${e.start_date ? ` · ${e.start_date}${e.end_date ? ` – ${e.end_date}` : ''}` : ''}`)
-      if (e.description) lines.push(`  ${e.description}`)
-    }
-  }
-  if (p.skills?.length) lines.push(`\nCompétences : ${p.skills.join(', ')}`)
-  if (p.languages?.length) lines.push(`Langues : ${p.languages.map((l: any) => `${l.name} (${l.level})`).join(', ')}`)
-  return lines.join('\n')
+function scoreColor(score: number) {
+  if (score >= 75) return '#1d8348'
+  if (score >= 50) return '#b45309'
+  return '#c0392b'
 }
 
 function CVPageInner() {
@@ -46,11 +25,16 @@ function CVPageInner() {
   const [jobTitle, setJobTitle]             = useState(params.get('title') || '')
   const [company, setCompany]               = useState(params.get('company') || '')
   const [jobDescription, setJobDescription] = useState(params.get('description') || '')
-  const [userProfile, setUserProfile]       = useState('')
-  const [cv, setCv]                         = useState<any>(null)
-  const [loading, setLoading]               = useState(false)
-  const [error, setError]                   = useState('')
-  const [downloading, setDownloading]       = useState(false)
+
+  // Raw structured profile from /api/profile
+  const [profileData, setProfileData]   = useState<any>(null)
+  // Fallback free-text for network-error state
+  const [userProfile, setUserProfile]   = useState('')
+
+  const [cv, setCv]             = useState<any>(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const [downloading, setDownloading] = useState(false)
 
   type ProfileState = 'loading' | 'loaded' | 'empty' | 'error'
   const [profileState, setProfileState] = useState<ProfileState>('loading')
@@ -60,7 +44,7 @@ function CVPageInner() {
       .then(r => r.json())
       .then(({ profile }) => {
         if (profile) {
-          setUserProfile(profileToText(profile))
+          setProfileData(profile)
           setProfileState('loaded')
         } else {
           setProfileState('empty')
@@ -74,15 +58,19 @@ function CVPageInner() {
     setError('')
     setCv(null)
 
+    // Send structured profile; fallback wraps free-text in minimal object
+    const structuredProfile = profileState === 'loaded'
+      ? profileData
+      : { summary: userProfile }
+
     const res = await fetch('/api/generate-cv', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobTitle, company, jobDescription, userProfile }),
+      body: JSON.stringify({ jobTitle, company, jobDescription, structuredProfile }),
     })
 
     const data = await res.json()
     setLoading(false)
-
     if (data.error) { setError(data.error); return }
     setCv(data.cv)
   }
@@ -93,15 +81,14 @@ function CVPageInner() {
 
     const { jsPDF } = await import('jspdf')
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-
     const pageW = 210
     const margin = 20
     const colW = pageW - margin * 2
     let y = 0
 
-    // Header band
+    // ── Header band ──────────────────────────────────────────────────────
     doc.setFillColor(29, 29, 31)
-    doc.rect(0, 0, pageW, 42, 'F')
+    doc.rect(0, 0, pageW, 46, 'F')
 
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(22)
@@ -111,21 +98,40 @@ function CVPageInner() {
     doc.setFontSize(11)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(174, 174, 178)
-    doc.text(cv.title || '', margin, 26)
+    doc.text(cv.title || '', margin, 27)
+
+    // Contact line
+    const contactParts = [
+      profileData?.email, profileData?.phone,
+      profileData?.location, profileData?.linkedin,
+    ].filter(Boolean)
+    if (contactParts.length) {
+      doc.setFontSize(7.5)
+      doc.setTextColor(100, 100, 105)
+      doc.text(contactParts.join('  ·  '), margin, 35)
+    }
 
     // Match score badge
     if (cv.matchScore) {
-      doc.setFillColor(29, 131, 72)
-      doc.roundedRect(pageW - margin - 38, 13, 38, 8, 4, 4, 'F')
+      const sc = scoreColor(cv.matchScore)
+      const rgb = sc === '#1d8348' ? [29, 131, 72] : sc === '#b45309' ? [180, 83, 9] : [192, 57, 43]
+      doc.setFillColor(...rgb as [number, number, number])
+      doc.roundedRect(pageW - margin - 40, 12, 40, 9, 4, 4, 'F')
       doc.setTextColor(255, 255, 255)
       doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
-      doc.text(`Score : ${cv.matchScore}%`, pageW - margin - 19, 18.5, { align: 'center' })
+      doc.text(`Match : ${cv.matchScore}%`, pageW - margin - 20, 17.8, { align: 'center' })
     }
 
-    y = 52
+    y = 56
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    const checkPage = (needed: number) => {
+      if (y + needed > 282) { doc.addPage(); y = 20 }
+    }
 
     const sectionTitle = (label: string) => {
+      checkPage(14)
       doc.setFontSize(7.5)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(174, 174, 178)
@@ -136,26 +142,27 @@ function CVPageInner() {
       y += 6
     }
 
-    const bodyText = (text: string, color = [29, 29, 31] as [number, number, number]) => {
+    const bodyText = (text: string, color: [number, number, number] = [29, 29, 31]) => {
       doc.setFontSize(9.5)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(...color)
       const lines = doc.splitTextToSize(text, colW)
+      checkPage(lines.length * 5 + 3)
       doc.text(lines, margin, y)
       y += lines.length * 5 + 3
     }
 
-    // Summary
+    // ── Sections ──────────────────────────────────────────────────────────
     if (cv.summary) {
       sectionTitle('Résumé')
       bodyText(cv.summary)
       y += 3
     }
 
-    // Experience
     if (cv.experience?.length) {
       sectionTitle('Expérience')
       for (const exp of cv.experience) {
+        checkPage(24)
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(29, 29, 31)
@@ -172,22 +179,21 @@ function CVPageInner() {
       y += 2
     }
 
-    // Skills
     if (cv.skills?.length) {
       sectionTitle('Compétences')
+      const lines = doc.splitTextToSize(cv.skills.join('  ·  '), colW)
+      checkPage(lines.length * 5 + 6)
       doc.setFontSize(9.5)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(29, 29, 31)
-      const skillLine = cv.skills.join('  ·  ')
-      const lines = doc.splitTextToSize(skillLine, colW)
       doc.text(lines, margin, y)
       y += lines.length * 5 + 6
     }
 
-    // Education
     if (cv.education?.length) {
       sectionTitle('Formation')
       for (const edu of cv.education) {
+        checkPage(14)
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(29, 29, 31)
@@ -196,22 +202,38 @@ function CVPageInner() {
         doc.setFontSize(8.5)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(110, 110, 115)
-        doc.text(`${edu.school}  ·  ${edu.year}`, margin, y)
+        doc.text(`${edu.school}${edu.period ? `  ·  ${edu.period}` : ''}`, margin, y)
         y += 7
       }
+    }
+
+    if (cv.languages?.length) {
+      sectionTitle('Langues')
+      const langLine = cv.languages.map((l: any) => `${l.name} (${l.level})`).join('  ·  ')
+      const lines = doc.splitTextToSize(langLine, colW)
+      checkPage(lines.length * 5 + 4)
+      doc.setFontSize(9.5)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(29, 29, 31)
+      doc.text(lines, margin, y)
+      y += lines.length * 5 + 4
     }
 
     // Watermark
     doc.setFontSize(7)
     doc.setFont('helvetica', 'bold')
-    doc.setTextColor(0, 113, 227, 0.18)
+    doc.setTextColor(180, 180, 185)
     doc.text('Généré par DROP-JOB', pageW - margin, 290, { align: 'right' })
 
     doc.save(`CV_${(cv.name || 'cv').replace(/\s+/g, '_')}_${company || 'drop-job'}.pdf`)
     setDownloading(false)
   }
 
-  const canGenerate = !loading && !!jobTitle && !!company && !!jobDescription && !!userProfile && profileState !== 'empty'
+  const canGenerate =
+    !loading &&
+    !!jobTitle && !!company && !!jobDescription &&
+    profileState !== 'empty' && profileState !== 'loading' &&
+    (profileState === 'loaded' || !!userProfile)
 
   return (
     <div style={{ minHeight: '100vh', background: v.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", WebkitFontSmoothing: 'antialiased' as any }}>
@@ -231,7 +253,11 @@ function CVPageInner() {
           </button>
           <div style={{ fontSize: 13, color: v.text2 }}>Smart CV IA</div>
           <button onClick={() => router.push('/dashboard')} style={{ display: 'flex', alignItems: 'center', gap: 5, background: v.bg, border: `1px solid ${v.line2}`, borderRadius: 100, padding: '6px 14px', fontSize: 13, color: v.text2, cursor: 'pointer', fontFamily: 'inherit' }}>
-            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><line x1="11" y1="1" x2="1" y2="1"/><polyline points="4,5 1,1 4,-3"/><line x1="1" y1="1" x2="1" y2="11"/></svg>
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}>
+              <line x1="11" y1="1" x2="1" y2="1"/>
+              <polyline points="4,5 1,1 4,-3"/>
+              <line x1="1" y1="1" x2="1" y2="11"/>
+            </svg>
             Dashboard
           </button>
         </div>
@@ -240,7 +266,6 @@ function CVPageInner() {
       {/* CONTENT */}
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: '48px 24px 80px' }}>
 
-        {/* Hero */}
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.04em', color: v.text, marginBottom: 6 }}>Smart CV IA</h1>
           <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>Générez un CV adapté à chaque offre en quelques secondes.</p>
@@ -248,45 +273,27 @@ function CVPageInner() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
 
-          {/* FORM CARD */}
+          {/* ── FORM CARD ─────────────────────────────────────────────────── */}
           <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, padding: '28px 26px', boxShadow: v.shadow, display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' as any, color: v.text3 }}>Informations</div>
 
             <Field label="Poste visé">
-              <input
-                type="text"
-                value={jobTitle}
-                onChange={e => setJobTitle(e.target.value)}
-                placeholder="ex : Développeur React Senior"
-                style={inputStyle}
-              />
+              <input type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="ex : Développeur React Senior" style={inputStyle} />
             </Field>
 
             <Field label="Entreprise">
-              <input
-                type="text"
-                value={company}
-                onChange={e => setCompany(e.target.value)}
-                placeholder="ex : Contentsquare"
-                style={inputStyle}
-              />
+              <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="ex : Contentsquare" style={inputStyle} />
             </Field>
 
             <Field label="Description de l'offre">
-              <textarea
-                value={jobDescription}
-                onChange={e => setJobDescription(e.target.value)}
-                placeholder="Collez la description de l'offre ici…"
-                rows={6}
-                style={textareaStyle}
-              />
+              <textarea value={jobDescription} onChange={e => setJobDescription(e.target.value)} placeholder="Collez la description de l'offre ici…" rows={6} style={textareaStyle} />
             </Field>
 
-            {/* Profile field — état conditionnel */}
+            {/* Profile status */}
             {profileState === 'loading' && (
               <Field label="Votre profil">
-                <div style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.14)', fontSize: 14, color: v.text3, background: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 14, height: 14, borderRadius: '50%', border: '1.5px solid #e8e8ed', borderTopColor: v.blue, animation: 'spin .7s linear infinite', flexShrink: 0 }} />
+                <div style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.14)', fontSize: 13, color: v.text3, background: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 13, height: 13, borderRadius: '50%', border: '1.5px solid #e8e8ed', borderTopColor: v.blue, animation: 'spin .7s linear infinite', flexShrink: 0 }} />
                   Chargement du profil…
                 </div>
               </Field>
@@ -296,8 +303,8 @@ function CVPageInner() {
               <Field label="Votre profil">
                 <div style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(29,131,72,.25)', background: 'rgba(29,131,72,.04)', fontSize: 13, color: '#1d8348', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 500 }}>
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}><polyline points="2,9 6,13 14,4"/></svg>
-                    Profil chargé
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}><polyline points="2,9 6,13 14,4"/></svg>
+                    Profil chargé{profileData?.full_name ? ` · ${profileData.full_name}` : ''}
                   </span>
                   <button onClick={() => router.push('/profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: v.blue, fontFamily: 'inherit', fontWeight: 500, textDecoration: 'underline', padding: 0 }}>
                     Modifier →
@@ -306,9 +313,9 @@ function CVPageInner() {
               </Field>
             )}
 
-            {(profileState === 'empty') && (
+            {profileState === 'empty' && (
               <Field label="Votre profil">
-                <div style={{ padding: '16px 18px', borderRadius: 10, border: '1.5px dashed rgba(0,0,0,0.14)', background: 'rgba(0,0,0,0.01)', textAlign: 'center' }}>
+                <div style={{ padding: '16px 18px', borderRadius: 10, border: '1.5px dashed rgba(0,0,0,0.14)', background: 'rgba(0,0,0,0.01)', textAlign: 'center' as any }}>
                   <div style={{ fontSize: 13, color: v.text2, fontWeight: 500, marginBottom: 10 }}>Crée d'abord ton profil pour générer un CV</div>
                   <button onClick={() => router.push('/profile')} style={{ padding: '9px 20px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                     Créer mon profil →
@@ -319,13 +326,7 @@ function CVPageInner() {
 
             {profileState === 'error' && (
               <Field label="Votre profil">
-                <textarea
-                  value={userProfile}
-                  onChange={e => setUserProfile(e.target.value)}
-                  placeholder="Décrivez votre expérience, compétences, formation…"
-                  rows={5}
-                  style={textareaStyle}
-                />
+                <textarea value={userProfile} onChange={e => setUserProfile(e.target.value)} placeholder="Décrivez votre expérience, compétences, formation…" rows={5} style={textareaStyle} />
               </Field>
             )}
 
@@ -338,29 +339,18 @@ function CVPageInner() {
             <button
               onClick={handleGenerate}
               disabled={!canGenerate}
-              style={{
-                padding: '13px',
-                borderRadius: 10,
-                background: canGenerate ? v.blue : '#e8e8ed',
-                color: canGenerate ? '#fff' : v.text3,
-                border: 'none',
-                fontSize: 15,
-                fontWeight: 500,
-                cursor: canGenerate ? 'pointer' : 'not-allowed',
-                fontFamily: 'inherit',
-                transition: 'background .2s',
-              }}
+              style={{ padding: '13px', borderRadius: 10, background: canGenerate ? v.blue : '#e8e8ed', color: canGenerate ? '#fff' : v.text3, border: 'none', fontSize: 15, fontWeight: 500, cursor: canGenerate ? 'pointer' : 'not-allowed', fontFamily: 'inherit', transition: 'background .2s' }}
             >
               {loading ? 'Génération en cours…' : 'Générer mon CV'}
             </button>
           </div>
 
-          {/* PREVIEW CARD */}
+          {/* ── PREVIEW CARD ──────────────────────────────────────────────── */}
           <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, minHeight: 560, display: 'flex', flexDirection: 'column', boxShadow: v.shadow, overflow: 'hidden' }}>
 
-            {/* Preview header bar */}
-            <div style={{ padding: '16px 22px', borderBottom: `1px solid ${v.line}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            {/* Chrome bar */}
+            <div style={{ padding: '14px 22px', borderBottom: `1px solid ${v.line}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
@@ -369,7 +359,7 @@ function CVPageInner() {
               <div style={{ width: 54 }} />
             </div>
 
-            <div style={{ flex: 1, padding: 24, display: 'flex', alignItems: cv || loading ? 'flex-start' : 'center', justifyContent: 'center' }}>
+            <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', alignItems: cv || loading ? 'flex-start' : 'center', justifyContent: 'center' }}>
 
               {/* Loading */}
               {loading && (
@@ -402,38 +392,54 @@ function CVPageInner() {
               {!loading && cv && (
                 <div style={{ width: '100%' }}>
 
-                  {/* CV Header */}
+                  {/* Header */}
                   <div style={{ background: v.text, borderRadius: 10, padding: '20px 20px 16px', marginBottom: 20 }}>
-                    <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.03em', color: '#fff', marginBottom: 4 }}>{cv.name}</div>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 12 }}>{cv.title}</div>
-                    {cv.matchScore && (
-                      <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: 100, background: 'rgba(29,131,72,0.8)', color: '#fff', fontSize: 11, fontWeight: 600 }}>
-                        Score matching : {cv.matchScore}%
-                      </span>
+                    <div style={{ fontSize: 21, fontWeight: 600, letterSpacing: '-0.03em', color: '#fff', marginBottom: 3 }}>{cv.name}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>{cv.title}</div>
+
+                    {/* Contact */}
+                    {(profileData?.email || profileData?.phone || profileData?.location) && (
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>
+                        {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                      </div>
                     )}
+
+                    {/* Match score + reasons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as any }}>
+                      {cv.matchScore && (
+                        <span style={{ padding: '3px 12px', borderRadius: 100, background: `${scoreColor(cv.matchScore)}cc`, color: '#fff', fontSize: 11, fontWeight: 600 }}>
+                          Match : {cv.matchScore}%
+                        </span>
+                      )}
+                      {cv.matchReasons?.map((r: string, i: number) => (
+                        <span key={i} style={{ padding: '2px 9px', borderRadius: 100, background: 'rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>
+                          {r}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Summary */}
+                  {/* Résumé */}
                   {cv.summary && (
                     <CVSection title="Résumé">
-                      <p style={{ fontSize: 13, color: v.text2, lineHeight: 1.65 }}>{cv.summary}</p>
+                      <p style={{ fontSize: 13, color: v.text2, lineHeight: 1.7 }}>{cv.summary}</p>
                     </CVSection>
                   )}
 
-                  {/* Experience */}
+                  {/* Expérience */}
                   {cv.experience?.length > 0 && (
                     <CVSection title="Expérience">
                       {cv.experience.map((exp: any, i: number) => (
                         <div key={i} style={{ marginBottom: 14 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: v.text }}>{exp.title} — {exp.company}</div>
                           <div style={{ fontSize: 11, color: v.text3, margin: '2px 0 5px' }}>{exp.period}</div>
-                          <div style={{ fontSize: 12, color: v.text2, lineHeight: 1.6 }}>{exp.description}</div>
+                          <div style={{ fontSize: 12, color: v.text2, lineHeight: 1.65 }}>{exp.description}</div>
                         </div>
                       ))}
                     </CVSection>
                   )}
 
-                  {/* Skills */}
+                  {/* Compétences */}
                   {cv.skills?.length > 0 && (
                     <CVSection title="Compétences">
                       <div style={{ display: 'flex', flexWrap: 'wrap' as any, gap: 6 }}>
@@ -444,43 +450,41 @@ function CVPageInner() {
                     </CVSection>
                   )}
 
-                  {/* Education */}
+                  {/* Formation */}
                   {cv.education?.length > 0 && (
                     <CVSection title="Formation">
                       {cv.education.map((edu: any, i: number) => (
                         <div key={i} style={{ marginBottom: 10 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: v.text }}>{edu.degree}</div>
-                          <div style={{ fontSize: 11, color: v.text3, marginTop: 2 }}>{edu.school} · {edu.year}</div>
+                          <div style={{ fontSize: 11, color: v.text3, marginTop: 2 }}>
+                            {edu.school}{edu.period ? ` · ${edu.period}` : ''}
+                          </div>
                         </div>
                       ))}
                     </CVSection>
                   )}
 
-                  {/* Watermark */}
-                  <div style={{ textAlign: 'right' as any, fontSize: 9, fontWeight: 600, color: 'rgba(0,113,227,0.18)', letterSpacing: '.04em', marginTop: 8 }}>DROP-JOB FREE</div>
+                  {/* Langues */}
+                  {cv.languages?.length > 0 && (
+                    <CVSection title="Langues">
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as any, gap: 6 }}>
+                        {cv.languages.map((l: any, i: number) => (
+                          <span key={i} style={{ padding: '3px 11px', borderRadius: 100, background: v.bg, border: `1px solid ${v.line}`, fontSize: 11, color: v.text }}>
+                            {l.name} <span style={{ color: v.text3 }}>{l.level}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </CVSection>
+                  )}
 
-                  {/* Download */}
+                  {cv.watermark && (
+                    <div style={{ textAlign: 'right' as any, fontSize: 9, fontWeight: 600, color: 'rgba(0,113,227,0.18)', letterSpacing: '.04em', marginTop: 8 }}>DROP-JOB FREE</div>
+                  )}
+
                   <button
                     onClick={handleDownloadPDF}
                     disabled={downloading}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      width: '100%',
-                      marginTop: 16,
-                      padding: '12px',
-                      borderRadius: 10,
-                      background: downloading ? '#e8e8ed' : v.blue,
-                      color: downloading ? v.text3 : '#fff',
-                      border: 'none',
-                      fontSize: 14,
-                      fontWeight: 500,
-                      cursor: downloading ? 'not-allowed' : 'pointer',
-                      fontFamily: 'inherit',
-                      transition: 'background .2s',
-                    }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 16, padding: '12px', borderRadius: 10, background: downloading ? '#e8e8ed' : v.blue, color: downloading ? v.text3 : '#fff', border: 'none', fontSize: 14, fontWeight: 500, cursor: downloading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background .2s' }}
                   >
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width={15} height={15}>
                       <line x1="8" y1="1" x2="8" y2="11"/>
@@ -517,7 +521,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function CVSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.08em', color: '#aeaeb2', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.08em', color: '#aeaeb2', textTransform: 'uppercase' as any, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
         {title}
         <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.06)' }} />
       </div>
@@ -538,10 +542,7 @@ const inputStyle: React.CSSProperties = {
   transition: 'border-color .15s, box-shadow .15s',
 }
 
-const textareaStyle: React.CSSProperties = {
-  ...inputStyle,
-  resize: 'vertical',
-}
+const textareaStyle: React.CSSProperties = { ...inputStyle, resize: 'vertical' }
 
 export default function CVPage() {
   return (
