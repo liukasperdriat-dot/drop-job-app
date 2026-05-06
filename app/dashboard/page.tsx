@@ -113,6 +113,9 @@ export default async function DashboardPage() {
               <Link href="/cv" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: 'rgba(0,113,227,.07)', border: '1px solid rgba(0,113,227,.14)', textDecoration: 'none', color: v.blue, fontSize: 13, fontWeight: 500 }}>
                 <span>✨</span> Générer un CV
               </Link>
+              <Link href="/profile" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: v.bg, border: `1px solid ${v.line}`, textDecoration: 'none', color: v.text, fontSize: 13, fontWeight: 500 }}>
+                <span>👤</span> Mon profil
+              </Link>
             </div>
           </div>
         </div>

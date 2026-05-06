@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -11,6 +11,32 @@ const v = {
   blue: '#0071e3',
   shadow: '0 1px 2px rgba(0,0,0,.05), 0 2px 12px rgba(0,0,0,.05)',
   shadow2: '0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)',
+}
+
+function profileToText(p: any): string {
+  const lines: string[] = []
+  if (p.full_name) lines.push(`Nom : ${p.full_name}`)
+  if (p.title) lines.push(`Poste : ${p.title}`)
+  if (p.location) lines.push(`Lieu : ${p.location}`)
+  if (p.summary) lines.push(`\nRésumé : ${p.summary}`)
+  if (p.experiences?.length) {
+    lines.push('\nExpériences :')
+    for (const e of p.experiences) {
+      const period = e.current ? `${e.start_date} – présent` : `${e.start_date}${e.end_date ? ` – ${e.end_date}` : ''}`
+      lines.push(`- ${e.title} chez ${e.company}${e.location ? ` (${e.location})` : ''} · ${period}`)
+      if (e.description) lines.push(`  ${e.description}`)
+    }
+  }
+  if (p.education?.length) {
+    lines.push('\nFormation :')
+    for (const e of p.education) {
+      lines.push(`- ${e.degree} – ${e.school}${e.location ? ` (${e.location})` : ''}${e.start_date ? ` · ${e.start_date}${e.end_date ? ` – ${e.end_date}` : ''}` : ''}`)
+      if (e.description) lines.push(`  ${e.description}`)
+    }
+  }
+  if (p.skills?.length) lines.push(`\nCompétences : ${p.skills.join(', ')}`)
+  if (p.languages?.length) lines.push(`Langues : ${p.languages.map((l: any) => `${l.name} (${l.level})`).join(', ')}`)
+  return lines.join('\n')
 }
 
 function CVPageInner() {
@@ -25,6 +51,23 @@ function CVPageInner() {
   const [loading, setLoading]               = useState(false)
   const [error, setError]                   = useState('')
   const [downloading, setDownloading]       = useState(false)
+
+  type ProfileState = 'loading' | 'loaded' | 'empty' | 'error'
+  const [profileState, setProfileState] = useState<ProfileState>('loading')
+
+  useEffect(() => {
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then(({ profile }) => {
+        if (profile) {
+          setUserProfile(profileToText(profile))
+          setProfileState('loaded')
+        } else {
+          setProfileState('empty')
+        }
+      })
+      .catch(() => setProfileState('error'))
+  }, [])
 
   async function handleGenerate() {
     setLoading(true)
@@ -168,7 +211,7 @@ function CVPageInner() {
     setDownloading(false)
   }
 
-  const canGenerate = !loading && !!jobTitle && !!company && !!jobDescription && !!userProfile
+  const canGenerate = !loading && !!jobTitle && !!company && !!jobDescription && !!userProfile && profileState !== 'empty'
 
   return (
     <div style={{ minHeight: '100vh', background: v.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", WebkitFontSmoothing: 'antialiased' as any }}>
@@ -239,15 +282,52 @@ function CVPageInner() {
               />
             </Field>
 
-            <Field label="Votre profil">
-              <textarea
-                value={userProfile}
-                onChange={e => setUserProfile(e.target.value)}
-                placeholder="Décrivez votre expérience, compétences, formation…"
-                rows={5}
-                style={textareaStyle}
-              />
-            </Field>
+            {/* Profile field — état conditionnel */}
+            {profileState === 'loading' && (
+              <Field label="Votre profil">
+                <div style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.14)', fontSize: 14, color: v.text3, background: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 14, height: 14, borderRadius: '50%', border: '1.5px solid #e8e8ed', borderTopColor: v.blue, animation: 'spin .7s linear infinite', flexShrink: 0 }} />
+                  Chargement du profil…
+                </div>
+              </Field>
+            )}
+
+            {profileState === 'loaded' && (
+              <Field label="Votre profil">
+                <div style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(29,131,72,.25)', background: 'rgba(29,131,72,.04)', fontSize: 13, color: '#1d8348', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 500 }}>
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}><polyline points="2,9 6,13 14,4"/></svg>
+                    Profil chargé
+                  </span>
+                  <button onClick={() => router.push('/profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: v.blue, fontFamily: 'inherit', fontWeight: 500, textDecoration: 'underline', padding: 0 }}>
+                    Modifier →
+                  </button>
+                </div>
+              </Field>
+            )}
+
+            {(profileState === 'empty') && (
+              <Field label="Votre profil">
+                <div style={{ padding: '16px 18px', borderRadius: 10, border: '1.5px dashed rgba(0,0,0,0.14)', background: 'rgba(0,0,0,0.01)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, color: v.text2, fontWeight: 500, marginBottom: 10 }}>Crée d'abord ton profil pour générer un CV</div>
+                  <button onClick={() => router.push('/profile')} style={{ padding: '9px 20px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Créer mon profil →
+                  </button>
+                </div>
+              </Field>
+            )}
+
+            {profileState === 'error' && (
+              <Field label="Votre profil">
+                <textarea
+                  value={userProfile}
+                  onChange={e => setUserProfile(e.target.value)}
+                  placeholder="Décrivez votre expérience, compétences, formation…"
+                  rows={5}
+                  style={textareaStyle}
+                />
+              </Field>
+            )}
 
             {error && (
               <div style={{ background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#c0392b' }}>
