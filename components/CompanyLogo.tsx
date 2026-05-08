@@ -40,7 +40,7 @@ function companyInitials(name: string): string {
 export default function CompanyLogo({ company, size = 38 }: { company: string; size?: number }) {
   const [failed, setFailed] = useState(false)
   const domain  = companyToDomain(company)
-  const logoUrl = `https://logo.clearbit.com/${domain}`
+  const logoUrl = `https://img.logo.dev/${domain}?token=${process.env.NEXT_PUBLIC_LOGODEV_TOKEN}&size=128&format=png`
   const radius  = Math.round(size * 0.24)
 
   if (failed) {
