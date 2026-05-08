@@ -32,6 +32,14 @@ export default function JobsPage() {
   const [selectedJob, setSelectedJob]   = useState<any>(null)
   const router = useRouter()
 
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   async function searchJobs(kw = keyword, loc = location) {
     setLoading(true)
     setJobs([])
@@ -100,7 +108,7 @@ export default function JobsPage() {
         </div>
       </nav>
 
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '40px 24px 80px' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '40px 24px 80px' }}>
 
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
@@ -109,34 +117,36 @@ export default function JobsPage() {
         </div>
 
         {/* Search bar */}
-        <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 100, border: `1px solid ${v.line2}`, boxShadow: v.shadow2, marginBottom: 14, overflow: 'hidden' }}>
-          <div style={{ padding: '0 10px 0 18px', display: 'flex', color: v.text3, flexShrink: 0 }}>
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width={15} height={15}><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 14, border: `1px solid ${v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
+              <div style={{ padding: '0 10px 0 16px', display: 'flex', color: v.text3, flexShrink: 0 }}>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width={15} height={15}><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+              </div>
+              <input type="text" value={keyword} onChange={e => setKeyword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Métier, compétence, entreprise…" style={{ flex: 1, padding: '14px 10px 14px 6px', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 16, color: v.text }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 14, border: `1px solid ${v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
+              <div style={{ padding: '0 10px 0 16px', display: 'flex', color: v.text3, flexShrink: 0 }}>
+                <svg viewBox="0 0 12 16" fill="none" stroke={v.text3} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 9 4 9s4-5.7 4-9c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.3"/></svg>
+              </div>
+              <input type="text" value={location} onChange={e => setLocation(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Ville…" style={{ flex: 1, padding: '14px 10px 14px 6px', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 16, color: v.text }} />
+            </div>
+            <button onClick={handleSearch} style={{ width: '100%', padding: '14px', borderRadius: 14, background: v.blue, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 16, fontWeight: 500, cursor: 'pointer', minHeight: 44 }}>Rechercher</button>
           </div>
-          <input
-            type="text"
-            value={keyword}
-            onChange={e => setKeyword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="Métier, compétence, entreprise…"
-            style={{ flex: 1, padding: '13px 0', minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 15, color: v.text }}
-          />
-          <div style={{ width: 1, height: 20, background: v.line2, flexShrink: 0 }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 14px', flexShrink: 0 }}>
-            <svg viewBox="0 0 12 16" fill="none" stroke={v.text3} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 9 4 9s4-5.7 4-9c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.3"/></svg>
-            <input
-              type="text"
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="Ville…"
-              style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 500, color: v.text2, width: 80 }}
-            />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 100, border: `1px solid ${v.line2}`, boxShadow: v.shadow2, marginBottom: 14, overflow: 'hidden' }}>
+            <div style={{ padding: '0 10px 0 18px', display: 'flex', color: v.text3, flexShrink: 0 }}>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width={15} height={15}><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+            </div>
+            <input type="text" value={keyword} onChange={e => setKeyword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Métier, compétence, entreprise…" style={{ flex: 1, padding: '13px 0', minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 15, color: v.text }} />
+            <div style={{ width: 1, height: 20, background: v.line2, flexShrink: 0 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 14px', flexShrink: 0 }}>
+              <svg viewBox="0 0 12 16" fill="none" stroke={v.text3} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 9 4 9s4-5.7 4-9c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.3"/></svg>
+              <input type="text" value={location} onChange={e => setLocation(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Ville…" style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 500, color: v.text2, width: 80 }} />
+            </div>
+            <button onClick={handleSearch} style={{ margin: 5, padding: '8px 20px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>Rechercher</button>
           </div>
-          <button onClick={handleSearch} style={{ margin: 5, padding: '8px 20px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
-            Rechercher
-          </button>
-        </div>
+        )}
 
         {/* Filter chips */}
         <div style={{ display: 'flex', gap: 5, marginBottom: 28, flexWrap: 'wrap' }}>
@@ -229,6 +239,7 @@ export default function JobsPage() {
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html { scroll-behavior: smooth; }
       @keyframes spin { to { transform: rotate(360deg); } }
+      @media (max-width: 768px) { input, textarea { font-size: 16px !important; } }
     `}</style>
     </>
   )

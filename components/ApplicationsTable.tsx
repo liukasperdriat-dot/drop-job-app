@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 const STATUSES = ['En cours', 'Entretien', 'Accepté', 'Refusé'] as const
@@ -48,6 +48,14 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
   const [apps, setApps]           = useState(initialApps)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [isMobile, setIsMobile]   = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   async function handleDelete(id: string) {
     setApps(prev => prev.filter(a => a.id !== id))
@@ -85,109 +93,165 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
         </div>
       ) : (
         <>
-          {/* Overlay to close open menu on outside click */}
           {openMenuId && (
             <div onClick={() => setOpenMenuId(null)} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
           )}
 
           <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, overflow: 'hidden', boxShadow: v.shadow }}>
-            {/* Table header */}
-            <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '11px 20px', borderBottom: `1px solid ${v.line}`, background: v.bg }}>
-              {(['Poste · Entreprise', 'Statut', 'Contrat', 'Date'] as const).map(label => (
-                <div key={label} style={{ fontSize: 11, fontWeight: 600, color: v.text3, letterSpacing: '.04em', textTransform: 'uppercase' }}>{label}</div>
-              ))}
-              <div />
-            </div>
 
-            {apps.map((app: any, i: number) => {
-              const s = statusStyle(app.status)
-              const isHovered = hoveredId === app.id
-              return (
-                <div
-                  key={app.id}
-                  onMouseEnter={() => setHoveredId(app.id)}
-                  onMouseLeave={() => setHoveredId(null)}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: COLS,
-                    padding: '14px 20px',
-                    alignItems: 'center',
-                    borderBottom: i < apps.length - 1 ? `1px solid ${v.line}` : 'none',
-                    background: isHovered ? 'rgba(0,0,0,.015)' : 'transparent',
-                    transition: 'background .1s',
-                  }}
-                >
-                  {/* Poste + entreprise */}
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: v.text, marginBottom: 2 }}>{app.job_title}</div>
-                    <div style={{ fontSize: 12, color: v.text2 }}>{app.company}{app.location ? ` · ${app.location}` : ''}</div>
-                  </div>
-
-                  {/* Badge statut cliquable */}
-                  <div style={{ position: 'relative' }}>
-                    <span
-                      onClick={() => setOpenMenuId(openMenuId === app.id ? null : app.id)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 11px', borderRadius: 100, fontSize: 12, fontWeight: 600, background: s.bg, color: s.color, cursor: 'pointer', userSelect: 'none' }}
-                    >
-                      {app.status}
-                      <svg viewBox="0 0 8 5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" width={8} height={5}>
-                        <polyline points="1,1 4,4 7,1" />
-                      </svg>
-                    </span>
-
-                    {openMenuId === app.id && (
-                      <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: v.white, border: `1px solid ${v.line}`, borderRadius: 10, boxShadow: v.shadow2, overflow: 'hidden', minWidth: 130 }}>
-                        {STATUSES.map(st => {
-                          const ss = statusStyle(st)
-                          const isActive = app.status === st
-                          return (
-                            <div
-                              key={st}
-                              onClick={() => handleStatusChange(app.id, st)}
-                              style={{ padding: '8px 14px', fontSize: 12, fontWeight: isActive ? 600 : 400, color: isActive ? ss.color : v.text, background: isActive ? ss.bg : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-                            >
-                              <span style={{ width: 10, display: 'inline-flex', flexShrink: 0 }}>
-                                {isActive && (
-                                  <svg viewBox="0 0 10 8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={10} height={8}>
-                                    <polyline points="1,4 4,7 9,1" />
-                                  </svg>
-                                )}
-                              </span>
-                              {st}
-                            </div>
-                          )
-                        })}
+            {/* ── MOBILE CARD VIEW ── */}
+            {isMobile ? (
+              apps.map((app: any, i: number) => {
+                const s = statusStyle(app.status)
+                return (
+                  <div
+                    key={app.id}
+                    style={{
+                      padding: '16px',
+                      borderBottom: i < apps.length - 1 ? `1px solid ${v.line}` : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: v.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.job_title}</div>
+                        <div style={{ fontSize: 12, color: v.text2 }}>{app.company}{app.location ? ` · ${app.location}` : ''}</div>
                       </div>
-                    )}
+                      <button
+                        onClick={() => handleDelete(app.id)}
+                        title="Supprimer"
+                        style={{ width: 32, height: 32, borderRadius: 8, background: 'none', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: v.text3, flexShrink: 0 }}
+                        onMouseEnter={e => { const b = e.currentTarget; b.style.color = '#c0392b'; b.style.background = 'rgba(192,57,43,.07)' }}
+                        onMouseLeave={e => { const b = e.currentTarget; b.style.color = v.text3; b.style.background = 'none' }}
+                      >
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}>
+                          <polyline points="3,4 13,4" />
+                          <path d="M5.5 4V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1" />
+                          <path d="M10 4l-.5 8H6.5L6 4" />
+                          <line x1="6.5" y1="7" x2="6.5" y2="11" />
+                          <line x1="9.5" y1="7" x2="9.5" y2="11" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', position: 'relative' }}>
+                      <span
+                        onClick={() => setOpenMenuId(openMenuId === app.id ? null : app.id)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 11px', borderRadius: 100, fontSize: 12, fontWeight: 600, background: s.bg, color: s.color, cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        {app.status}
+                        <svg viewBox="0 0 8 5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" width={8} height={5}>
+                          <polyline points="1,1 4,4 7,1" />
+                        </svg>
+                      </span>
+                      {openMenuId === app.id && (
+                        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: v.white, border: `1px solid ${v.line}`, borderRadius: 10, boxShadow: v.shadow2, overflow: 'hidden', minWidth: 130 }}>
+                          {STATUSES.map(st => {
+                            const ss = statusStyle(st)
+                            const isActive = app.status === st
+                            return (
+                              <div key={st} onClick={() => handleStatusChange(app.id, st)} style={{ padding: '10px 14px', fontSize: 12, fontWeight: isActive ? 600 : 400, color: isActive ? ss.color : v.text, background: isActive ? ss.bg : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ width: 10, display: 'inline-flex', flexShrink: 0 }}>
+                                  {isActive && <svg viewBox="0 0 10 8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={10} height={8}><polyline points="1,4 4,7 9,1" /></svg>}
+                                </span>
+                                {st}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {app.contract && <span style={{ fontSize: 12, color: v.text2 }}>{app.contract}</span>}
+                      <span style={{ fontSize: 11, color: v.text3, marginLeft: 'auto' }}>{formatRelativeDate(app.created_at)}</span>
+                    </div>
                   </div>
-
-                  {/* Contrat */}
-                  <div style={{ fontSize: 12, color: v.text2 }}>{app.contract || '—'}</div>
-
-                  {/* Date */}
-                  <div style={{ fontSize: 12, color: v.text3 }}>{formatRelativeDate(app.created_at)}</div>
-
-                  {/* Bouton supprimer */}
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <button
-                      onClick={() => handleDelete(app.id)}
-                      title="Supprimer"
-                      style={{ width: 28, height: 28, borderRadius: 8, background: 'none', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: v.text3, opacity: isHovered ? 1 : 0, transition: 'opacity .15s' }}
-                      onMouseEnter={e => { const b = e.currentTarget; b.style.color = '#c0392b'; b.style.background = 'rgba(192,57,43,.07)' }}
-                      onMouseLeave={e => { const b = e.currentTarget; b.style.color = v.text3; b.style.background = 'none' }}
-                    >
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}>
-                        <polyline points="3,4 13,4" />
-                        <path d="M5.5 4V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1" />
-                        <path d="M10 4l-.5 8H6.5L6 4" />
-                        <line x1="6.5" y1="7" x2="6.5" y2="11" />
-                        <line x1="9.5" y1="7" x2="9.5" y2="11" />
-                      </svg>
-                    </button>
-                  </div>
+                )
+              })
+            ) : (
+              /* ── DESKTOP TABLE VIEW ── */
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '11px 20px', borderBottom: `1px solid ${v.line}`, background: v.bg }}>
+                  {(['Poste · Entreprise', 'Statut', 'Contrat', 'Date'] as const).map(label => (
+                    <div key={label} style={{ fontSize: 11, fontWeight: 600, color: v.text3, letterSpacing: '.04em', textTransform: 'uppercase' }}>{label}</div>
+                  ))}
+                  <div />
                 </div>
-              )
-            })}
+
+                {apps.map((app: any, i: number) => {
+                  const s = statusStyle(app.status)
+                  const isHovered = hoveredId === app.id
+                  return (
+                    <div
+                      key={app.id}
+                      onMouseEnter={() => setHoveredId(app.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: COLS,
+                        padding: '14px 20px',
+                        alignItems: 'center',
+                        borderBottom: i < apps.length - 1 ? `1px solid ${v.line}` : 'none',
+                        background: isHovered ? 'rgba(0,0,0,.015)' : 'transparent',
+                        transition: 'background .1s',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: v.text, marginBottom: 2 }}>{app.job_title}</div>
+                        <div style={{ fontSize: 12, color: v.text2 }}>{app.company}{app.location ? ` · ${app.location}` : ''}</div>
+                      </div>
+
+                      <div style={{ position: 'relative' }}>
+                        <span
+                          onClick={() => setOpenMenuId(openMenuId === app.id ? null : app.id)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 11px', borderRadius: 100, fontSize: 12, fontWeight: 600, background: s.bg, color: s.color, cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          {app.status}
+                          <svg viewBox="0 0 8 5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" width={8} height={5}>
+                            <polyline points="1,1 4,4 7,1" />
+                          </svg>
+                        </span>
+
+                        {openMenuId === app.id && (
+                          <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: v.white, border: `1px solid ${v.line}`, borderRadius: 10, boxShadow: v.shadow2, overflow: 'hidden', minWidth: 130 }}>
+                            {STATUSES.map(st => {
+                              const ss = statusStyle(st)
+                              const isActive = app.status === st
+                              return (
+                                <div key={st} onClick={() => handleStatusChange(app.id, st)} style={{ padding: '8px 14px', fontSize: 12, fontWeight: isActive ? 600 : 400, color: isActive ? ss.color : v.text, background: isActive ? ss.bg : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ width: 10, display: 'inline-flex', flexShrink: 0 }}>
+                                    {isActive && <svg viewBox="0 0 10 8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={10} height={8}><polyline points="1,4 4,7 9,1" /></svg>}
+                                  </span>
+                                  {st}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: 12, color: v.text2 }}>{app.contract || '—'}</div>
+                      <div style={{ fontSize: 12, color: v.text3 }}>{formatRelativeDate(app.created_at)}</div>
+
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <button
+                          onClick={() => handleDelete(app.id)}
+                          title="Supprimer"
+                          style={{ width: 28, height: 28, borderRadius: 8, background: 'none', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: v.text3, opacity: isHovered ? 1 : 0, transition: 'opacity .15s' }}
+                          onMouseEnter={e => { const b = e.currentTarget; b.style.color = '#c0392b'; b.style.background = 'rgba(192,57,43,.07)' }}
+                          onMouseLeave={e => { const b = e.currentTarget; b.style.color = v.text3; b.style.background = 'none' }}
+                        >
+                          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}>
+                            <polyline points="3,4 13,4" />
+                            <path d="M5.5 4V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1" />
+                            <path d="M10 4l-.5 8H6.5L6 4" />
+                            <line x1="6.5" y1="7" x2="6.5" y2="11" />
+                            <line x1="9.5" y1="7" x2="9.5" y2="11" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </>
+            )}
           </div>
         </>
       )}

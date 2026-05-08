@@ -30,8 +30,9 @@ export default function HomePage() {
   const [paywall, setPaywall] = useState(false);
   const [genOpen, setGenOpen] = useState(false);
   const [genStep, setGenStep] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Vraies offres
   const [realJobs, setRealJobs]       = useState<any[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<any>(null);
@@ -41,6 +42,13 @@ export default function HomePage() {
       .then(r => r.json())
       .then(d => { setRealJobs(d.jobs || []); setJobsLoading(false); })
       .catch(() => setJobsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
 
   const handleSearch = () => {
@@ -66,7 +74,7 @@ export default function HomePage() {
       {/* NAV */}
       <nav style={{ position:'sticky', top:0, zIndex:200, height:52, background:'rgba(245,245,247,0.92)', backdropFilter:'blur(24px) saturate(180%)', borderBottom:`1px solid ${v.line}` }}>
         <div style={{ maxWidth:1080, margin:'0 auto', height:'100%', padding:'0 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <a href="#" style={{ display:'flex', alignItems:'center', gap:7, textDecoration:'none', color:v.text, fontSize:15, fontWeight:600, letterSpacing:'-0.02em' }}>
+          <a href="#" style={{ display:'flex', alignItems:'center', gap:7, textDecoration:'none', color:v.text, fontSize:15, fontWeight:600, letterSpacing:'-0.02em', whiteSpace:'nowrap' }}>
             <svg viewBox="0 0 40 40" fill="none" width={26} height={26}>
               <rect x="5" y="5" width="30" height="30" rx="7" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="2.2" fill="none"/>
               <rect x="9" y="9" width="22" height="22" rx="5" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.45"/>
@@ -76,51 +84,74 @@ export default function HomePage() {
             </svg>
             drop-job
           </a>
-          <ul style={{ display:'flex', alignItems:'center', gap:0, listStyle:'none' }}>
-            {[['#jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
-              <li key={h}><a href={h} style={{ padding:'5px 13px', fontSize:13, color:v.text2, textDecoration:'none', display:'block', borderRadius:100 }}>{l}</a></li>
-            ))}
-          </ul>
+          {!isMobile && (
+            <ul style={{ display:'flex', alignItems:'center', gap:0, listStyle:'none' }}>
+              {[['#jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
+                <li key={h}><a href={h} style={{ padding:'5px 13px', fontSize:13, color:v.text2, textDecoration:'none', display:'block', borderRadius:100 }}>{l}</a></li>
+              ))}
+            </ul>
+          )}
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <Link href="/auth/login" style={{ fontSize:13, color:v.text2, textDecoration:'none', padding:'5px 4px' }}>Connexion</Link>
-            <button onClick={()=>window.location.href='/auth/register'} style={{ padding:'7px 17px', borderRadius:100, fontSize:13, fontWeight:500, background:v.blue, color:'#fff', border:'none', cursor:'pointer', fontFamily:'inherit' }}>Commencer</button>
+            {!isMobile && <Link href="/auth/login" style={{ fontSize:13, color:v.text2, textDecoration:'none', padding:'5px 4px' }}>Connexion</Link>}
+            <button onClick={()=>window.location.href='/auth/register'} style={{ padding:'7px 17px', borderRadius:100, fontSize:13, fontWeight:500, background:v.blue, color:'#fff', border:'none', cursor:'pointer', fontFamily:'inherit', minHeight:44 }}>Commencer</button>
+            {isMobile && (
+              <button onClick={()=>setMenuOpen(true)} style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', cursor:'pointer', fontSize:20, color:v.text, flexShrink:0 }}>☰</button>
+            )}
           </div>
         </div>
       </nav>
 
       {/* HERO */}
-      <div style={{ maxWidth:1080, margin:'0 auto', padding:'88px 24px 56px', textAlign:'center' }}>
-        <h1 style={{ fontSize:'clamp(48px,7.5vw,80px)', fontWeight:600, letterSpacing:'-0.04em', lineHeight:1.06, marginBottom:18 }}>
+      <div style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '48px 16px 40px' : '88px 24px 56px', textAlign:'center' }}>
+        <h1 style={{ fontSize:'clamp(38px,7.5vw,80px)', fontWeight:600, letterSpacing:'-0.04em', lineHeight:1.06, marginBottom:18 }}>
           Postulez.<br/>C'est fait.
         </h1>
-        <p style={{ fontSize:19, fontWeight:300, color:v.text2, lineHeight:1.6, maxWidth:500, margin:'0 auto 44px' }}>
+        <p style={{ fontSize:isMobile ? 16 : 19, fontWeight:300, color:v.text2, lineHeight:1.6, maxWidth:500, margin:'0 auto 44px' }}>
           Regroupez 5 sites majeurs. L'IA adapte votre CV pour chaque offre. Obtenez le bon salaire.
         </p>
 
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
           {/* Search bar */}
-          <div style={{ display:'flex', alignItems:'center', background:v.white, borderRadius:100, border:`1px solid ${v.line2}`, boxShadow:v.shadow2, width:'100%', maxWidth:620, overflow:'hidden' }}>
-            <div style={{ padding:'0 10px 0 18px', display:'flex', color:v.text3, flexShrink:0 }}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width={15} height={15}><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+          {isMobile ? (
+            <div style={{ width:'100%', display:'flex', flexDirection:'column', gap:10 }}>
+              <div style={{ display:'flex', alignItems:'center', background:v.white, borderRadius:14, border:`1px solid ${v.line2}`, boxShadow:v.shadow, overflow:'hidden' }}>
+                <div style={{ padding:'0 10px 0 16px', display:'flex', color:v.text3, flexShrink:0 }}>
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width={15} height={15}><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+                </div>
+                <input type="text" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSearch()} placeholder="Métier, entreprise…" style={{ flex:1, padding:'14px 10px 14px 6px', background:'transparent', border:'none', outline:'none', fontFamily:'inherit', fontSize:16, color:v.text }} />
+              </div>
+              <div style={{ display:'flex', alignItems:'center', background:v.white, borderRadius:14, border:`1px solid ${v.line2}`, boxShadow:v.shadow, overflow:'hidden' }}>
+                <div style={{ padding:'0 10px 0 16px', display:'flex', color:v.text3, flexShrink:0 }}>
+                  <svg viewBox="0 0 12 16" fill="none" stroke={v.text3} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 9 4 9s4-5.7 4-9c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.3"/></svg>
+                </div>
+                <input type="text" defaultValue="Lyon" placeholder="Ville…" style={{ flex:1, padding:'14px 10px 14px 6px', background:'transparent', border:'none', outline:'none', fontFamily:'inherit', fontSize:16, color:v.text }} />
+              </div>
+              <button onClick={handleSearch} style={{ width:'100%', padding:'14px', borderRadius:14, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:16, fontWeight:500, cursor:'pointer', minHeight:44 }}>Rechercher</button>
             </div>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="Chercher un métier, une entreprise…"
-              style={{ flex:1, padding:'13px 0', minWidth:0, background:'transparent', border:'none', outline:'none', fontFamily:'inherit', fontSize:15, color:v.text }}
-            />
-            <div style={{ width:1, height:20, background:v.line2, flexShrink:0 }} />
-            <div style={{ display:'flex', alignItems:'center', gap:5, padding:'0 14px', flexShrink:0 }}>
-              <svg viewBox="0 0 12 16" fill="none" stroke={v.text3} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 9 4 9s4-5.7 4-9c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.3"/></svg>
-              <input type="text" defaultValue="Lyon" style={{ border:'none', background:'transparent', outline:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, color:v.text2, width:72 }} />
+          ) : (
+            <div style={{ display:'flex', alignItems:'center', background:v.white, borderRadius:100, border:`1px solid ${v.line2}`, boxShadow:v.shadow2, width:'100%', maxWidth:620, overflow:'hidden' }}>
+              <div style={{ padding:'0 10px 0 18px', display:'flex', color:v.text3, flexShrink:0 }}>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width={15} height={15}><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+              </div>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                placeholder="Chercher un métier, une entreprise…"
+                style={{ flex:1, padding:'13px 0', minWidth:0, background:'transparent', border:'none', outline:'none', fontFamily:'inherit', fontSize:15, color:v.text }}
+              />
+              <div style={{ width:1, height:20, background:v.line2, flexShrink:0 }} />
+              <div style={{ display:'flex', alignItems:'center', gap:5, padding:'0 14px', flexShrink:0 }}>
+                <svg viewBox="0 0 12 16" fill="none" stroke={v.text3} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 9 4 9s4-5.7 4-9c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.3"/></svg>
+                <input type="text" defaultValue="Lyon" style={{ border:'none', background:'transparent', outline:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, color:v.text2, width:72 }} />
+              </div>
+              <button onClick={handleSearch} style={{ margin:5, padding:'8px 20px', borderRadius:100, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', flexShrink:0 }}>Rechercher</button>
             </div>
-            <button onClick={handleSearch} style={{ margin:5, padding:'8px 20px', borderRadius:100, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', flexShrink:0 }}>Rechercher</button>
-          </div>
+          )}
 
           {/* Salary strip */}
-          <div style={{ display:'flex', alignItems:'center', gap:14, width:'100%', maxWidth:620, background:v.white, borderRadius:12, border:`1px solid ${v.line}`, padding:'16px 20px', boxShadow:v.shadow, overflow:'visible' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:14, width:'100%', maxWidth: isMobile ? '100%' : 620, background:v.white, borderRadius:12, border:`1px solid ${v.line}`, padding:'16px 20px', boxShadow:v.shadow, overflow:'visible' }}>
             <span style={{ fontSize:12, fontWeight:500, color:v.text2, flexShrink:0, whiteSpace:'nowrap' }}>Rémunération (Annuelle)</span>
             <div style={{ flex:1, position:'relative', height:20, overflow:'visible' }}>
               <div style={{ position:'absolute', left:0, right:0, top:'50%', transform:'translateY(-50%)', height:3, background:v.bg2, borderRadius:2 }} />
@@ -133,13 +164,13 @@ export default function HomePage() {
         </div>
 
         <div style={{ marginTop:14 }}>
-          <button onClick={()=>window.location.href='/auth/register'} style={{ padding:'12px 30px', borderRadius:100, background:v.white, color:v.text, border:`1px solid ${v.line2}`, fontFamily:'inherit', fontSize:15, fontWeight:400, cursor:'pointer', boxShadow:v.shadow }}>Commencer gratuitement</button>
+          <button onClick={()=>window.location.href='/auth/register'} style={{ padding:'12px 30px', borderRadius:100, background:v.white, color:v.text, border:`1px solid ${v.line2}`, fontFamily:'inherit', fontSize:isMobile ? 16 : 15, fontWeight:400, cursor:'pointer', boxShadow:v.shadow, minHeight:44 }}>Commencer gratuitement</button>
         </div>
       </div>
 
       {/* BENTO */}
-      <div id="bento" style={{ maxWidth:1080, margin:'0 auto', padding:'0 24px 72px' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+      <div id="bento" style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '0 16px 48px' : '0 24px 72px' }}>
+        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)', gap:12 }}>
 
           <BCard>
             <BCIcon><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" width={22} height={22}><path d="M2 7l9-4 9 4-9 4-9-4z"/><path d="M2 12l9 4 9-4"/><path d="M2 17l9 4 9-4"/></svg></BCIcon>
@@ -186,7 +217,7 @@ export default function HomePage() {
             </div>
             <div style={{ display:'flex', gap:4, justifyContent:'center', marginTop:10 }}>
               {(['bas','juste','haut'] as const).map(lv=>(
-                <button key={lv} onClick={()=>setGauge(lv)} style={{ padding:'4px 11px', borderRadius:100, fontSize:11, fontWeight:500, color: gauge===lv ? v.blue : v.text2, background: gauge===lv ? 'rgba(0,113,227,.07)' : v.bg, border:`1px solid ${gauge===lv ? 'rgba(0,113,227,.18)' : v.line}`, cursor:'pointer', fontFamily:'inherit' }}>{lv==='bas'?'Bas':lv==='juste'?'Juste':'Haut'}</button>
+                <button key={lv} onClick={()=>setGauge(lv)} style={{ padding:'4px 11px', borderRadius:100, fontSize:11, fontWeight:500, color: gauge===lv ? v.blue : v.text2, background: gauge===lv ? 'rgba(0,113,227,.07)' : v.bg, border:`1px solid ${gauge===lv ? 'rgba(0,113,227,.18)' : v.line}`, cursor:'pointer', fontFamily:'inherit', minHeight:44 }}>{lv==='bas'?'Bas':lv==='juste'?'Juste':'Haut'}</button>
               ))}
             </div>
           </BCard>
@@ -212,7 +243,7 @@ export default function HomePage() {
       </div>
 
       {/* JOBS — vraies offres */}
-      <div id="jobs" style={{ maxWidth:1080, margin:'0 auto', padding:'0 24px 72px' }}>
+      <div id="jobs" style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '0 16px 48px' : '0 24px 72px' }}>
         <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:18 }}>
           <div style={{ fontSize:22, fontWeight:600, letterSpacing:'-0.03em' }}>Offres du moment</div>
           {!jobsLoading && <div style={{ fontSize:13, color:v.text3 }}>{realJobs.length} offres</div>}
@@ -249,7 +280,7 @@ export default function HomePage() {
                 </div>
                 <button
                   onClick={e => { e.stopPropagation(); window.location.href = `/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description||'')}`; }}
-                  style={{ display:'block', width:'100%', marginTop:12, padding:9, background:'rgba(0,113,227,.07)', color:v.blue, border:'1px solid rgba(0,113,227,.14)', borderRadius:8, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}
+                  style={{ display:'block', width:'100%', marginTop:12, padding:9, background:'rgba(0,113,227,.07)', color:v.blue, border:'1px solid rgba(0,113,227,.14)', borderRadius:8, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit', minHeight:44 }}
                 >
                   Postuler avec CV IA
                 </button>
@@ -260,7 +291,7 @@ export default function HomePage() {
 
         {!jobsLoading && realJobs.length > 6 && (
           <div style={{ textAlign:'center', marginTop:24 }}>
-            <button onClick={() => window.location.href='/jobs'} style={{ padding:'10px 28px', borderRadius:100, background:v.white, color:v.text, border:`1px solid ${v.line2}`, fontFamily:'inherit', fontSize:14, fontWeight:500, cursor:'pointer', boxShadow:v.shadow }}>
+            <button onClick={() => window.location.href='/jobs'} style={{ padding:'10px 28px', borderRadius:100, background:v.white, color:v.text, border:`1px solid ${v.line2}`, fontFamily:'inherit', fontSize:14, fontWeight:500, cursor:'pointer', boxShadow:v.shadow, minHeight:44 }}>
               Voir toutes les offres →
             </button>
           </div>
@@ -268,19 +299,19 @@ export default function HomePage() {
       </div>
 
       {/* PRICING */}
-      <div id="pricing" style={{ maxWidth:1080, margin:'0 auto', padding:'0 24px 90px' }}>
+      <div id="pricing" style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '0 16px 60px' : '0 24px 90px' }}>
         <div style={{ fontSize:22, fontWeight:600, letterSpacing:'-0.03em' }}>Tarification</div>
         <div style={{ display:'flex', justifyContent:'center', margin:'24px 0 32px' }}>
           <div style={{ display:'flex', background:v.white, border:`1px solid ${v.line2}`, borderRadius:100, padding:3, gap:2, boxShadow:v.shadow }}>
             {(['monthly','weekly'] as const).map(b=>(
-              <button key={b} onClick={()=>setBilling(b)} style={{ padding:'7px 22px', borderRadius:100, border:'none', fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', background: billing===b ? v.white : 'transparent', color: billing===b ? v.text : v.text2, boxShadow: billing===b ? '0 1px 4px rgba(0,0,0,.1), 0 0 0 1px rgba(0,0,0,.14)' : 'none', transition:'all .2s', position:'relative' }}>
+              <button key={b} onClick={()=>setBilling(b)} style={{ padding:'7px 22px', borderRadius:100, border:'none', fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', background: billing===b ? v.white : 'transparent', color: billing===b ? v.text : v.text2, boxShadow: billing===b ? '0 1px 4px rgba(0,0,0,.1), 0 0 0 1px rgba(0,0,0,.14)' : 'none', transition:'all .2s', position:'relative', minHeight:44 }}>
                 {b==='monthly' ? 'Mensuel' : 'Hebdo'}
                 {b==='weekly' && <span style={{ position:'absolute', top:-6, right:-4, background:'#1d8348', color:'#fff', fontSize:9, fontWeight:600, padding:'1px 5px', borderRadius:100 }}>Flexible</span>}
               </button>
             ))}
           </div>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, maxWidth:660, margin:'0 auto' }}>
+        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:12, maxWidth: isMobile ? '100%' : 660, margin:'0 auto' }}>
           <div style={{ background:v.white, border:`1px solid ${v.line}`, borderRadius:18, padding:'28px 26px', boxShadow:v.shadow }}>
             <div style={{ fontSize:11, fontWeight:500, letterSpacing:'.06em', textTransform:'uppercase', color:v.text3, marginBottom:14 }}>Gratuit</div>
             <div style={{ fontSize:42, fontWeight:300, letterSpacing:'-0.04em', lineHeight:1 }}>0€</div>
@@ -297,7 +328,7 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <button onClick={()=>setPaywall(true)} style={{ width:'100%', padding:11, borderRadius:8, fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', background:v.bg, color:v.text2, border:`1px solid ${v.line2}` }}>Commencer gratuitement</button>
+            <button onClick={()=>setPaywall(true)} style={{ width:'100%', padding:11, borderRadius:8, fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', background:v.bg, color:v.text2, border:`1px solid ${v.line2}`, minHeight:44 }}>Commencer gratuitement</button>
           </div>
           <div style={{ background:v.white, border:`1.5px solid ${v.blue}`, borderRadius:18, padding:'28px 26px', boxShadow:`0 0 0 3px rgba(0,113,227,.07), ${v.shadow2}` }}>
             <div style={{ fontSize:11, fontWeight:500, letterSpacing:'.06em', textTransform:'uppercase', color:v.blue, marginBottom:14 }}>Premium</div>
@@ -314,7 +345,7 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <button onClick={()=>setPaywall(true)} style={{ width:'100%', padding:11, borderRadius:8, fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', background:v.blue, color:'#fff', border:'none', boxShadow:'0 2px 8px rgba(0,113,227,.25)' }}>Passer à Premium</button>
+            <button onClick={()=>setPaywall(true)} style={{ width:'100%', padding:11, borderRadius:8, fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', background:v.blue, color:'#fff', border:'none', boxShadow:'0 2px 8px rgba(0,113,227,.25)', minHeight:44 }}>Passer à Premium</button>
           </div>
         </div>
       </div>
@@ -333,6 +364,28 @@ export default function HomePage() {
         </div>
       </footer>
     </div>
+
+    {/* MOBILE MENU */}
+    {menuOpen && (
+      <div style={{ position:'fixed', inset:0, zIndex:250, background:'rgba(245,245,247,0.97)', backdropFilter:'blur(20px) saturate(180%)', display:'flex', flexDirection:'column' }}>
+        <div style={{ height:52, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', borderBottom:`1px solid ${v.line}` }}>
+          <a href="#" style={{ display:'flex', alignItems:'center', gap:7, textDecoration:'none', color:v.text, fontSize:15, fontWeight:600, letterSpacing:'-0.02em', whiteSpace:'nowrap' }}>
+            <svg viewBox="0 0 40 40" fill="none" width={26} height={26}><rect x="5" y="5" width="30" height="30" rx="7" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="2.2" fill="none"/><rect x="9" y="9" width="22" height="22" rx="5" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.45"/><circle cx="20" cy="20" r="7.5" stroke="currentColor" strokeWidth="1.8" fill="none"/><line x1="20" y1="15.5" x2="20" y2="22.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><polyline points="17,20.5 20,23.5 23,20.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
+            drop-job
+          </a>
+          <button onClick={()=>setMenuOpen(false)} style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:`1px solid ${v.line2}`, borderRadius:'50%', cursor:'pointer', fontSize:18, color:v.text }}>✕</button>
+        </div>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'8px 24px' }}>
+          {[['#jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
+            <a key={h} href={h} onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>{l}</a>
+          ))}
+          <Link href="/auth/login" onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>Connexion</Link>
+        </div>
+        <div style={{ padding:'24px' }}>
+          <button onClick={()=>{ setMenuOpen(false); window.location.href='/auth/register'; }} style={{ width:'100%', padding:'16px', borderRadius:14, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:16, fontWeight:500, cursor:'pointer' }}>Commencer gratuitement</button>
+        </div>
+      </div>
+    )}
 
     {/* PAYWALL */}
     {paywall && (
@@ -353,8 +406,8 @@ export default function HomePage() {
             ))}
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <button style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:'pointer' }}>Passer à Premium — 9,90€ / mois</button>
-            <button onClick={()=>setPaywall(false)} style={{ width:'100%', padding:11, borderRadius:8, background:'transparent', color:'#6e6e73', border:'1px solid rgba(0,0,0,.14)', fontFamily:'inherit', fontSize:13, cursor:'pointer' }}>Continuer avec le plan gratuit</button>
+            <button style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:'pointer', minHeight:44 }}>Passer à Premium — 9,90€ / mois</button>
+            <button onClick={()=>setPaywall(false)} style={{ width:'100%', padding:11, borderRadius:8, background:'transparent', color:'#6e6e73', border:'1px solid rgba(0,0,0,.14)', fontFamily:'inherit', fontSize:13, cursor:'pointer', minHeight:44 }}>Continuer avec le plan gratuit</button>
           </div>
         </div>
       </div>
@@ -362,9 +415,9 @@ export default function HomePage() {
 
     {/* JOB DETAIL */}
     {selectedJob && (
-      <div onClick={e=>e.target===e.currentTarget&&setSelectedJob(null)} style={{ display:'flex', position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,.2)', backdropFilter:'blur(8px)', alignItems:'center', justifyContent:'center', padding:24 }}>
-        <div style={{ background:'#fff', borderRadius:18, border:'1px solid rgba(0,0,0,.08)', width:'100%', maxWidth:500, maxHeight:'88vh', overflowY:'auto', padding:26, boxShadow:'0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)' }}>
-          <button onClick={()=>setSelectedJob(null)} style={{ float:'right', width:26, height:26, borderRadius:'50%', background:'#f5f5f7', border:'1px solid rgba(0,0,0,.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#6e6e73' }}>
+      <div onClick={e=>e.target===e.currentTarget&&setSelectedJob(null)} style={{ display:'flex', position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,.2)', backdropFilter:'blur(8px)', alignItems:'center', justifyContent:'center', padding:isMobile ? 16 : 24 }}>
+        <div style={{ background:'#fff', borderRadius:18, border:'1px solid rgba(0,0,0,.08)', width:'100%', maxWidth:500, maxHeight:'88vh', overflowY:'auto', padding:isMobile ? 20 : 26, boxShadow:'0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)' }}>
+          <button onClick={()=>setSelectedJob(null)} style={{ float:'right', width:36, height:36, borderRadius:'50%', background:'#f5f5f7', border:'1px solid rgba(0,0,0,.08)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#6e6e73' }}>
             <svg viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" width={11} height={11}><line x1="1" y1="1" x2="10" y2="10"/><line x1="10" y1="1" x2="1" y2="10"/></svg>
           </button>
           <div style={{ fontSize:12, color:'#aeaeb2', marginBottom:4 }}>{selectedJob.company} · {selectedJob.location}</div>
@@ -379,7 +432,7 @@ export default function HomePage() {
               <p style={{ fontSize:13, color:'#6e6e73', lineHeight:1.65 }}>{selectedJob.description?.slice(0,500)}{selectedJob.description?.length > 500 ? '…' : ''}</p>
             </div>
           )}
-          <button onClick={startGen} style={{ width:'100%', padding:12, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, cursor:'pointer' }}>Générer mon CV pour cette offre</button>
+          <button onClick={startGen} style={{ width:'100%', padding:12, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, cursor:'pointer', minHeight:44 }}>Générer mon CV pour cette offre</button>
         </div>
       </div>
     )}
@@ -387,7 +440,7 @@ export default function HomePage() {
     {/* GEN */}
     {genOpen && (
       <div style={{ display:'flex', position:'fixed', inset:0, zIndex:400, background:'rgba(0,0,0,.4)', backdropFilter:'blur(12px)', alignItems:'center', justifyContent:'center' }}>
-        <div style={{ background:'#fff', borderRadius:18, border:'1px solid rgba(0,0,0,.08)', width:'100%', maxWidth:360, padding:32, textAlign:'center', boxShadow:'0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)' }}>
+        <div style={{ background:'#fff', borderRadius:18, border:'1px solid rgba(0,0,0,.08)', width:'100%', maxWidth:360, padding:32, textAlign:'center', boxShadow:'0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)', margin:'0 16px' }}>
           <div style={{ width:40, height:40, borderRadius:'50%', border:'2px solid #e8e8ed', borderTopColor:'#0071e3', animation:'spin .7s linear infinite', margin:'0 auto 18px' }} />
           <div style={{ fontSize:17, fontWeight:500, letterSpacing:'-0.025em', marginBottom:18 }}>Génération de votre CV…</div>
           <div style={{ textAlign:'left', display:'flex', flexDirection:'column', gap:9 }}>
@@ -411,6 +464,7 @@ export default function HomePage() {
       input.dualrange::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #ffffff; border: 2px solid #0071e3; box-shadow: 0 1px 4px rgba(0,0,0,0.2); cursor: pointer; pointer-events: all; }
       input.dualrange::-webkit-slider-runnable-track { background: transparent; height: 20px; }
       @keyframes spin { to { transform: rotate(360deg); } }
+      @media (max-width: 768px) { input:not(.dualrange), textarea { font-size: 16px !important; } }
     `}</style>
     </>
   );

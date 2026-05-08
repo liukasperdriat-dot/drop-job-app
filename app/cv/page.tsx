@@ -39,6 +39,14 @@ function CVPageInner() {
   type ProfileState = 'loading' | 'loaded' | 'empty' | 'error'
   const [profileState, setProfileState] = useState<ProfileState>('loading')
 
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   useEffect(() => {
     fetch('/api/profile')
       .then(r => r.json())
@@ -261,14 +269,14 @@ function CVPageInner() {
       </nav>
 
       {/* CONTENT */}
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '48px 24px 80px' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '48px 24px 80px' }}>
 
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.04em', color: v.text, marginBottom: 6 }}>Smart CV IA</h1>
           <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>Générez un CV adapté à chaque offre en quelques secondes.</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, alignItems: 'start' }}>
 
           {/* ── FORM CARD ─────────────────────────────────────────────────── */}
           <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, padding: '28px 26px', boxShadow: v.shadow, display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -501,6 +509,7 @@ function CVPageInner() {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
         input:focus, textarea:focus { outline: none; border-color: rgba(0,113,227,0.45) !important; box-shadow: 0 0 0 3px rgba(0,113,227,0.08) !important; }
+        @media (max-width: 768px) { input, textarea { font-size: 16px !important; } }
       `}</style>
     </div>
   )

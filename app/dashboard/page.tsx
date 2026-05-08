@@ -61,7 +61,7 @@ export default async function DashboardPage() {
         </div>
       </nav>
 
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '48px 24px 80px' }}>
+      <div className="dash-content" style={{ maxWidth: 1080, margin: '0 auto', padding: '48px 24px 80px' }}>
 
         {/* Header */}
         <div style={{ marginBottom: 36 }}>
@@ -72,7 +72,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Bento grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 36 }}>
+        <div className="dash-bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 36 }}>
 
           {/* Quota CV */}
           <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, padding: '24px 22px', boxShadow: v.shadow }}>
@@ -123,6 +123,14 @@ export default async function DashboardPage() {
         {/* Candidatures */}
         <ApplicationsTable initialApps={apps} />
       </div>
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @media (max-width: 768px) {
+          .dash-bento { grid-template-columns: 1fr !important; }
+          .dash-content { padding: 32px 16px 80px !important; }
+          input, select, textarea { font-size: 16px !important; }
+        }
+      `}</style>
     </div>
   )
 }

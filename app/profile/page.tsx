@@ -52,6 +52,14 @@ export default function ProfilePage() {
   const [skillInput, setSkillInput] = useState('')
   const skillInputRef = useRef<HTMLInputElement>(null)
 
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   useEffect(() => {
     fetch('/api/profile')
       .then(r => r.json())
@@ -151,7 +159,7 @@ export default function ProfilePage() {
         </div>
       </nav>
 
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: '48px 24px 100px' }}>
+      <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '48px 24px 100px' }}>
 
         {/* Hero */}
         <div style={{ marginBottom: 40 }}>
@@ -161,7 +169,7 @@ export default function ProfilePage() {
 
         {/* SECTION: Informations personnelles */}
         <Section title="Informations personnelles">
-          <Grid2>
+          <Grid2 isMobile={isMobile}>
             <Field label="Nom complet">
               <input style={inp} value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Jean Dupont" />
             </Field>
@@ -169,7 +177,7 @@ export default function ProfilePage() {
               <input style={inp} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jean@exemple.fr" />
             </Field>
           </Grid2>
-          <Grid2>
+          <Grid2 isMobile={isMobile}>
             <Field label="Téléphone">
               <input style={inp} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+33 6 00 00 00 00" />
             </Field>
@@ -177,7 +185,7 @@ export default function ProfilePage() {
               <input style={inp} value={location} onChange={e => setLocation(e.target.value)} placeholder="Paris, Île-de-France" />
             </Field>
           </Grid2>
-          <Grid2>
+          <Grid2 isMobile={isMobile}>
             <Field label="LinkedIn">
               <input style={inp} value={linkedin} onChange={e => setLinkedin(e.target.value)} placeholder="linkedin.com/in/jean-dupont" />
             </Field>
@@ -194,7 +202,7 @@ export default function ProfilePage() {
         <Section title="Expériences professionnelles">
           {experiences.map((exp, i) => (
             <ExpCard key={i}>
-              <Grid2>
+              <Grid2 isMobile={isMobile}>
                 <Field label="Poste">
                   <input style={inp} value={exp.title} onChange={e => updateExp(i, 'title', e.target.value)} placeholder="Développeur React" />
                 </Field>
@@ -205,7 +213,7 @@ export default function ProfilePage() {
               <Field label="Lieu">
                 <input style={inp} value={exp.location} onChange={e => updateExp(i, 'location', e.target.value)} placeholder="Paris" />
               </Field>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12, alignItems: 'end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr auto', gap: 12, alignItems: 'end' }}>
                 <Field label="Date de début">
                   <input style={inp} type="month" value={exp.start_date} onChange={e => updateExp(i, 'start_date', e.target.value)} />
                 </Field>
@@ -234,7 +242,7 @@ export default function ProfilePage() {
         <Section title="Formation">
           {education.map((edu, i) => (
             <ExpCard key={i}>
-              <Grid2>
+              <Grid2 isMobile={isMobile}>
                 <Field label="Diplôme / Formation">
                   <input style={inp} value={edu.degree} onChange={e => updateEdu(i, 'degree', e.target.value)} placeholder="Master Informatique" />
                 </Field>
@@ -245,7 +253,7 @@ export default function ProfilePage() {
               <Field label="Lieu">
                 <input style={inp} value={edu.location} onChange={e => updateEdu(i, 'location', e.target.value)} placeholder="Paris" />
               </Field>
-              <Grid2>
+              <Grid2 isMobile={isMobile}>
                 <Field label="Date de début">
                   <input style={inp} type="month" value={edu.start_date} onChange={e => updateEdu(i, 'start_date', e.target.value)} />
                 </Field>
@@ -339,6 +347,7 @@ export default function ProfilePage() {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
         input:focus, textarea:focus, select:focus { outline: none; border-color: rgba(0,113,227,0.45) !important; box-shadow: 0 0 0 3px rgba(0,113,227,0.08) !important; }
+        @media (max-width: 768px) { input, textarea, select { font-size: 16px !important; } }
       `}</style>
     </div>
   )
@@ -355,8 +364,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Grid2({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>{children}</div>
+function Grid2({ children, isMobile }: { children: React.ReactNode; isMobile?: boolean }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>{children}</div>
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
