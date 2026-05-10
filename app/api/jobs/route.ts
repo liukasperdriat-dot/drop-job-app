@@ -165,16 +165,28 @@ export async function GET(request: Request) {
     if (salMin)    params.append('salaireMin', salMin)
     if (salMax)    params.append('salaireMax', salMax)
 
-    let res = await searchJobs(token, params)
+    let currentToken = token
+    let res = await searchJobs(currentToken, params)
     console.log('[FT] search status:', res.status)
 
     // If 401, the cached token was externally invalidated — refresh once and retry
     if (res.status === 401) {
       console.log('[FT] 401 on search — refreshing token and retrying')
       invalidateToken()
-      const freshToken = await getToken()
-      res = await searchJobs(freshToken, params)
-      console.log('[FT] retry status:', res.status)
+      currentToken = await getToken()
+      res = await searchJobs(currentToken, params)
+      console.log('[FT] retry (401) status:', res.status)
+    }
+
+    // If 5XX, retry up to 2 times with 500ms delay before giving up
+    if (res.status >= 500) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        console.log(`[FT] ${res.status} — retry ${attempt}/2 in 500ms`)
+        await new Promise(r => setTimeout(r, 500))
+        res = await searchJobs(currentToken, params)
+        console.log(`[FT] retry ${attempt}/2 status:`, res.status)
+        if (res.status < 500) break
+      }
     }
 
     if (!res.ok) {
