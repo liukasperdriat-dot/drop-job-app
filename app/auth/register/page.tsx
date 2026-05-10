@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const [done, setDone]         = useState(false)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+  const [cgAccepted, setCgAccepted] = useState(false)
 
   const supabase = createClient()
 
@@ -36,6 +37,10 @@ export default function RegisterPage() {
   }
 
   async function handleGoogle() {
+    if (!cgAccepted) {
+      setError('Veuillez accepter les CGU et la Politique de confidentialité pour continuer.')
+      return
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${location.origin}/auth/callback` },
@@ -98,10 +103,25 @@ export default function RegisterPage() {
             <label style={styles.label}>Mot de passe</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="8 caractères minimum" minLength={8} required style={styles.input}/>
           </div>
-          <button type="submit" disabled={loading} style={styles.submitBtn}>
+          <button type="submit" disabled={loading || !cgAccepted} style={{ ...styles.submitBtn, opacity: !cgAccepted ? 0.5 : 1 }}>
             {loading ? 'Création…' : 'Créer mon compte gratuit'}
           </button>
         </form>
+
+        <label style={styles.cgLabel}>
+          <input
+            type="checkbox"
+            checked={cgAccepted}
+            onChange={e => { setCgAccepted(e.target.checked); if (e.target.checked) setError('') }}
+            style={{ accentColor: '#0071e3', marginTop: 2, flexShrink: 0, cursor: 'pointer' }}
+          />
+          <span>
+            J'accepte les{' '}
+            <Link href="/legal/cgu" target="_blank" style={styles.link}>CGU</Link>
+            {' '}et la{' '}
+            <Link href="/legal/confidentialite" target="_blank" style={styles.link}>Politique de confidentialité</Link>
+          </span>
+        </label>
 
         <p style={styles.footer}>
           Déjà un compte ?{' '}
@@ -130,7 +150,8 @@ const styles: Record<string, React.CSSProperties> = {
   label: { fontSize: 12, fontWeight: 500, color: '#1d1d1f' },
   input: { padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.14)', fontSize: 15, fontFamily: 'inherit', color: '#1d1d1f', outline: 'none', background: '#fff' },
   submitBtn: { marginTop: 4, padding: '12px', borderRadius: 10, background: '#0071e3', color: '#fff', border: 'none', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' },
-  footer: { textAlign: 'center' as const, fontSize: 13, color: '#6e6e73', marginTop: 20 },
+  footer: { textAlign: 'center' as const, fontSize: 13, color: '#6e6e73', marginTop: 16 },
   link: { color: '#0071e3', textDecoration: 'none', fontWeight: 500 },
+  cgLabel: { display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 13, color: '#6e6e73', cursor: 'pointer', marginTop: 14, lineHeight: 1.45 },
   backLink: { display: 'block', textAlign: 'center' as const, marginTop: 20, color: '#0071e3', fontSize: 14 },
 }

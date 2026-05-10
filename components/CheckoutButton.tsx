@@ -47,6 +47,12 @@ const priceId = period === 'monthly'
       <button onClick={handleCheckout} disabled={loading} style={styles.btn}>
         {loading ? 'Redirection…' : 'Passer Premium →'}
       </button>
+      <p style={styles.legal}>
+        En souscrivant, vous acceptez nos{' '}
+        <a href="/legal/cgu" target="_blank" rel="noopener noreferrer" style={styles.legalLink}>CGU</a>
+        {' '}et notre{' '}
+        <a href="/legal/confidentialite" target="_blank" rel="noopener noreferrer" style={styles.legalLink}>Politique de confidentialité</a>.
+      </p>
     </div>
   )
 }
@@ -73,4 +79,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14, fontWeight: 500, cursor: 'pointer',
     fontFamily: 'inherit', width: 'fit-content',
   },
+  legal: { fontSize: 12, color: '#aeaeb2', marginTop: 2, lineHeight: 1.5 },
+  legalLink: { color: '#0071e3', textDecoration: 'none' },
 }
