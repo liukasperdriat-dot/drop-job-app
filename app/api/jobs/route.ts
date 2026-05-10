@@ -53,6 +53,20 @@ function invalidateToken() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+async function resolveInseeCode(cityName: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(cityName)}&limit=1&fields=code`,
+      { cache: 'no-store' }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    return data[0]?.code ?? null
+  } catch {
+    return null
+  }
+}
+
 function toTitleCase(str: string): string {
   return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
@@ -106,10 +120,14 @@ export async function GET(request: Request) {
     const salMax   = searchParams.get('salMax') || ''
 
     const params = new URLSearchParams({ range: '0-19' })
-    if (keyword)  params.append('motsCles', keyword)
-    if (location) params.append('commune', location)
-    if (salMin)   params.append('salaireMin', salMin)
-    if (salMax)   params.append('salaireMax', salMax)
+    if (keyword) params.append('motsCles', keyword)
+    if (location) {
+      const codeInsee = await resolveInseeCode(location)
+      console.log('[FT] location:', location, '→ INSEE:', codeInsee)
+      if (codeInsee) params.append('commune', codeInsee)
+    }
+    if (salMin) params.append('salaireMin', salMin)
+    if (salMax) params.append('salaireMax', salMax)
 
     let token = await getToken()
     let res   = await searchJobs(token, params)
