@@ -11,20 +11,34 @@ let tokenExpiresAt = 0
 let inflightFetch: Promise<string> | null = null
 
 async function fetchNewToken(): Promise<string> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 5000)
   const rawBody = `grant_type=client_credentials&client_id=${process.env.FRANCE_TRAVAIL_CLIENT_ID}&client_secret=${process.env.FRANCE_TRAVAIL_CLIENT_SECRET}&scope=api_offresdemploiv2+o2dsoffre`
   console.log('[FT] token request body:', rawBody.replace(process.env.FRANCE_TRAVAIL_CLIENT_SECRET || 'SECRET', '***'))
-  const res = await fetch(
-    'https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: rawBody,
-      cache: 'no-store',
-    }
-  )
+  let res: Response
+  try {
+    res = await fetch(
+      'https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: rawBody,
+        cache: 'no-store',
+        signal: controller.signal,
+      }
+    )
+  } catch (err: any) {
+    throw new Error(`Token fetch failed: ${err.name === 'AbortError' ? 'timeout 5s' : err.message}`)
+  } finally {
+    clearTimeout(timeout)
+  }
   console.log('[FT] token response status:', res.status)
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Token HTTP ${res.status}: ${body.slice(0, 200)}`)
+  }
   const data = await res.json()
-  if (!data.access_token) throw new Error(`Token fetch failed: ${JSON.stringify(data)}`)
+  if (!data.access_token) throw new Error(`Token missing in response: ${JSON.stringify(data).slice(0, 200)}`)
   cachedToken = data.access_token
   tokenExpiresAt = Date.now() + data.expires_in * 1000
   console.log('[FT] token refreshed, expires in', data.expires_in, 's')
@@ -53,19 +67,39 @@ function invalidateToken() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Warm in-memory cache: avoids hitting geo API on repeated city lookups within the same worker
+const inseeCache = new Map<string, string>()
+
 async function resolveInseeCode(cityName: string): Promise<string | null> {
+  const key = cityName.toLowerCase().trim()
+  if (inseeCache.has(key)) return inseeCache.get(key)!
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 2000)
   try {
     const res = await fetch(
       `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(cityName)}&limit=1&fields=code`,
-      { cache: 'no-store' }
+      { cache: 'no-store', signal: controller.signal }
     )
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn('[geo] resolve HTTP', res.status, 'for city:', cityName)
+      return null
+    }
     const data = await res.json()
-    return data[0]?.code ?? null
-  } catch {
+    const code: string | null = data[0]?.code ?? null
+    if (code) inseeCache.set(key, code)
+    else console.warn('[geo] no INSEE result for city:', cityName)
+    console.log('[geo]', cityName, '→', code)
+    return code
+  } catch (err: any) {
+    console.warn('[geo] resolve error:', err.name === 'AbortError' ? 'timeout 2s' : err.message, '— city:', cityName)
     return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function toTitleCase(str: string): string {
   return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
@@ -104,7 +138,6 @@ function mapJob(j: any) {
 async function searchJobs(token: string, params: URLSearchParams) {
   const url = `https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search?${params}`
   console.log('[FT] search url:', url)
-  console.log('[FT] token prefix:', token.slice(0, 20) + '...')
   return fetch(url, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     cache: 'no-store',
@@ -119,40 +152,57 @@ export async function GET(request: Request) {
     const salMin   = searchParams.get('salMin') || ''
     const salMax   = searchParams.get('salMax') || ''
 
-    const params = new URLSearchParams({ range: '0-19' })
-    if (keyword) params.append('motsCles', keyword)
-    if (location) {
-      const codeInsee = await resolveInseeCode(location)
-      console.log('[FT] location:', location, '→ INSEE:', codeInsee)
-      if (codeInsee) params.append('commune', codeInsee)
-    }
-    if (salMin) params.append('salaireMin', salMin)
-    if (salMax) params.append('salaireMax', salMax)
+    // Resolve INSEE code and fetch token in parallel to cut latency
+    const [codeInsee, token] = await Promise.all([
+      location ? resolveInseeCode(location) : Promise.resolve(null),
+      getToken(),
+    ])
+    console.log('[FT] location:', location || '(none)', '→ INSEE:', codeInsee ?? '(none)')
 
-    let token = await getToken()
-    let res   = await searchJobs(token, params)
+    const params = new URLSearchParams({ range: '0-19' })
+    if (keyword)   params.append('motsCles', keyword)
+    if (codeInsee) params.append('commune', codeInsee)
+    if (salMin)    params.append('salaireMin', salMin)
+    if (salMax)    params.append('salaireMax', salMax)
+
+    let res = await searchJobs(token, params)
+    console.log('[FT] search status:', res.status)
 
     // If 401, the cached token was externally invalidated — refresh once and retry
     if (res.status === 401) {
       console.log('[FT] 401 on search — refreshing token and retrying')
       invalidateToken()
-      token = await getToken()
-      res   = await searchJobs(token, params)
+      const freshToken = await getToken()
+      res = await searchJobs(freshToken, params)
+      console.log('[FT] retry status:', res.status)
     }
 
     if (!res.ok) {
       const body = await res.text()
-      console.error('[FT] search failed', res.status, body.slice(0, 200))
-      return NextResponse.json({ error: `Search error ${res.status}` }, { status: 500 })
+      console.error('[FT] search failed', res.status, body.slice(0, 300))
+      if (res.status === 429) {
+        return NextResponse.json({ error: 'Trop de requêtes — réessayez dans quelques secondes.' }, { status: 429 })
+      }
+      if (res.status === 400) {
+        return NextResponse.json({ error: 'Paramètres invalides.', detail: body.slice(0, 200) }, { status: 400 })
+      }
+      return NextResponse.json({ error: `Search error ${res.status}` }, { status: 502 })
     }
 
-    const data = await res.json()
+    let data: any
+    try {
+      data = await res.json()
+    } catch {
+      console.error('[FT] response JSON parse failed, status was', res.status)
+      return NextResponse.json({ error: 'Réponse API invalide.' }, { status: 502 })
+    }
+
     const jobs = (data.resultats || []).map(mapJob)
     console.log('[FT] jobs returned:', jobs.length)
     return NextResponse.json({ jobs })
 
   } catch (err: any) {
-    console.error('[FT] error:', err.message)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('[FT] FATAL:', err.message, err.stack?.split('\n')[1])
+    return NextResponse.json({ error: err.message ?? 'Erreur inconnue' }, { status: 500 })
   }
 }
