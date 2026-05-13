@@ -103,7 +103,9 @@ export default function JobsPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Link href="/dashboard" style={{ fontSize: 13, color: v.text2, textDecoration: 'none', padding: '5px 13px', borderRadius: 100 }}>Dashboard</Link>
-            <Link href="/dashboard" style={{ padding: '7px 17px', borderRadius: 100, fontSize: 13, fontWeight: 500, background: v.blue, color: '#fff', textDecoration: 'none' }}>Mon CV</Link>
+            {!isMobile && (
+              <Link href="/cv" style={{ padding: '7px 17px', borderRadius: 100, fontSize: 13, fontWeight: 500, background: v.blue, color: '#fff', textDecoration: 'none' }}>Mon CV</Link>
+            )}
           </div>
         </div>
       </nav>
@@ -221,7 +223,7 @@ export default function JobsPage() {
           {selectedJob.description && (
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: v.text3, marginBottom: 8 }}>Description</div>
-              <p style={{ fontSize: 13, color: v.text2, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{selectedJob.description?.slice(0, 600)}{selectedJob.description?.length > 600 ? '…' : ''}</p>
+              <p style={{ fontSize: 13, color: v.text2, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{selectedJob.description}</p>
             </div>
           )}
 
@@ -232,6 +234,16 @@ export default function JobsPage() {
             Générer mon CV pour cette offre
           </button>
         </div>
+      </div>
+    )}
+
+    {/* Mobile floating CV button */}
+    {isMobile && (
+      <div style={{ position: 'fixed', bottom: 20, left: 16, right: 16, zIndex: 250 }}>
+        <Link href="/cv" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '15px 20px', borderRadius: 16, background: v.blue, color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 600, boxShadow: '0 4px 24px rgba(0,113,227,.35)', letterSpacing: '-0.01em' }}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={16} height={16}><rect x="2" y="1" width="12" height="14" rx="2"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="8" y2="11"/></svg>
+          Créer mon CV
+        </Link>
       </div>
     )}
 
