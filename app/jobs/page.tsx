@@ -237,21 +237,21 @@ export default function JobsPage() {
       </div>
     )}
 
-    {/* Mobile floating CV button */}
-    {isMobile && (
-      <div style={{ position: 'fixed', bottom: 20, left: 16, right: 16, zIndex: 250 }}>
-        <Link href="/cv" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '15px 20px', borderRadius: 16, background: v.blue, color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 600, boxShadow: '0 4px 24px rgba(0,113,227,.35)', letterSpacing: '-0.01em' }}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={16} height={16}><rect x="2" y="1" width="12" height="14" rx="2"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="8" y2="11"/></svg>
-          Créer mon CV
-        </Link>
-      </div>
-    )}
+    {/* Mobile floating CV button — always in DOM, hidden on desktop via CSS */}
+    <div className="mobile-fab" style={{ position: 'fixed', bottom: 20, left: 16, right: 16, zIndex: 250 }}>
+      <Link href="/cv" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '15px 20px', borderRadius: 16, background: v.blue, color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 600, boxShadow: '0 4px 24px rgba(0,113,227,.35)', letterSpacing: '-0.01em' }}>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={16} height={16}><rect x="2" y="1" width="12" height="14" rx="2"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="8" y2="11"/></svg>
+        Créer mon CV
+      </Link>
+    </div>
 
     <style>{`
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html { scroll-behavior: smooth; }
       @keyframes spin { to { transform: rotate(360deg); } }
       @media (max-width: 768px) { input, textarea { font-size: 16px !important; } }
+      .mobile-fab { display: block; }
+      @media (min-width: 769px) { .mobile-fab { display: none; } }
     `}</style>
     </>
   )
