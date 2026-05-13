@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import CompanyLogo from '@/components/CompanyLogo'
@@ -32,8 +33,10 @@ export default function JobsPage() {
   const [selectedJob, setSelectedJob]   = useState<any>(null)
   const router = useRouter()
 
+  const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
+    setMounted(true)
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
     window.addEventListener('resize', check)
@@ -246,13 +249,15 @@ export default function JobsPage() {
       @media (min-width: 769px) { .mobile-fab { display: none; } }
     `}</style>
 
-    {/* Mobile floating CV button */}
-    <div className="mobile-fab" style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 9999 }}>
-      <Link href="/cv" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '15px 32px', borderRadius: 16, background: v.blue, color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 600, boxShadow: '0 4px 24px rgba(0,113,227,.35)', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={16} height={16}><rect x="2" y="1" width="12" height="14" rx="2"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="8" y2="11"/></svg>
-        Créer mon CV
-      </Link>
-    </div>
+    {mounted && createPortal(
+      <div className="mobile-fab" style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 9999 }}>
+        <Link href="/cv" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '15px 32px', borderRadius: 16, background: v.blue, color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 600, boxShadow: '0 4px 24px rgba(0,113,227,.35)', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={16} height={16}><rect x="2" y="1" width="12" height="14" rx="2"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="8" y2="11"/></svg>
+          Créer mon CV
+        </Link>
+      </div>,
+      document.body
+    )}
     </>
   )
 }
