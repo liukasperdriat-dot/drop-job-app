@@ -188,7 +188,7 @@ export default function JobsPage() {
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
           <h1 style={{ fontSize: 'clamp(28px,4vw,42px)', fontWeight: 600, letterSpacing: '-0.04em', marginBottom: 6 }}>Offres du moment</h1>
-          <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>Agrégées depuis France Travail, LinkedIn, Indeed et plus.</p>
+          <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>Agrégées depuis France Travail.</p>
         </div>
 
         {/* Search bar */}
