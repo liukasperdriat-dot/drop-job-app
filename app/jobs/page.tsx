@@ -23,6 +23,43 @@ const FILTERS = [
   { val: 'devops', label: 'DevOps' },
 ]
 
+const DEPARTEMENTS = [
+  { code: '01', name: 'Ain' }, { code: '02', name: 'Aisne' }, { code: '03', name: 'Allier' },
+  { code: '04', name: 'Alpes-de-Haute-Provence' }, { code: '05', name: 'Hautes-Alpes' },
+  { code: '06', name: 'Alpes-Maritimes' }, { code: '07', name: 'Ardèche' }, { code: '08', name: 'Ardennes' },
+  { code: '09', name: 'Ariège' }, { code: '10', name: 'Aube' }, { code: '11', name: 'Aude' },
+  { code: '12', name: 'Aveyron' }, { code: '13', name: 'Bouches-du-Rhône' }, { code: '14', name: 'Calvados' },
+  { code: '15', name: 'Cantal' }, { code: '16', name: 'Charente' }, { code: '17', name: 'Charente-Maritime' },
+  { code: '18', name: 'Cher' }, { code: '19', name: 'Corrèze' },
+  { code: '2A', name: 'Corse-du-Sud' }, { code: '2B', name: 'Haute-Corse' },
+  { code: '21', name: "Côte-d'Or" }, { code: '22', name: "Côtes-d'Armor" }, { code: '23', name: 'Creuse' },
+  { code: '24', name: 'Dordogne' }, { code: '25', name: 'Doubs' }, { code: '26', name: 'Drôme' },
+  { code: '27', name: 'Eure' }, { code: '28', name: 'Eure-et-Loir' }, { code: '29', name: 'Finistère' },
+  { code: '30', name: 'Gard' }, { code: '31', name: 'Haute-Garonne' }, { code: '32', name: 'Gers' },
+  { code: '33', name: 'Gironde' }, { code: '34', name: 'Hérault' }, { code: '35', name: 'Ille-et-Vilaine' },
+  { code: '36', name: 'Indre' }, { code: '37', name: 'Indre-et-Loire' }, { code: '38', name: 'Isère' },
+  { code: '39', name: 'Jura' }, { code: '40', name: 'Landes' }, { code: '41', name: 'Loir-et-Cher' },
+  { code: '42', name: 'Loire' }, { code: '43', name: 'Haute-Loire' }, { code: '44', name: 'Loire-Atlantique' },
+  { code: '45', name: 'Loiret' }, { code: '46', name: 'Lot' }, { code: '47', name: 'Lot-et-Garonne' },
+  { code: '48', name: 'Lozère' }, { code: '49', name: 'Maine-et-Loire' }, { code: '50', name: 'Manche' },
+  { code: '51', name: 'Marne' }, { code: '52', name: 'Haute-Marne' }, { code: '53', name: 'Mayenne' },
+  { code: '54', name: 'Meurthe-et-Moselle' }, { code: '55', name: 'Meuse' }, { code: '56', name: 'Morbihan' },
+  { code: '57', name: 'Moselle' }, { code: '58', name: 'Nièvre' }, { code: '59', name: 'Nord' },
+  { code: '60', name: 'Oise' }, { code: '61', name: 'Orne' }, { code: '62', name: 'Pas-de-Calais' },
+  { code: '63', name: 'Puy-de-Dôme' }, { code: '64', name: 'Pyrénées-Atlantiques' },
+  { code: '65', name: 'Hautes-Pyrénées' }, { code: '66', name: 'Pyrénées-Orientales' },
+  { code: '67', name: 'Bas-Rhin' }, { code: '68', name: 'Haut-Rhin' }, { code: '69', name: 'Rhône' },
+  { code: '70', name: 'Haute-Saône' }, { code: '71', name: 'Saône-et-Loire' }, { code: '72', name: 'Sarthe' },
+  { code: '73', name: 'Savoie' }, { code: '74', name: 'Haute-Savoie' }, { code: '75', name: 'Paris' },
+  { code: '76', name: 'Seine-Maritime' }, { code: '77', name: 'Seine-et-Marne' }, { code: '78', name: 'Yvelines' },
+  { code: '79', name: 'Deux-Sèvres' }, { code: '80', name: 'Somme' }, { code: '81', name: 'Tarn' },
+  { code: '82', name: 'Tarn-et-Garonne' }, { code: '83', name: 'Var' }, { code: '84', name: 'Vaucluse' },
+  { code: '85', name: 'Vendée' }, { code: '86', name: 'Vienne' }, { code: '87', name: 'Haute-Vienne' },
+  { code: '88', name: 'Vosges' }, { code: '89', name: 'Yonne' }, { code: '90', name: 'Territoire de Belfort' },
+  { code: '91', name: 'Essonne' }, { code: '92', name: 'Hauts-de-Seine' }, { code: '93', name: 'Seine-Saint-Denis' },
+  { code: '94', name: 'Val-de-Marne' }, { code: '95', name: "Val-d'Oise" },
+]
+
 export default function JobsPage() {
   const [jobs, setJobs]         = useState<any[]>([])
   const [loading, setLoading]   = useState(false)
@@ -30,6 +67,8 @@ export default function JobsPage() {
   const [location, setLocation] = useState('')
   const [activeFilter, setActiveFilter] = useState('')
   const [selectedJob, setSelectedJob]   = useState<any>(null)
+  const [departement, setDepartement]   = useState('')
+  const [distance, setDistance]         = useState(50)
   const router = useRouter()
 
   const [isMobile, setIsMobile] = useState(false)
@@ -64,10 +103,11 @@ export default function JobsPage() {
     return () => { fab.remove() }
   }, [])
 
-  async function searchJobs(kw = keyword, loc = location) {
+  async function searchJobs(kw = keyword, loc = location, dept = departement, dist = distance) {
     setLoading(true)
     setJobs([])
-    const params = new URLSearchParams({ keyword: kw, location: loc })
+    const params = new URLSearchParams({ keyword: kw, location: loc, distance: String(dist) })
+    if (dept) params.append('departement', dept)
     const res  = await fetch(`/api/jobs?${params}`)
     const data = await res.json()
     setJobs(data.jobs || [])
@@ -79,12 +119,21 @@ export default function JobsPage() {
   function handleFilter(val: string) {
     setActiveFilter(val)
     setKeyword(val)
-    searchJobs(val, location)
+    searchJobs(val, location, departement, distance)
   }
 
   function handleSearch() {
     setActiveFilter('')
     searchJobs()
+  }
+
+  function handleDeptChange(dept: string) {
+    setDepartement(dept)
+    searchJobs(keyword, location, dept, distance)
+  }
+
+  function handleDistanceCommit(dist: number) {
+    searchJobs(keyword, location, departement, dist)
   }
 
   async function handleCVWithSave(job: any) {
@@ -175,7 +224,7 @@ export default function JobsPage() {
         )}
 
         {/* Filter chips */}
-        <div style={{ display: 'flex', gap: 5, marginBottom: 28, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
           {FILTERS.map(f => (
             <span
               key={f.val}
@@ -188,6 +237,41 @@ export default function JobsPage() {
           {jobs.length > 0 && (
             <span style={{ marginLeft: 'auto', fontSize: 13, color: v.text3, alignSelf: 'center' }}>{jobs.length} offre{jobs.length > 1 ? 's' : ''}</span>
           )}
+        </div>
+
+        {/* Advanced filters */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Département */}
+          <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
+            <div style={{ padding: '0 8px 0 12px', color: v.text3, display: 'flex', flexShrink: 0 }}>
+              <svg viewBox="0 0 12 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 8 4 8s4-4.7 4-8c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.5"/></svg>
+            </div>
+            <select
+              value={departement}
+              onChange={e => handleDeptChange(e.target.value)}
+              style={{ padding: '8px 10px 8px 0', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13, color: departement ? v.blue : v.text2, fontWeight: departement ? 500 : 400, cursor: 'pointer', maxWidth: isMobile ? 180 : 220 }}
+            >
+              <option value="">Tous les départements</option>
+              {DEPARTEMENTS.map(d => (
+                <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Distance */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: v.white, borderRadius: 10, border: `1px solid ${v.line2}`, boxShadow: v.shadow, padding: '7px 14px' }}>
+            <span style={{ fontSize: 12, color: v.text2, flexShrink: 0 }}>Rayon</span>
+            <input
+              type="range"
+              min={5} max={100} step={5}
+              value={distance}
+              onChange={e => setDistance(Number(e.target.value))}
+              onMouseUp={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
+              onTouchEnd={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
+              style={{ width: isMobile ? 100 : 120, accentColor: v.blue, cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 12, fontWeight: 600, color: v.blue, minWidth: 40, textAlign: 'right' }}>{distance} km</span>
+          </div>
         </div>
 
         {/* Loading */}

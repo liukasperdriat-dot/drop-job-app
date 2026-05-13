@@ -147,10 +147,12 @@ async function searchJobs(token: string, params: URLSearchParams) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const keyword  = searchParams.get('keyword') || searchParams.get('q') || ''
-    const location = searchParams.get('location') || ''
-    const salMin   = searchParams.get('salMin') || ''
-    const salMax   = searchParams.get('salMax') || ''
+    const keyword      = searchParams.get('keyword') || searchParams.get('q') || ''
+    const location     = searchParams.get('location') || ''
+    const salMin       = searchParams.get('salMin') || ''
+    const salMax       = searchParams.get('salMax') || ''
+    const departement  = searchParams.get('departement') || ''
+    const distance     = searchParams.get('distance') || ''
 
     // Resolve INSEE code and fetch token in parallel to cut latency
     const [codeInsee, token] = await Promise.all([
@@ -160,10 +162,12 @@ export async function GET(request: Request) {
     console.log('[FT] location:', location || '(none)', '→ INSEE:', codeInsee ?? '(none)')
 
     const params = new URLSearchParams({ range: '0-19' })
-    if (keyword)   params.append('motsCles', keyword)
-    if (codeInsee) params.append('commune', codeInsee)
-    if (salMin)    params.append('salaireMin', salMin)
-    if (salMax)    params.append('salaireMax', salMax)
+    if (keyword)      params.append('motsCles', keyword)
+    if (codeInsee)    params.append('commune', codeInsee)
+    if (codeInsee && distance) params.append('distance', distance)
+    if (departement)  params.append('departement', departement)
+    if (salMin)       params.append('salaireMin', salMin)
+    if (salMax)       params.append('salaireMax', salMax)
 
     let currentToken = token
     let res = await searchJobs(currentToken, params)
