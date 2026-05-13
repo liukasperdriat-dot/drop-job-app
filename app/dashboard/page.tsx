@@ -56,6 +56,7 @@ export default async function DashboardPage() {
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Link href="/jobs" style={{ fontSize: 13, color: v.text2, textDecoration: 'none', padding: '5px 13px', borderRadius: 100 }}>Offres</Link>
+            <Link href="/cv" style={{ padding: '7px 17px', borderRadius: 100, fontSize: 13, fontWeight: 500, background: v.blue, color: '#fff', textDecoration: 'none' }}>Mon CV</Link>
             <LogoutButton />
           </div>
         </div>
@@ -78,6 +79,13 @@ export default async function DashboardPage() {
             {greeting}, {displayName}.
           </h1>
           <p style={{ fontSize: 14, color: v.text3 }}>{user.email}</p>
+        </div>
+
+        {/* Mobile CV CTA */}
+        <div className="mobile-cv-cta">
+          <Link href="/cv" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '15px 20px', borderRadius: 14, background: v.blue, color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,113,227,.28)', letterSpacing: '-0.01em', marginBottom: 20 }}>
+            ✨ Créer mon CV
+          </Link>
         </div>
 
         {/* Bento grid */}
@@ -134,9 +142,11 @@ export default async function DashboardPage() {
       </div>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        .mobile-cv-cta { display: none; }
         @media (max-width: 768px) {
           .dash-bento { grid-template-columns: 1fr !important; }
           .dash-content { padding: 32px 16px 80px !important; }
+          .mobile-cv-cta { display: block; }
           input, select, textarea { font-size: 16px !important; }
         }
       `}</style>
