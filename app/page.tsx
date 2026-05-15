@@ -4,12 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import CompanyLogo from '@/components/CompanyLogo';
 
-const GAUGE: Record<string, { col: string; bg: string; badge: string; desc: string; rot: number; dash: number }> = {
-  bas:   { col: '#c0392b', bg: 'rgba(192,57,43,.07)',  badge: 'Sous le marché',      desc: 'Cette offre est <strong>18% en-dessous</strong> de la moyenne.', rot: -50, dash: 140 },
-  juste: { col: '#1d8348', bg: 'rgba(29,131,72,.07)',  badge: 'Dans la moyenne',     desc: 'Cette offre est dans la <strong>fourchette normale</strong>.', rot: 0, dash: 82 },
-  haut:  { col: '#b45309', bg: 'rgba(180,83,9,.07)',   badge: 'Au-dessus du marché', desc: 'Cette offre est <strong>12% au-dessus</strong> de la moyenne à Lyon.', rot: 50, dash: 18 },
-};
-
 const GEN_STEPS = ['Analyse des mots-clés ATS','Interrogation de votre profil','Adaptation du vocabulaire','Calcul du score de matching','Génération du PDF'];
 
 const v = {
@@ -26,7 +20,6 @@ export default function HomePage() {
   const [billing, setBilling] = useState<'monthly'|'weekly'>('monthly');
   const [salMin, setSalMin]   = useState(40);
   const [salMax, setSalMax]   = useState(65);
-  const [gauge, setGauge]     = useState('haut');
   const [paywall, setPaywall] = useState(false);
   const [genOpen, setGenOpen] = useState(false);
   const [genStep, setGenStep] = useState(0);
@@ -52,7 +45,7 @@ export default function HomePage() {
   }, []);
 
   const handleSearch = () => {
-    window.location.href = `/jobs?q=${encodeURIComponent(search)}`;
+    window.location.href = `/jobs?q=${encodeURIComponent(search)}&salaireMin=${salMin * 1000}&salaireMax=${salMax * 1000}`;
   };
 
   const startGen = () => {
@@ -107,7 +100,7 @@ export default function HomePage() {
           Postulez.<br/>C'est fait.
         </h1>
         <p style={{ fontSize:isMobile ? 16 : 19, fontWeight:300, color:v.text2, lineHeight:1.6, maxWidth:500, margin:'0 auto 44px' }}>
-          Regroupez 5 sites majeurs. L'IA adapte votre CV pour chaque offre. Obtenez le bon salaire.
+          Offres France Travail et Adzuna réunies. L'IA adapte votre CV pour chaque offre en un clic.
         </p>
 
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
@@ -170,13 +163,13 @@ export default function HomePage() {
 
       {/* BENTO */}
       <div id="bento" style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '0 16px 48px' : '0 24px 72px' }}>
-        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)', gap:12 }}>
+        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap:12 }}>
 
           <BCard>
             <BCIcon><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" width={22} height={22}><path d="M2 7l9-4 9 4-9 4-9-4z"/><path d="M2 12l9 4 9-4"/><path d="M2 17l9 4 9-4"/></svg></BCIcon>
             <BCTitle>Sources Unifiées</BCTitle>
             <div style={{ display:'flex', flexWrap:'wrap', gap:5, margin:'12px 0 10px' }}>
-              {['Indeed','LinkedIn','France Travail','HelloWork','WTTJ'].map(s=><SrcPill key={s} label={s} />)}
+              {['France Travail','Adzuna'].map(s=><SrcPill key={s} label={s} />)}
             </div>
             <BCsub>Toutes vos recherches, un seul endroit.</BCsub>
           </BCard>
@@ -196,29 +189,6 @@ export default function HomePage() {
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:10, fontSize:11, color:v.text3 }}>
               Gratuit avec mention · <span style={{ color:v.blue, fontWeight:500 }}>illimité Premium</span>
-            </div>
-          </BCard>
-
-          <BCard>
-            <BCIcon><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" width={22} height={22}><path d="M4.5 16a7.5 7.5 0 1 1 13 0"/><path d="M11 16 l-3-4" strokeWidth="1.6"/><circle cx="11" cy="16" r="1" fill="currentColor" stroke="none"/></svg></BCIcon>
-            <BCTitle>Salary Gauge</BCTitle>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', margin:'10px 0 8px' }}>
-              <svg width="120" height="66" viewBox="0 0 120 66">
-                <path d="M8 60 A52 52 0 0 1 112 60" fill="none" stroke="#e8e8ed" strokeWidth="7" strokeLinecap="round"/>
-                <path d="M8 60 A52 52 0 0 1 112 60" fill="none" stroke={GAUGE[gauge].col} strokeWidth="7" strokeLinecap="round" strokeDasharray="163" strokeDashoffset={GAUGE[gauge].dash} style={{ transition:'all .5s' }}/>
-                <line x1="60" y1="60" x2="60" y2="18" stroke="#1d1d1f" strokeWidth="2" strokeLinecap="round" transform={`rotate(${GAUGE[gauge].rot} 60 60)`} style={{ transition:'transform .5s' }}/>
-                <circle cx="60" cy="60" r="4" fill="white" stroke="#1d1d1f" strokeWidth="1.5"/>
-                <text x="6" y="68" fontSize="8" fill="#aeaeb2" fontFamily="Inter,sans-serif">Bas</text>
-                <text x="49" y="68" fontSize="8" fill="#aeaeb2" fontFamily="Inter,sans-serif">Juste</text>
-                <text x="113" y="68" fontSize="8" fill="#aeaeb2" fontFamily="Inter,sans-serif" textAnchor="end">Haut</text>
-              </svg>
-              <div style={{ marginTop:8, padding:'3px 13px', borderRadius:100, fontSize:11, fontWeight:600, background:GAUGE[gauge].bg, color:GAUGE[gauge].col }}>{GAUGE[gauge].badge}</div>
-              <div style={{ fontSize:12, color:v.text2, textAlign:'center', marginTop:6, lineHeight:1.45 }} dangerouslySetInnerHTML={{ __html: GAUGE[gauge].desc }} />
-            </div>
-            <div style={{ display:'flex', gap:4, justifyContent:'center', marginTop:10 }}>
-              {(['bas','juste','haut'] as const).map(lv=>(
-                <button key={lv} onClick={()=>setGauge(lv)} style={{ padding:'4px 11px', borderRadius:100, fontSize:11, fontWeight:500, color: gauge===lv ? v.blue : v.text2, background: gauge===lv ? 'rgba(0,113,227,.07)' : v.bg, border:`1px solid ${gauge===lv ? 'rgba(0,113,227,.18)' : v.line}`, cursor:'pointer', fontFamily:'inherit', minHeight:44 }}>{lv==='bas'?'Bas':lv==='juste'?'Juste':'Haut'}</button>
-              ))}
             </div>
           </BCard>
 

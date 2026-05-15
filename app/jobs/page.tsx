@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import CompanyLogo from '@/components/CompanyLogo'
 
@@ -71,6 +71,7 @@ export default function JobsPage() {
   const [distance, setDistance]         = useState(50)
   const [source, setSource]             = useState<'tout' | 'francetravail' | 'adzuna'>('tout')
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -117,6 +118,10 @@ export default function JobsPage() {
     if (src !== 'adzuna') {
       params.append('distance', String(dist))
       if (dept) params.append('departement', dept)
+      const salMin = searchParams.get('salaireMin')
+      const salMax = searchParams.get('salaireMax')
+      if (salMin) params.append('salMin', salMin)
+      if (salMax) params.append('salMax', salMax)
     }
     const res  = await fetch(`/api/jobs?${params}`)
     const data = await res.json()
