@@ -26,15 +26,19 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session
     const email = session.customer_details?.email
 
+    console.log('[webhook] checkout.session.completed — email:', email)
+
     if (email) {
-      const { data: profile } = await supabase
+      const { data: profile, error: selectError } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', email)
         .single()
 
+      console.log('[webhook] profile trouvé:', profile, '| erreur select:', selectError?.message)
+
       if (profile) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('profiles')
           .update({
             is_premium: true,
@@ -42,6 +46,8 @@ export async function POST(request: Request) {
             stripe_subscription_id: session.subscription as string,
           })
           .eq('id', profile.id)
+
+        console.log('[webhook] update is_premium — erreur:', updateError?.message ?? 'aucune')
       }
     }
   }
