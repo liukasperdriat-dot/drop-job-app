@@ -69,7 +69,7 @@ export default function JobsPage() {
   const [selectedJob, setSelectedJob]   = useState<any>(null)
   const [departement, setDepartement]   = useState('')
   const [distance, setDistance]         = useState(50)
-  const [source, setSource]             = useState<'francetravail' | 'adzuna'>('francetravail')
+  const [source, setSource]             = useState<'tout' | 'francetravail' | 'adzuna'>('tout')
   const router = useRouter()
 
   const [isMobile, setIsMobile] = useState(false)
@@ -114,7 +114,7 @@ export default function JobsPage() {
     setLoading(true)
     setJobs([])
     const params = new URLSearchParams({ keyword: kw, location: loc, source: src })
-    if (src === 'francetravail') {
+    if (src !== 'adzuna') {
       params.append('distance', String(dist))
       if (dept) params.append('departement', dept)
     }
@@ -126,7 +126,7 @@ export default function JobsPage() {
 
   useEffect(() => { searchJobs() }, [])
 
-  function handleSourceChange(src: 'francetravail' | 'adzuna') {
+  function handleSourceChange(src: 'tout' | 'francetravail' | 'adzuna') {
     setSource(src)
     setActiveFilter('')
     searchJobs(keyword, location, departement, distance, src)
@@ -243,7 +243,7 @@ export default function JobsPage() {
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Toggle France Travail / Adzuna */}
           <div style={{ display: 'flex', background: v.bg2, borderRadius: 100, padding: 3, flexShrink: 0 }}>
-            {(['francetravail', 'adzuna'] as const).map(s => (
+            {(['tout', 'francetravail', 'adzuna'] as const).map(s => (
               <button
                 key={s}
                 onClick={() => handleSourceChange(s)}
@@ -256,7 +256,7 @@ export default function JobsPage() {
                   transition: 'all .15s',
                 }}
               >
-                {s === 'francetravail' ? 'France Travail' : 'Adzuna'}
+                {s === 'tout' ? 'Tout' : s === 'francetravail' ? 'France Travail' : 'Adzuna'}
               </button>
             ))}
           </div>
@@ -276,8 +276,8 @@ export default function JobsPage() {
           )}
         </div>
 
-        {/* Advanced filters — France Travail uniquement */}
-        {source === 'francetravail' && (
+        {/* Advanced filters — France Travail et Tout */}
+        {source !== 'adzuna' && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Département */}
           <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
@@ -313,6 +313,7 @@ export default function JobsPage() {
         </div>
         )}
         {source === 'adzuna' && <div style={{ marginBottom: 24 }} />}
+
 
         {/* Loading */}
         {loading && (

@@ -164,7 +164,7 @@ function mapAdzunaJob(j: any) {
   }
 }
 
-async function fetchAdzunaJobs(keyword: string, location: string): Promise<any[]> {
+async function fetchAdzunaJobs(keyword: string, location: string, limit = 20): Promise<any[]> {
   const appId  = process.env.ADZUNA_APP_ID
   const appKey = process.env.ADZUNA_APP_KEY
   if (!appId || !appKey) throw new Error('Adzuna credentials manquants (ADZUNA_APP_ID / ADZUNA_APP_KEY)')
@@ -172,7 +172,7 @@ async function fetchAdzunaJobs(keyword: string, location: string): Promise<any[]
   const params = new URLSearchParams({
     app_id:           appId,
     app_key:          appKey,
-    results_per_page: '20',
+    results_per_page: String(limit),
   })
   if (keyword)  params.append('what', keyword)
   if (location) params.append('where', location)
@@ -214,10 +214,43 @@ export async function GET(request: Request) {
     const departement  = searchParams.get('departement') || ''
     const distance     = searchParams.get('distance') || ''
 
-    // ── Adzuna path ───────────────────────────────────────────────────────
+    // ── Adzuna only ───────────────────────────────────────────────────────
     if (source === 'adzuna') {
       const jobs = await fetchAdzunaJobs(keyword, location)
       return NextResponse.json({ jobs })
+    }
+
+    // ── Tout : FT (10) + Adzuna (10) en parallèle, tolérant aux pannes ───
+    if (source === 'tout') {
+      const [codeInsee, token] = await Promise.all([
+        location ? resolveInseeCode(location) : Promise.resolve(null),
+        getToken(),
+      ])
+
+      const ftParams = new URLSearchParams({ range: '0-9' })
+      if (keyword)     ftParams.append('motsCles', keyword)
+      if (codeInsee)   ftParams.append('commune', codeInsee)
+      if (codeInsee && distance) ftParams.append('distance', distance)
+      if (departement) ftParams.append('departement', departement)
+
+      const [ftResult, azResult] = await Promise.allSettled([
+        (async () => {
+          let tok = token
+          let r = await searchJobs(tok, ftParams)
+          if (r.status === 401) { invalidateToken(); tok = await getToken(); r = await searchJobs(tok, ftParams) }
+          if (!r.ok) throw new Error(`FT ${r.status}`)
+          const d = await r.json()
+          return (d.resultats || []).map(mapJob)
+        })(),
+        fetchAdzunaJobs(keyword, location, 10),
+      ])
+
+      const ftJobs = ftResult.status === 'fulfilled' ? ftResult.value : []
+      const azJobs = azResult.status === 'fulfilled' ? azResult.value : []
+      if (ftResult.status === 'rejected') console.warn('[tout] FT failed:', (ftResult as PromiseRejectedResult).reason?.message)
+      if (azResult.status === 'rejected') console.warn('[tout] Adzuna failed:', (azResult as PromiseRejectedResult).reason?.message)
+
+      return NextResponse.json({ jobs: [...ftJobs, ...azJobs] })
     }
     // ─────────────────────────────────────────────────────────────────────
 
