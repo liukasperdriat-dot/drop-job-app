@@ -410,7 +410,7 @@ export default function HomePage() {
             ))}
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <button onClick={() => { window.location.href = 'https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00' }} style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:'pointer', minHeight:44 }}>Passer à Premium — 9,90€ / mois</button>
+            <button onClick={() => { window.location.href = billing === 'weekly' ? 'https://buy.stripe.com/8x26oGh2QbJX553c9w4wM01' : 'https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00' }} style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:'pointer', minHeight:44 }}>Passer à Premium — {billing === 'weekly' ? '3,49€ / semaine' : '9,90€ / mois'}</button>
             <button onClick={()=>setPaywall(false)} style={{ width:'100%', padding:11, borderRadius:8, background:'transparent', color:'#6e6e73', border:'1px solid rgba(0,0,0,.14)', fontFamily:'inherit', fontSize:13, cursor:'pointer', minHeight:44 }}>Continuer avec le plan gratuit</button>
           </div>
         </div>
