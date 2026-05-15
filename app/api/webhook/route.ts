@@ -24,17 +24,25 @@ export async function POST(request: Request) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
-    const userId = session.metadata?.userId
+    const email = session.customer_details?.email
 
-    if (userId) {
-      await supabase
+    if (email) {
+      const { data: profile } = await supabase
         .from('profiles')
-        .update({
-          is_premium: true,
-          stripe_customer_id: session.customer as string,
-          stripe_subscription_id: session.subscription as string,
-        })
-        .eq('id', userId)
+        .select('id')
+        .eq('email', email)
+        .single()
+
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({
+            is_premium: true,
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: session.subscription as string,
+          })
+          .eq('id', profile.id)
+      }
     }
   }
 
