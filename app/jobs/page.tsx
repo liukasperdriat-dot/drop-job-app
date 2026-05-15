@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -60,7 +61,7 @@ const DEPARTEMENTS = [
   { code: '94', name: 'Val-de-Marne' }, { code: '95', name: "Val-d'Oise" },
 ]
 
-export default function JobsPage() {
+function JobsPageContent() {
   const [jobs, setJobs]         = useState<any[]>([])
   const [loading, setLoading]   = useState(false)
   const [keyword, setKeyword]   = useState('')
@@ -406,6 +407,14 @@ export default function JobsPage() {
       @media (max-width: 768px) { input, textarea { font-size: 16px !important; } }
     `}</style>
     </>
+  )
+}
+
+export default function JobsPage() {
+  return (
+    <Suspense>
+      <JobsPageContent />
+    </Suspense>
   )
 }
 
