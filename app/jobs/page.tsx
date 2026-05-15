@@ -69,6 +69,7 @@ export default function JobsPage() {
   const [selectedJob, setSelectedJob]   = useState<any>(null)
   const [departement, setDepartement]   = useState('')
   const [distance, setDistance]         = useState(50)
+  const [source, setSource]             = useState<'francetravail' | 'adzuna'>('francetravail')
   const router = useRouter()
 
   const [isMobile, setIsMobile] = useState(false)
@@ -103,11 +104,20 @@ export default function JobsPage() {
     return () => { fab.remove() }
   }, [])
 
-  async function searchJobs(kw = keyword, loc = location, dept = departement, dist = distance) {
+  async function searchJobs(
+    kw   = keyword,
+    loc  = location,
+    dept = departement,
+    dist = distance,
+    src  = source,
+  ) {
     setLoading(true)
     setJobs([])
-    const params = new URLSearchParams({ keyword: kw, location: loc, distance: String(dist) })
-    if (dept) params.append('departement', dept)
+    const params = new URLSearchParams({ keyword: kw, location: loc, source: src })
+    if (src === 'francetravail') {
+      params.append('distance', String(dist))
+      if (dept) params.append('departement', dept)
+    }
     const res  = await fetch(`/api/jobs?${params}`)
     const data = await res.json()
     setJobs(data.jobs || [])
@@ -116,24 +126,30 @@ export default function JobsPage() {
 
   useEffect(() => { searchJobs() }, [])
 
+  function handleSourceChange(src: 'francetravail' | 'adzuna') {
+    setSource(src)
+    setActiveFilter('')
+    searchJobs(keyword, location, departement, distance, src)
+  }
+
   function handleFilter(val: string) {
     setActiveFilter(val)
     setKeyword(val)
-    searchJobs(val, location, departement, distance)
+    searchJobs(val, location, departement, distance, source)
   }
 
   function handleSearch() {
     setActiveFilter('')
-    searchJobs()
+    searchJobs(keyword, location, departement, distance, source)
   }
 
   function handleDeptChange(dept: string) {
     setDepartement(dept)
-    searchJobs(keyword, location, dept, distance)
+    searchJobs(keyword, location, dept, distance, source)
   }
 
   function handleDistanceCommit(dist: number) {
-    searchJobs(keyword, location, departement, dist)
+    searchJobs(keyword, location, departement, dist, source)
   }
 
   async function handleCVWithSave(job: any) {
@@ -188,7 +204,7 @@ export default function JobsPage() {
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
           <h1 style={{ fontSize: 'clamp(28px,4vw,42px)', fontWeight: 600, letterSpacing: '-0.04em', marginBottom: 6 }}>Offres du moment</h1>
-          <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>Agrégées depuis France Travail.</p>
+          <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>Agrégées depuis France Travail et Adzuna.</p>
         </div>
 
         {/* Search bar */}
@@ -223,8 +239,29 @@ export default function JobsPage() {
           </div>
         )}
 
-        {/* Filter chips */}
-        <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
+        {/* Source toggle + Filter chips */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Toggle France Travail / Adzuna */}
+          <div style={{ display: 'flex', background: v.bg2, borderRadius: 100, padding: 3, flexShrink: 0 }}>
+            {(['francetravail', 'adzuna'] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => handleSourceChange(s)}
+                style={{
+                  padding: '4px 13px', borderRadius: 100, fontSize: 12, fontWeight: 500,
+                  background: source === s ? '#fff' : 'transparent',
+                  color: source === s ? v.text : v.text2,
+                  border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  boxShadow: source === s ? '0 1px 3px rgba(0,0,0,.12)' : 'none',
+                  transition: 'all .15s',
+                }}
+              >
+                {s === 'francetravail' ? 'France Travail' : 'Adzuna'}
+              </button>
+            ))}
+          </div>
+
+          {/* Quick-filter chips */}
           {FILTERS.map(f => (
             <span
               key={f.val}
@@ -239,7 +276,8 @@ export default function JobsPage() {
           )}
         </div>
 
-        {/* Advanced filters */}
+        {/* Advanced filters — France Travail uniquement */}
+        {source === 'francetravail' && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Département */}
           <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
@@ -273,6 +311,8 @@ export default function JobsPage() {
             <span style={{ fontSize: 12, fontWeight: 600, color: v.blue, minWidth: 40, textAlign: 'right' }}>{distance} km</span>
           </div>
         </div>
+        )}
+        {source === 'adzuna' && <div style={{ marginBottom: 24 }} />}
 
         {/* Loading */}
         {loading && (

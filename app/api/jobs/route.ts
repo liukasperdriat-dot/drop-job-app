@@ -135,6 +135,65 @@ function mapJob(j: any) {
   }
 }
 
+// ── Adzuna ────────────────────────────────────────────────────────────────
+
+const ADZUNA_CONTRACT: Record<string, string> = {
+  permanent: 'CDI', contract: 'CDD', part_time: 'Temps partiel', temporary: 'Intérim',
+}
+
+function mapAdzunaJob(j: any) {
+  let salary = 'Salaire NC'
+  if (j.salary_min || j.salary_max) {
+    const min = j.salary_min ? Math.round(j.salary_min / 1000) : null
+    const max = j.salary_max ? Math.round(j.salary_max / 1000) : null
+    if (min && max && min !== max) salary = `${min}k€ — ${max}k€ / an`
+    else if (min) salary = `${min}k€ / an`
+    else if (max) salary = `${max}k€ / an`
+  }
+  return {
+    id:          `adzuna-${j.id}`,
+    title:       toTitleCase(j.title || ''),
+    company:     j.company?.display_name || 'Entreprise non précisée',
+    location:    j.location?.display_name || '',
+    contract:    ADZUNA_CONTRACT[j.contract_type?.toLowerCase()] || 'CDI',
+    salary,
+    description: j.description || '',
+    url:         j.redirect_url || '',
+    source:      'Adzuna',
+    remote:      '',
+  }
+}
+
+async function fetchAdzunaJobs(keyword: string, location: string): Promise<any[]> {
+  const appId  = process.env.ADZUNA_APP_ID
+  const appKey = process.env.ADZUNA_APP_KEY
+  if (!appId || !appKey) throw new Error('Adzuna credentials manquants (ADZUNA_APP_ID / ADZUNA_APP_KEY)')
+
+  const params = new URLSearchParams({
+    app_id:           appId,
+    app_key:          appKey,
+    results_per_page: '20',
+  })
+  if (keyword)  params.append('what', keyword)
+  if (location) params.append('where', location)
+
+  const url = `https://api.adzuna.com/v1/api/jobs/fr/search/1?${params}`
+  console.log('[Adzuna] search url:', url.replace(appKey, '***'))
+
+  const res = await fetch(url, { cache: 'no-store' })
+  console.log('[Adzuna] status:', res.status)
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Adzuna HTTP ${res.status}: ${body.slice(0, 200)}`)
+  }
+  const data = await res.json()
+  const jobs = (data.results || []).map(mapAdzunaJob)
+  console.log('[Adzuna] jobs returned:', jobs.length)
+  return jobs
+}
+
+// ── France Travail ─────────────────────────────────────────────────────────
+
 async function searchJobs(token: string, params: URLSearchParams) {
   const url = `https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search?${params}`
   console.log('[FT] search url:', url)
@@ -147,12 +206,20 @@ async function searchJobs(token: string, params: URLSearchParams) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
+    const source       = searchParams.get('source') || 'francetravail'
     const keyword      = searchParams.get('keyword') || searchParams.get('q') || ''
     const location     = searchParams.get('location') || ''
     const salMin       = searchParams.get('salMin') || ''
     const salMax       = searchParams.get('salMax') || ''
     const departement  = searchParams.get('departement') || ''
     const distance     = searchParams.get('distance') || ''
+
+    // ── Adzuna path ───────────────────────────────────────────────────────
+    if (source === 'adzuna') {
+      const jobs = await fetchAdzunaJobs(keyword, location)
+      return NextResponse.json({ jobs })
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     // Resolve INSEE code and fetch token in parallel to cut latency
     const [codeInsee, token] = await Promise.all([
