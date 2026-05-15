@@ -78,7 +78,7 @@ async function resolveInseeCode(cityName: string): Promise<string | null> {
   const timeout = setTimeout(() => controller.abort(), 2000)
   try {
     const res = await fetch(
-      `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(cityName)}&limit=1&fields=code`,
+      `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(cityName)}&limit=1&fields=code,nom,departement&boost=population`,
       { cache: 'no-store', signal: controller.signal }
     )
     if (!res.ok) {
