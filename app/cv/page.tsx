@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
+type Template = 'classique' | 'moderne' | 'minimaliste'
+
 const v = {
   bg: '#f5f5f7', white: '#fff',
   text: '#1d1d1f', text2: '#6e6e73', text3: '#aeaeb2',
@@ -11,6 +13,67 @@ const v = {
   blue: '#0071e3',
   shadow: '0 1px 2px rgba(0,0,0,.05), 0 2px 12px rgba(0,0,0,.05)',
 }
+
+const TEMPLATES: { id: Template; label: string; desc: string; premium: boolean; preview: React.ReactNode }[] = [
+  {
+    id: 'classique',
+    label: 'Classique',
+    desc: 'Sobre, Times New Roman, sections délimitées',
+    premium: false,
+    preview: (
+      <div style={{ width: '100%', height: 84, background: '#fff', borderRadius: 5, overflow: 'hidden', padding: '8px 10px', boxSizing: 'border-box' }}>
+        <div style={{ height: 8, background: '#1d1d1f', borderRadius: 1, width: '55%', marginBottom: 3 }} />
+        <div style={{ height: 4, background: '#d0d0d5', width: '40%', marginBottom: 6 }} />
+        <div style={{ borderTop: '1.5px solid #1d1d1f', paddingTop: 4, marginBottom: 4 }}>
+          <div style={{ height: 3.5, background: '#6e6e73', width: '32%', marginBottom: 4 }} />
+          <div style={{ height: 2.5, background: '#c8c8ce', width: '80%', marginBottom: 2 }} />
+          <div style={{ height: 2.5, background: '#c8c8ce', width: '62%' }} />
+        </div>
+        <div style={{ borderTop: '1px solid #c8c8ce', paddingTop: 4 }}>
+          <div style={{ height: 3.5, background: '#6e6e73', width: '26%', marginBottom: 3 }} />
+          <div style={{ height: 2.5, background: '#c8c8ce', width: '70%' }} />
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'moderne',
+    label: 'Moderne',
+    desc: 'Accent bleu, header couleur, typographie bold',
+    premium: true,
+    preview: (
+      <div style={{ width: '100%', height: 84, background: '#fff', borderRadius: 5, overflow: 'hidden', boxSizing: 'border-box' }}>
+        <div style={{ background: '#2563EB', padding: '7px 9px 6px' }}>
+          <div style={{ height: 7, background: 'rgba(255,255,255,.9)', width: '52%', borderRadius: 1, marginBottom: 3 }} />
+          <div style={{ height: 4, background: 'rgba(255,255,255,.4)', width: '36%', borderRadius: 1, marginBottom: 3 }} />
+          <div style={{ height: 3, background: 'rgba(255,255,255,.25)', width: '60%', borderRadius: 1 }} />
+        </div>
+        <div style={{ padding: '5px 9px' }}>
+          <div style={{ height: 2.5, background: '#2563EB', width: '28%', marginBottom: 4 }} />
+          <div style={{ height: 2.5, background: '#e8e8ed', width: '78%', marginBottom: 2 }} />
+          <div style={{ height: 2.5, background: '#e8e8ed', width: '58%', marginBottom: 4 }} />
+          <div style={{ height: 2.5, background: '#2563EB', width: '22%', marginBottom: 3 }} />
+          <div style={{ height: 2.5, background: '#e8e8ed', width: '68%' }} />
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'minimaliste',
+    label: 'Minimaliste',
+    desc: 'Épuré, espace blanc, Inter, sans bordures',
+    premium: true,
+    preview: (
+      <div style={{ width: '100%', height: 84, background: '#fff', borderRadius: 5, overflow: 'hidden', padding: '10px 14px', boxSizing: 'border-box' }}>
+        <div style={{ height: 10, background: '#1d1d1f', width: '60%', borderRadius: 1, marginBottom: 4 }} />
+        <div style={{ height: 4, background: '#aeaeb2', width: '38%', borderRadius: 1, marginBottom: 13 }} />
+        <div style={{ height: 3, background: '#d8d8de', width: '18%', marginBottom: 5 }} />
+        <div style={{ height: 2.5, background: '#e8e8ed', width: '82%', marginBottom: 2 }} />
+        <div style={{ height: 2.5, background: '#e8e8ed', width: '54%' }} />
+      </div>
+    ),
+  },
+]
 
 function scoreColor(score: number) {
   if (score >= 75) return '#1d8348'
@@ -22,19 +85,20 @@ function CVPageInner() {
   const router = useRouter()
   const params = useSearchParams()
 
-  const [jobTitle, setJobTitle]             = useState(params.get('title') || '')
-  const [company, setCompany]               = useState(params.get('company') || '')
+  const [jobTitle, setJobTitle]         = useState(params.get('title') || '')
+  const [company, setCompany]           = useState(params.get('company') || '')
   const [jobDescription, setJobDescription] = useState(params.get('description') || '')
 
-  // Raw structured profile from /api/profile
   const [profileData, setProfileData]   = useState<any>(null)
-  // Fallback free-text for network-error state
   const [userProfile, setUserProfile]   = useState('')
 
   const [cv, setCv]             = useState<any>(null)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [downloading, setDownloading] = useState(false)
+
+  const [template, setTemplate] = useState<Template>('classique')
+  const [isPremium, setIsPremium] = useState(false)
 
   type ProfileState = 'loading' | 'loaded' | 'empty' | 'error'
   const [profileState, setProfileState] = useState<ProfileState>('loading')
@@ -51,27 +115,24 @@ function CVPageInner() {
     fetch('/api/profile')
       .then(r => r.json())
       .then(({ profile }) => {
-        if (profile) {
-          setProfileData(profile)
-          setProfileState('loaded')
-        } else {
-          setProfileState('empty')
-        }
+        if (profile) { setProfileData(profile); setProfileState('loaded') }
+        else setProfileState('empty')
       })
       .catch(() => setProfileState('error'))
+
+    fetch('/api/me')
+      .then(r => r.json())
+      .then(({ is_premium }) => setIsPremium(!!is_premium))
+      .catch(() => {})
   }, [])
 
   async function handleGenerate() {
-    setLoading(true)
-    setError('')
-    setCv(null)
-
+    setLoading(true); setError(''); setCv(null)
     const res = await fetch('/api/generate-cv', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobTitle, company, jobDescription }),
     })
-
     const data = await res.json()
     setLoading(false)
     if (data.error) { setError(data.error); return }
@@ -81,157 +142,290 @@ function CVPageInner() {
   async function handleDownloadPDF() {
     if (!cv) return
     setDownloading(true)
-
     const { jsPDF } = await import('jspdf')
+
+    if (template === 'classique') await renderClassique(jsPDF)
+    else if (template === 'moderne') await renderModerne(jsPDF)
+    else await renderMinimaliste(jsPDF)
+
+    setDownloading(false)
+  }
+
+  async function renderClassique(jsPDF: any) {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-    const pageW = 210
-    const margin = 22
-    const colW = pageW - margin * 2
-    let y = 0
+    const pageW = 210, margin = 24, colW = pageW - margin * 2
+    let y = 28
 
-    // ── Header band ──────────────────────────────────────────────────────
-    const headerH = 62
-    doc.setFillColor(29, 29, 31)
-    doc.rect(0, 0, pageW, headerH, 'F')
+    doc.setFont('times', 'bold')
+    doc.setFontSize(26)
+    doc.setTextColor(0, 0, 0)
+    doc.text(cv.name || '', margin, y)
+    y += 8
 
-    // Nom — grand, impactant
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(28)
-    doc.setFont('helvetica', 'bold')
-    doc.text(cv.name || '', margin, 24)
-
-    // Titre de poste
+    doc.setFont('times', 'italic')
     doc.setFontSize(12)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(174, 174, 178)
-    doc.text(cv.title || '', margin, 36)
+    doc.setTextColor(80, 80, 80)
+    doc.text(cv.title || '', margin, y)
+    y += 5
 
-    // Ligne séparatrice fine sous le titre
-    doc.setDrawColor(60, 60, 65)
-    doc.setLineWidth(0.25)
-    doc.line(margin, 41, pageW - margin, 41)
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(0.7)
+    doc.line(margin, y, pageW - margin, y)
+    y += 5
 
-    // Contact
-    const contactParts = [
-      profileData?.email, profileData?.phone,
-      profileData?.location, profileData?.linkedin,
-    ].filter(Boolean)
+    const contactParts = [profileData?.email, profileData?.phone, profileData?.location].filter(Boolean)
     if (contactParts.length) {
-      doc.setFontSize(8.5)
-      doc.setTextColor(120, 120, 125)
-      doc.text(contactParts.join('   ·   '), margin, 52)
+      doc.setFont('times', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(80, 80, 80)
+      doc.text(contactParts.join('   ·   '), margin, y)
+      y += 10
     }
 
-    // NB : match score intentionnellement absent du PDF (info interne uniquement)
+    const checkPage = (n: number) => { if (y + n > 280) { doc.addPage(); y = 20 } }
 
-    y = headerH + 14
-
-    // ── Helpers ───────────────────────────────────────────────────────────
-    const checkPage = (needed: number) => {
-      if (y + needed > 282) { doc.addPage(); y = 20 }
-    }
-
-    const sectionTitle = (label: string) => {
-      checkPage(18)
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(160, 160, 165)
-      doc.text(label.toUpperCase(), margin, y)
-      doc.setDrawColor(220, 220, 224)
-      doc.setLineWidth(0.35)
-      doc.line(margin + doc.getTextWidth(label.toUpperCase()) + 4, y - 0.8, margin + colW, y - 0.8)
-      y += 8
-    }
-
-    const bodyText = (text: string, color: [number, number, number] = [40, 40, 42]) => {
+    const section = (label: string) => {
+      checkPage(14)
+      doc.setDrawColor(0, 0, 0)
+      doc.setLineWidth(0.4)
+      doc.line(margin, y, pageW - margin, y)
+      y += 5
+      doc.setFont('times', 'bold')
       doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(0, 0, 0)
+      doc.text(label.toUpperCase(), margin, y)
+      y += 7
+    }
+
+    const body = (text: string, color: [number, number, number] = [40, 40, 40]) => {
+      doc.setFont('times', 'normal')
+      doc.setFontSize(10.5)
       doc.setTextColor(...color)
       const lines = doc.splitTextToSize(text, colW)
-      checkPage(lines.length * 5.5 + 3)
+      checkPage(lines.length * 5.6)
       doc.text(lines, margin, y)
-      y += lines.length * 5.5 + 3
+      y += lines.length * 5.6
     }
 
-    // ── Sections ──────────────────────────────────────────────────────────
-    if (cv.summary) {
-      sectionTitle('Résumé')
-      bodyText(cv.summary)
-      y += 6
-    }
+    if (cv.summary) { section('Résumé'); body(cv.summary); y += 6 }
 
     if (cv.experience?.length) {
-      sectionTitle('Expérience')
+      section('Expérience')
       for (const exp of cv.experience) {
-        checkPage(28)
-        doc.setFontSize(11)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(29, 29, 31)
-        doc.text(`${exp.title}`, margin, y)
-        y += 6
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(80, 80, 85)
-        doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y)
-        y += 6
-        bodyText(exp.description || '', [90, 90, 95])
-        y += 4
+        checkPage(26)
+        doc.setFont('times', 'bold'); doc.setFontSize(11); doc.setTextColor(0, 0, 0)
+        doc.text(exp.title, margin, y); y += 6
+        doc.setFont('times', 'italic'); doc.setFontSize(9.5); doc.setTextColor(80, 80, 80)
+        doc.text(`${exp.company}${exp.period ? `  ·  ${exp.period}` : ''}`, margin, y); y += 6
+        body(exp.description || '', [50, 50, 50]); y += 5
       }
-      y += 4
+      y += 2
     }
 
     if (cv.skills?.length) {
-      sectionTitle('Compétences')
-      const skillLine = cv.skills.join('   ·   ')
-      const lines = doc.splitTextToSize(skillLine, colW)
-      checkPage(lines.length * 5.5 + 8)
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(40, 40, 42)
-      doc.text(lines, margin, y)
-      y += lines.length * 5.5 + 8
+      section('Compétences')
+      body(cv.skills.join(' · ')); y += 6
     }
 
     if (cv.education?.length) {
-      sectionTitle('Formation')
+      section('Formation')
       for (const edu of cv.education) {
-        checkPage(18)
-        doc.setFontSize(11)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(29, 29, 31)
-        doc.text(edu.degree || '', margin, y)
-        y += 6
-        doc.setFontSize(9.5)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(80, 80, 85)
-        doc.text(`${edu.school}${edu.period ? `   ·   ${edu.period}` : ''}`, margin, y)
-        y += 8
+        checkPage(14)
+        doc.setFont('times', 'bold'); doc.setFontSize(11); doc.setTextColor(0, 0, 0)
+        doc.text(edu.degree || '', margin, y); y += 6
+        doc.setFont('times', 'italic'); doc.setFontSize(9.5); doc.setTextColor(80, 80, 80)
+        doc.text(`${edu.school}${edu.period ? `  ·  ${edu.period}` : ''}`, margin, y); y += 9
+      }
+    }
+
+    if (cv.languages?.length) {
+      section('Langues')
+      body(cv.languages.map((l: any) => `${l.name} (${l.level})`).join(' · '))
+    }
+
+    if (cv.watermark) {
+      doc.setFontSize(6.5); doc.setFont('times', 'normal'); doc.setTextColor(200, 200, 205)
+      doc.text('drop-job.fr', pageW - margin, 291, { align: 'right' })
+    }
+
+    doc.save(`CV_${(cv.name || 'cv').replace(/\s+/g, '_')}_${company || 'drop-job'}.pdf`)
+  }
+
+  async function renderModerne(jsPDF: any) {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const pageW = 210, margin = 20, colW = pageW - margin * 2
+    const blue: [number, number, number] = [37, 99, 235]
+    let y = 0
+
+    doc.setFillColor(...blue)
+    doc.rect(0, 0, pageW, 54, 'F')
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(26)
+    doc.text(cv.name || '', margin, 22)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(12)
+    doc.setTextColor(180, 210, 255)
+    doc.text(cv.title || '', margin, 33)
+
+    const contactParts = [profileData?.email, profileData?.phone, profileData?.location, profileData?.linkedin].filter(Boolean)
+    if (contactParts.length) {
+      doc.setFontSize(8)
+      doc.setTextColor(160, 195, 255)
+      doc.text(contactParts.join('   ·   '), margin, 44)
+    }
+
+    y = 66
+
+    const checkPage = (n: number) => { if (y + n > 280) { doc.addPage(); y = 20 } }
+
+    const section = (label: string) => {
+      checkPage(14)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.setTextColor(...blue)
+      doc.text(label.toUpperCase(), margin, y)
+      doc.setDrawColor(...blue)
+      doc.setLineWidth(0.5)
+      doc.line(margin, y + 1.5, margin + colW, y + 1.5)
+      y += 9
+    }
+
+    const body = (text: string, color: [number, number, number] = [40, 40, 42]) => {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(...color)
+      const lines = doc.splitTextToSize(text, colW)
+      checkPage(lines.length * 5.5)
+      doc.text(lines, margin, y)
+      y += lines.length * 5.5
+    }
+
+    if (cv.summary) { section('Résumé'); body(cv.summary); y += 8 }
+
+    if (cv.experience?.length) {
+      section('Expérience')
+      for (const exp of cv.experience) {
+        checkPage(26)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(29, 29, 31)
+        doc.text(exp.title, margin, y); y += 5.5
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...blue)
+        doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y); y += 6
+        body(exp.description || '', [70, 70, 75]); y += 6
+      }
+      y += 2
+    }
+
+    if (cv.skills?.length) {
+      section('Compétences')
+      body(cv.skills.join('   ·   ')); y += 8
+    }
+
+    if (cv.education?.length) {
+      section('Formation')
+      for (const edu of cv.education) {
+        checkPage(14)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(29, 29, 31)
+        doc.text(edu.degree || '', margin, y); y += 5.5
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...blue)
+        doc.text(`${edu.school}${edu.period ? `   ·   ${edu.period}` : ''}`, margin, y); y += 9
       }
       y += 2
     }
 
     if (cv.languages?.length) {
-      sectionTitle('Langues')
-      const langLine = cv.languages.map((l: any) => `${l.name} (${l.level})`).join('   ·   ')
-      const lines = doc.splitTextToSize(langLine, colW)
-      checkPage(lines.length * 5.5 + 4)
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(40, 40, 42)
-      doc.text(lines, margin, y)
-      y += lines.length * 5.5 + 6
+      section('Langues')
+      body(cv.languages.map((l: any) => `${l.name} (${l.level})`).join('   ·   '))
     }
 
-    // Watermark freemium : discret pour free, absent pour premium
     if (cv.watermark) {
-      doc.setFontSize(6.5)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(200, 200, 205)
+      doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(200, 200, 205)
       doc.text('drop-job.fr', pageW - margin, 291, { align: 'right' })
     }
 
     doc.save(`CV_${(cv.name || 'cv').replace(/\s+/g, '_')}_${company || 'drop-job'}.pdf`)
-    setDownloading(false)
+  }
+
+  async function renderMinimaliste(jsPDF: any) {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const pageW = 210, margin = 28, colW = pageW - margin * 2
+    let y = 34
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(30)
+    doc.setTextColor(20, 20, 22)
+    doc.text(cv.name || '', margin, y); y += 10
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(13)
+    doc.setTextColor(120, 120, 125)
+    doc.text(cv.title || '', margin, y); y += 6
+
+    const contactParts = [profileData?.email, profileData?.phone, profileData?.location].filter(Boolean)
+    if (contactParts.length) {
+      doc.setFontSize(8); doc.setTextColor(160, 160, 165)
+      doc.text(contactParts.join('   ·   '), margin, y); y += 16
+    } else { y += 10 }
+
+    const checkPage = (n: number) => { if (y + n > 280) { doc.addPage(); y = 28 } }
+
+    const section = (label: string) => {
+      checkPage(16); y += 4
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(160, 160, 165)
+      doc.text(label.toUpperCase(), margin, y); y += 7
+    }
+
+    const body = (text: string, color: [number, number, number] = [40, 40, 42]) => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(...color)
+      const lines = doc.splitTextToSize(text, colW)
+      checkPage(lines.length * 6)
+      doc.text(lines, margin, y); y += lines.length * 6
+    }
+
+    if (cv.summary) { section('Résumé'); body(cv.summary); y += 8 }
+
+    if (cv.experience?.length) {
+      section('Expérience')
+      for (const exp of cv.experience) {
+        checkPage(28)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(20, 20, 22)
+        doc.text(exp.title, margin, y); y += 5.5
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(130, 130, 135)
+        doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y); y += 7
+        body(exp.description || '', [60, 60, 65]); y += 7
+      }
+      y += 2
+    }
+
+    if (cv.skills?.length) {
+      section('Compétences'); body(cv.skills.join('   ·   ')); y += 8
+    }
+
+    if (cv.education?.length) {
+      section('Formation')
+      for (const edu of cv.education) {
+        checkPage(16)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(20, 20, 22)
+        doc.text(edu.degree || '', margin, y); y += 5.5
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(130, 130, 135)
+        doc.text(`${edu.school}${edu.period ? `   ·   ${edu.period}` : ''}`, margin, y); y += 9
+      }
+      y += 2
+    }
+
+    if (cv.languages?.length) {
+      section('Langues')
+      body(cv.languages.map((l: any) => `${l.name} (${l.level})`).join('   ·   '))
+    }
+
+    if (cv.watermark) {
+      doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(200, 200, 205)
+      doc.text('drop-job.fr', pageW - margin, 291, { align: 'right' })
+    }
+
+    doc.save(`CV_${(cv.name || 'cv').replace(/\s+/g, '_')}_${company || 'drop-job'}.pdf`)
   }
 
   const canGenerate =
@@ -271,9 +465,67 @@ function CVPageInner() {
       {/* CONTENT */}
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '48px 24px 80px' }}>
 
-        <div style={{ marginBottom: 40 }}>
+        <div style={{ marginBottom: 32 }}>
           <h1 style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.04em', color: v.text, marginBottom: 6 }}>Smart CV IA</h1>
           <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>Générez un CV adapté à chaque offre en quelques secondes.</p>
+        </div>
+
+        {/* TEMPLATE SELECTOR */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' as any, color: v.text3, marginBottom: 12 }}>Template</div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 10 }}>
+            {TEMPLATES.map(t => {
+              const locked = t.premium && !isPremium
+              const selected = template === t.id
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => { if (!locked) setTemplate(t.id) }}
+                  style={{
+                    background: v.white,
+                    border: selected ? `2px solid ${v.blue}` : `1.5px solid ${v.line2}`,
+                    borderRadius: 14,
+                    padding: '12px 14px',
+                    cursor: locked ? 'not-allowed' : 'pointer',
+                    textAlign: 'left' as any,
+                    boxShadow: selected ? `0 0 0 3px rgba(0,113,227,.08), ${v.shadow}` : v.shadow,
+                    opacity: locked ? 0.72 : 1,
+                    transition: 'border .15s, box-shadow .15s',
+                    fontFamily: 'inherit',
+                    position: 'relative' as any,
+                  }}
+                >
+                  {/* Premium badge */}
+                  {t.premium && (
+                    <span style={{
+                      position: 'absolute', top: 10, right: 10,
+                      background: locked ? '#e8e8ed' : 'rgba(0,113,227,.09)',
+                      color: locked ? v.text3 : v.blue,
+                      fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 100,
+                    }}>
+                      {locked ? '🔒 Premium' : '★ Premium'}
+                    </span>
+                  )}
+
+                  {/* Mini preview */}
+                  <div style={{ marginBottom: 10, borderRadius: 6, overflow: 'hidden', border: `1px solid ${v.line}` }}>
+                    {t.preview}
+                  </div>
+
+                  <div style={{ fontSize: 13, fontWeight: 600, color: v.text, marginBottom: 2 }}>{t.label}</div>
+                  <div style={{ fontSize: 11, color: v.text3, lineHeight: 1.45 }}>{t.desc}</div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Upgrade nudge */}
+          {!isPremium && (
+            <div style={{ marginTop: 10, padding: '9px 14px', background: 'rgba(0,113,227,.04)', border: '1px solid rgba(0,113,227,.12)', borderRadius: 10, fontSize: 12, color: v.blue, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Moderne et Minimaliste sont réservés aux membres Premium.</span>
+              <a href="https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00" style={{ fontWeight: 600, color: v.blue, textDecoration: 'none', flexShrink: 0, marginLeft: 12 }}>Passer Premium →</a>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, alignItems: 'start' }}>
@@ -294,7 +546,6 @@ function CVPageInner() {
               <textarea value={jobDescription} onChange={e => setJobDescription(e.target.value)} placeholder="Collez la description de l'offre ici…" rows={6} style={textareaStyle} />
             </Field>
 
-            {/* Profile status */}
             {profileState === 'loading' && (
               <Field label="Votre profil">
                 <div style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.14)', fontSize: 13, color: v.text3, background: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -353,20 +604,20 @@ function CVPageInner() {
           {/* ── PREVIEW CARD ──────────────────────────────────────────────── */}
           <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, minHeight: 560, display: 'flex', flexDirection: 'column', boxShadow: v.shadow, overflow: 'hidden' }}>
 
-            {/* Chrome bar */}
             <div style={{ padding: '14px 22px', borderBottom: `1px solid ${v.line}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
               </div>
-              <div style={{ fontSize: 11, color: v.text3, fontWeight: 500 }}>Aperçu CV</div>
+              <div style={{ fontSize: 11, color: v.text3, fontWeight: 500 }}>
+                Aperçu CV · {TEMPLATES.find(t => t.id === template)?.label}
+              </div>
               <div style={{ width: 54 }} />
             </div>
 
             <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', alignItems: cv || loading ? 'flex-start' : 'center', justifyContent: 'center' }}>
 
-              {/* Loading */}
               {loading && (
                 <div style={{ textAlign: 'center' as any, width: '100%', paddingTop: 60 }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid #e8e8ed', borderTopColor: v.blue, animation: 'spin .7s linear infinite', margin: '0 auto 18px' }} />
@@ -379,7 +630,6 @@ function CVPageInner() {
                 </div>
               )}
 
-              {/* Empty state */}
               {!loading && !cv && (
                 <div style={{ textAlign: 'center' as any, color: v.text3 }}>
                   <svg viewBox="0 0 48 60" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" width={48} height={60} style={{ marginBottom: 14, opacity: 0.4 }}>
@@ -393,75 +643,90 @@ function CVPageInner() {
                 </div>
               )}
 
-              {/* CV Document */}
               {!loading && cv && (
                 <div style={{ width: '100%' }}>
 
-                  {/* Header */}
-                  <div style={{ background: v.text, borderRadius: 10, padding: '20px 20px 16px', marginBottom: 20 }}>
-                    <div style={{ fontSize: 21, fontWeight: 600, letterSpacing: '-0.03em', color: '#fff', marginBottom: 3 }}>{cv.name}</div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>{cv.title}</div>
-
-                    {/* Contact */}
-                    {(profileData?.email || profileData?.phone || profileData?.location) && (
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>
-                        {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
-                      </div>
-                    )}
-
-                    {/* Match score + reasons */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as any }}>
-                      {cv.matchScore && (
-                        <span style={{ padding: '3px 12px', borderRadius: 100, background: `${scoreColor(cv.matchScore)}cc`, color: '#fff', fontSize: 11, fontWeight: 600 }}>
-                          Match : {cv.matchScore}%
-                        </span>
+                  {/* Preview header — adapté au template sélectionné */}
+                  {template === 'classique' && (
+                    <div style={{ borderBottom: '2px solid #1d1d1f', paddingBottom: 14, marginBottom: 18 }}>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: v.text, fontFamily: 'Georgia, serif', marginBottom: 3 }}>{cv.name}</div>
+                      <div style={{ fontSize: 13, color: v.text2, fontFamily: 'Georgia, serif', fontStyle: 'italic', marginBottom: 8 }}>{cv.title}</div>
+                      {(profileData?.email || profileData?.phone || profileData?.location) && (
+                        <div style={{ fontSize: 10, color: v.text3, fontFamily: 'Georgia, serif' }}>
+                          {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                        </div>
                       )}
-                      {cv.matchReasons?.map((r: string, i: number) => (
-                        <span key={i} style={{ padding: '2px 9px', borderRadius: 100, background: 'rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>
-                          {r}
-                        </span>
-                      ))}
                     </div>
-                  </div>
-
-                  {/* Résumé */}
-                  {cv.summary && (
-                    <CVSection title="Résumé">
-                      <p style={{ fontSize: 13, color: v.text2, lineHeight: 1.7 }}>{cv.summary}</p>
-                    </CVSection>
                   )}
 
-                  {/* Expérience */}
+                  {template === 'moderne' && (
+                    <div style={{ background: '#2563EB', borderRadius: 10, padding: '18px 20px 14px', marginBottom: 20 }}>
+                      <div style={{ fontSize: 21, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{cv.name}</div>
+                      <div style={{ fontSize: 12, color: 'rgba(180,210,255,0.9)', marginBottom: 6 }}>{cv.title}</div>
+                      {(profileData?.email || profileData?.phone || profileData?.location) && (
+                        <div style={{ fontSize: 10, color: 'rgba(160,195,255,0.8)' }}>
+                          {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as any, marginTop: 10 }}>
+                        {cv.matchScore && (
+                          <span style={{ padding: '3px 12px', borderRadius: 100, background: `${scoreColor(cv.matchScore)}cc`, color: '#fff', fontSize: 11, fontWeight: 600 }}>
+                            Match : {cv.matchScore}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {template === 'minimaliste' && (
+                    <div style={{ paddingBottom: 20, marginBottom: 20 }}>
+                      <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.04em', color: v.text, marginBottom: 4 }}>{cv.name}</div>
+                      <div style={{ fontSize: 14, color: v.text3, fontWeight: 300, marginBottom: 6 }}>{cv.title}</div>
+                      {(profileData?.email || profileData?.phone || profileData?.location) && (
+                        <div style={{ fontSize: 10, color: v.text3 }}>
+                          {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                        </div>
+                      )}
+                      {cv.matchScore && (
+                        <div style={{ marginTop: 8 }}>
+                          <span style={{ padding: '3px 12px', borderRadius: 100, background: `${scoreColor(cv.matchScore)}18`, color: scoreColor(cv.matchScore), fontSize: 11, fontWeight: 600 }}>
+                            Match : {cv.matchScore}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {cv.summary && <CVSection title="Résumé" template={template}><p style={{ fontSize: 13, color: v.text2, lineHeight: 1.7 }}>{cv.summary}</p></CVSection>}
+
                   {cv.experience?.length > 0 && (
-                    <CVSection title="Expérience">
+                    <CVSection title="Expérience" template={template}>
                       {cv.experience.map((exp: any, i: number) => (
                         <div key={i} style={{ marginBottom: 14 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: v.text }}>{exp.title} — {exp.company}</div>
-                          <div style={{ fontSize: 11, color: v.text3, margin: '2px 0 5px' }}>{exp.period}</div>
+                          <div style={{ fontSize: 11, color: template === 'moderne' ? '#2563EB' : v.text3, margin: '2px 0 5px' }}>{exp.period}</div>
                           <div style={{ fontSize: 12, color: v.text2, lineHeight: 1.65 }}>{exp.description}</div>
                         </div>
                       ))}
                     </CVSection>
                   )}
 
-                  {/* Compétences */}
                   {cv.skills?.length > 0 && (
-                    <CVSection title="Compétences">
+                    <CVSection title="Compétences" template={template}>
                       <div style={{ display: 'flex', flexWrap: 'wrap' as any, gap: 6 }}>
                         {cv.skills.map((s: string, i: number) => (
-                          <span key={i} style={{ padding: '3px 11px', borderRadius: 100, background: v.bg, border: `1px solid ${v.line}`, fontSize: 11, color: v.text }}>{s}</span>
+                          <span key={i} style={{ padding: '3px 11px', borderRadius: 100, background: template === 'moderne' ? 'rgba(37,99,235,.07)' : v.bg, border: `1px solid ${template === 'moderne' ? 'rgba(37,99,235,.18)' : v.line}`, fontSize: 11, color: template === 'moderne' ? '#2563EB' : v.text }}>{s}</span>
                         ))}
                       </div>
                     </CVSection>
                   )}
 
-                  {/* Formation */}
                   {cv.education?.length > 0 && (
-                    <CVSection title="Formation">
+                    <CVSection title="Formation" template={template}>
                       {cv.education.map((edu: any, i: number) => (
                         <div key={i} style={{ marginBottom: 10 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: v.text }}>{edu.degree}</div>
-                          <div style={{ fontSize: 11, color: v.text3, marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: template === 'moderne' ? '#2563EB' : v.text3, marginTop: 2 }}>
                             {edu.school}{edu.period ? ` · ${edu.period}` : ''}
                           </div>
                         </div>
@@ -469,9 +734,8 @@ function CVPageInner() {
                     </CVSection>
                   )}
 
-                  {/* Langues */}
                   {cv.languages?.length > 0 && (
-                    <CVSection title="Langues">
+                    <CVSection title="Langues" template={template}>
                       <div style={{ display: 'flex', flexWrap: 'wrap' as any, gap: 6 }}>
                         {cv.languages.map((l: any, i: number) => (
                           <span key={i} style={{ padding: '3px 11px', borderRadius: 100, background: v.bg, border: `1px solid ${v.line}`, fontSize: 11, color: v.text }}>
@@ -496,7 +760,7 @@ function CVPageInner() {
                       <polyline points="4,7 8,11 12,7"/>
                       <line x1="2" y1="15" x2="14" y2="15"/>
                     </svg>
-                    {downloading ? 'Génération du PDF…' : 'Télécharger le PDF'}
+                    {downloading ? 'Génération du PDF…' : `Télécharger — ${TEMPLATES.find(t => t.id === template)?.label}`}
                   </button>
                 </div>
               )}
@@ -524,12 +788,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function CVSection({ title, children }: { title: string; children: React.ReactNode }) {
+function CVSection({ title, template, children }: { title: string; template: Template; children: React.ReactNode }) {
+  const isModerne = template === 'moderne'
+  const isMinimaliste = template === 'minimaliste'
   return (
-    <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.08em', color: '#aeaeb2', textTransform: 'uppercase' as any, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ marginBottom: isMinimaliste ? 22 : 18 }}>
+      <div style={{
+        fontSize: 9, fontWeight: 600, letterSpacing: '.08em',
+        color: isModerne ? '#2563EB' : '#aeaeb2',
+        textTransform: 'uppercase' as any,
+        marginBottom: 8,
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
         {title}
-        <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.06)' }} />
+        {!isMinimaliste && <div style={{ flex: 1, height: isModerne ? 1.5 : 1, background: isModerne ? '#2563EB' : 'rgba(0,0,0,0.06)' }} />}
       </div>
       {children}
     </div>
@@ -537,15 +809,9 @@ function CVSection({ title, children }: { title: string; children: React.ReactNo
 }
 
 const inputStyle: React.CSSProperties = {
-  padding: '11px 14px',
-  borderRadius: 10,
-  border: '1px solid rgba(0,0,0,0.14)',
-  fontSize: 14,
-  fontFamily: 'inherit',
-  color: '#1d1d1f',
-  background: '#fff',
-  width: '100%',
-  transition: 'border-color .15s, box-shadow .15s',
+  padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.14)',
+  fontSize: 14, fontFamily: 'inherit', color: '#1d1d1f', background: '#fff',
+  width: '100%', transition: 'border-color .15s, box-shadow .15s',
 }
 
 const textareaStyle: React.CSSProperties = { ...inputStyle, resize: 'vertical' }
