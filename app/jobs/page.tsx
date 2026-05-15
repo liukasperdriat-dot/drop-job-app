@@ -239,41 +239,49 @@ export default function JobsPage() {
           </div>
         )}
 
-        {/* Source toggle + Filter chips */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Toggle France Travail / Adzuna */}
-          <div style={{ display: 'flex', background: v.bg2, borderRadius: 100, padding: 3, flexShrink: 0 }}>
-            {(['tout', 'francetravail', 'adzuna'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => handleSourceChange(s)}
-                style={{
-                  padding: '4px 13px', borderRadius: 100, fontSize: 12, fontWeight: 500,
-                  background: source === s ? '#fff' : 'transparent',
-                  color: source === s ? v.text : v.text2,
-                  border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                  boxShadow: source === s ? '0 1px 3px rgba(0,0,0,.12)' : 'none',
-                  transition: 'all .15s',
-                }}
-              >
-                {s === 'tout' ? 'Tout' : s === 'francetravail' ? 'France Travail' : 'Adzuna'}
-              </button>
-            ))}
+        {/* Filtres */}
+        <div style={{ display: 'flex', gap: 16, marginBottom: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          {/* Source */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Source</div>
+            <div style={{ display: 'flex', background: v.bg2, borderRadius: 100, padding: 3 }}>
+              {(['tout', 'francetravail', 'adzuna'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => handleSourceChange(s)}
+                  style={{
+                    padding: '4px 13px', borderRadius: 100, fontSize: 12, fontWeight: 500,
+                    background: source === s ? '#fff' : 'transparent',
+                    color: source === s ? v.text : v.text2,
+                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    boxShadow: source === s ? '0 1px 3px rgba(0,0,0,.12)' : 'none',
+                    transition: 'all .15s',
+                  }}
+                >
+                  {s === 'tout' ? 'Tout' : s === 'francetravail' ? 'France Travail' : 'Adzuna'}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Quick-filter chips */}
-          {FILTERS.map(f => (
-            <span
-              key={f.val}
-              onClick={() => handleFilter(f.val)}
-              style={{ padding: '5px 14px', borderRadius: 100, background: activeFilter === f.val ? 'rgba(0,113,227,.07)' : v.white, border: `1px solid ${activeFilter === f.val ? 'rgba(0,113,227,.18)' : v.line}`, fontSize: 12, fontWeight: 500, color: activeFilter === f.val ? v.blue : v.text2, cursor: 'pointer', userSelect: 'none', transition: 'all .12s' }}
-            >
-              {f.label}
-            </span>
-          ))}
-          {jobs.length > 0 && (
-            <span style={{ marginLeft: 'auto', fontSize: 13, color: v.text3, alignSelf: 'center' }}>{jobs.length} offre{jobs.length > 1 ? 's' : ''}</span>
-          )}
+          {/* Catégorie */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Catégorie</div>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+              {FILTERS.map(f => (
+                <span
+                  key={f.val}
+                  onClick={() => handleFilter(f.val)}
+                  style={{ padding: '5px 14px', borderRadius: 100, background: activeFilter === f.val ? 'rgba(0,113,227,.07)' : v.white, border: `1px solid ${activeFilter === f.val ? 'rgba(0,113,227,.18)' : v.line}`, fontSize: 12, fontWeight: 500, color: activeFilter === f.val ? v.blue : v.text2, cursor: 'pointer', userSelect: 'none', transition: 'all .12s' }}
+                >
+                  {f.label}
+                </span>
+              ))}
+              {jobs.length > 0 && (
+                <span style={{ marginLeft: 'auto', fontSize: 13, color: v.text3 }}>{jobs.length} offre{jobs.length > 1 ? 's' : ''}</span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Advanced filters — France Travail et Tout */}
