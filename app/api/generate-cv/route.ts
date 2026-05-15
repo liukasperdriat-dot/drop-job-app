@@ -57,8 +57,7 @@ export async function POST(request: Request) {
       quota = created
     }
 
-    // BETA - remettre à 1 après le lancement
-    if (!quota.is_premium && quota.cv_count_this_month >= 999) {
+    if (!quota.is_premium && quota.cv_count_this_month >= 1) {
       return NextResponse.json(
         { error: 'QUOTA_EXCEEDED', message: 'Vous avez utilisé votre CV gratuit ce mois-ci. Passez à Premium pour en générer plus.' },
         { status: 403 }
