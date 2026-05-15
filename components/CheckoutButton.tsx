@@ -2,31 +2,13 @@
 
 import { useState } from 'react'
 
+const STRIPE_LINKS = {
+  monthly: 'https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00',
+  weekly:  'https://buy.stripe.com/8x26oGh2QbJX553c9w4wM01',
+}
+
 export default function CheckoutButton() {
-  const [loading, setLoading] = useState(false)
   const [period, setPeriod] = useState<'monthly' | 'weekly'>('monthly')
-
-  async function handleCheckout() {
-    setLoading(true)
-
-const priceId = period === 'monthly'
-  ? 'price_1TPmCXD7v3UUsIMkWgxoRWEl'
-  : 'price_1TPmD6D7v3UUsIMkxBejoz9u'
-
-    const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priceId }),
-    })
-
-    const data = await res.json()
-
-    if (data.url) {
-      window.location.href = data.url
-    } else {
-      setLoading(false)
-    }
-  }
 
   return (
     <div style={styles.wrap}>
@@ -44,8 +26,8 @@ const priceId = period === 'monthly'
           3,49€/semaine
         </button>
       </div>
-      <button onClick={handleCheckout} disabled={loading} style={styles.btn}>
-        {loading ? 'Redirection…' : 'Passer Premium →'}
+      <button onClick={() => { window.location.href = STRIPE_LINKS[period] }} style={styles.btn}>
+        Passer Premium →
       </button>
       <p style={styles.legal}>
         En souscrivant, vous acceptez nos{' '}
