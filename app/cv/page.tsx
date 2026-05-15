@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -100,6 +100,11 @@ function CVPageInner() {
   const [template, setTemplate] = useState<Template>('classique')
   const [isPremium, setIsPremium] = useState(false)
 
+  const [photoUrl, setPhotoUrl]             = useState<string | null>(null)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoError, setPhotoError]         = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   type ProfileState = 'loading' | 'loaded' | 'empty' | 'error'
   const [profileState, setProfileState] = useState<ProfileState>('loading')
 
@@ -115,7 +120,7 @@ function CVPageInner() {
     fetch('/api/profile')
       .then(r => r.json())
       .then(({ profile }) => {
-        if (profile) { setProfileData(profile); setProfileState('loaded') }
+        if (profile) { setProfileData(profile); setPhotoUrl(profile.photo_url || null); setProfileState('loaded') }
         else setProfileState('empty')
       })
       .catch(() => setProfileState('error'))
@@ -144,10 +149,34 @@ function CVPageInner() {
     setDownloading(true)
     try {
       const { downloadCV } = await import('./pdf-templates')
-      await downloadCV(template, cv, profileData, company)
+      await downloadCV(template, cv, { ...profileData, photo_url: photoUrl }, company)
     } finally {
       setDownloading(false)
     }
+  }
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) { setPhotoError('Fichier trop lourd (max 2 Mo)'); return }
+    if (!['image/jpeg', 'image/png'].includes(file.type)) { setPhotoError('Format invalide (JPG ou PNG)'); return }
+    setPhotoError('')
+    setPhotoUploading(true)
+    const form = new FormData()
+    form.append('photo', file)
+    const res = await fetch('/api/profile/photo', { method: 'POST', body: form })
+    const data = await res.json()
+    setPhotoUploading(false)
+    if (data.error) { setPhotoError(data.error); return }
+    setPhotoUrl(data.photo_url)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handlePhotoDelete() {
+    setPhotoUploading(true)
+    await fetch('/api/profile/photo', { method: 'DELETE' })
+    setPhotoUploading(false)
+    setPhotoUrl(null)
   }
 
   const canGenerate =
@@ -308,6 +337,27 @@ function CVPageInner() {
               </Field>
             )}
 
+            {profileState === 'loaded' && (
+              <Field label="Photo de profil (optionnelle)">
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+                {photoUrl ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <img src={photoUrl} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${v.line2}`, flexShrink: 0 }} />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => fileInputRef.current?.click()} disabled={photoUploading} style={{ padding: '6px 12px', borderRadius: 8, background: v.bg, border: `1px solid ${v.line2}`, fontSize: 12, color: v.text2, cursor: 'pointer', fontFamily: 'inherit' }}>{photoUploading ? '…' : 'Changer'}</button>
+                      <button onClick={handlePhotoDelete} disabled={photoUploading} style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.15)', fontSize: 12, color: '#c0392b', cursor: 'pointer', fontFamily: 'inherit' }}>Supprimer</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => fileInputRef.current?.click()} disabled={photoUploading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: `1.5px dashed ${v.line2}`, background: 'transparent', fontSize: 13, color: v.text2, cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}><circle cx="8" cy="8" r="6.5"/><line x1="8" y1="5" x2="8" y2="11"/><line x1="5" y1="8" x2="11" y2="8"/></svg>
+                    {photoUploading ? 'Upload en cours…' : 'Ajouter une photo'}
+                  </button>
+                )}
+                {photoError && <div style={{ fontSize: 11, color: '#c0392b', marginTop: 2 }}>{photoError}</div>}
+              </Field>
+            )}
+
             {error && (
               <div style={{ background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#c0392b' }}>
                 {error}
@@ -371,25 +421,35 @@ function CVPageInner() {
                   {/* Preview header — adapté au template sélectionné */}
                   {template === 'classique' && (
                     <div style={{ borderBottom: '2px solid #1d1d1f', paddingBottom: 14, marginBottom: 18 }}>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: v.text, fontFamily: 'Georgia, serif', marginBottom: 3 }}>{cv.name}</div>
-                      <div style={{ fontSize: 13, color: v.text2, fontFamily: 'Georgia, serif', fontStyle: 'italic', marginBottom: 8 }}>{cv.title}</div>
-                      {(profileData?.email || profileData?.phone || profileData?.location) && (
-                        <div style={{ fontSize: 10, color: v.text3, fontFamily: 'Georgia, serif' }}>
-                          {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 22, fontWeight: 700, color: v.text, fontFamily: 'Georgia, serif', marginBottom: 3 }}>{cv.name}</div>
+                          <div style={{ fontSize: 13, color: v.text2, fontFamily: 'Georgia, serif', fontStyle: 'italic', marginBottom: 8 }}>{cv.title}</div>
+                          {(profileData?.email || profileData?.phone || profileData?.location) && (
+                            <div style={{ fontSize: 10, color: v.text3, fontFamily: 'Georgia, serif' }}>
+                              {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                            </div>
+                          )}
                         </div>
-                      )}
+                        {photoUrl && <img src={photoUrl} alt="" style={{ width: 64, height: 64, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />}
+                      </div>
                     </div>
                   )}
 
                   {template === 'moderne' && (
                     <div style={{ background: '#2563EB', borderRadius: 10, padding: '18px 20px 14px', marginBottom: 20 }}>
-                      <div style={{ fontSize: 21, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{cv.name}</div>
-                      <div style={{ fontSize: 12, color: 'rgba(180,210,255,0.9)', marginBottom: 6 }}>{cv.title}</div>
-                      {(profileData?.email || profileData?.phone || profileData?.location) && (
-                        <div style={{ fontSize: 10, color: 'rgba(160,195,255,0.8)' }}>
-                          {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 21, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{cv.name}</div>
+                          <div style={{ fontSize: 12, color: 'rgba(180,210,255,0.9)', marginBottom: 6 }}>{cv.title}</div>
+                          {(profileData?.email || profileData?.phone || profileData?.location) && (
+                            <div style={{ fontSize: 10, color: 'rgba(160,195,255,0.8)' }}>
+                              {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                            </div>
+                          )}
                         </div>
-                      )}
+                        {photoUrl && <img src={photoUrl} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.3)', flexShrink: 0 }} />}
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as any, marginTop: 10 }}>
                         {cv.matchScore && (
                           <span style={{ padding: '3px 12px', borderRadius: 100, background: `${scoreColor(cv.matchScore)}cc`, color: '#fff', fontSize: 11, fontWeight: 600 }}>
@@ -402,20 +462,25 @@ function CVPageInner() {
 
                   {template === 'minimaliste' && (
                     <div style={{ paddingBottom: 20, marginBottom: 20 }}>
-                      <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.04em', color: v.text, marginBottom: 4 }}>{cv.name}</div>
-                      <div style={{ fontSize: 14, color: v.text3, fontWeight: 300, marginBottom: 6 }}>{cv.title}</div>
-                      {(profileData?.email || profileData?.phone || profileData?.location) && (
-                        <div style={{ fontSize: 10, color: v.text3 }}>
-                          {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.04em', color: v.text, marginBottom: 4 }}>{cv.name}</div>
+                          <div style={{ fontSize: 14, color: v.text3, fontWeight: 300, marginBottom: 6 }}>{cv.title}</div>
+                          {(profileData?.email || profileData?.phone || profileData?.location) && (
+                            <div style={{ fontSize: 10, color: v.text3 }}>
+                              {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
+                            </div>
+                          )}
+                          {cv.matchScore && (
+                            <div style={{ marginTop: 8 }}>
+                              <span style={{ padding: '3px 12px', borderRadius: 100, background: `${scoreColor(cv.matchScore)}18`, color: scoreColor(cv.matchScore), fontSize: 11, fontWeight: 600 }}>
+                                Match : {cv.matchScore}%
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {cv.matchScore && (
-                        <div style={{ marginTop: 8 }}>
-                          <span style={{ padding: '3px 12px', borderRadius: 100, background: `${scoreColor(cv.matchScore)}18`, color: scoreColor(cv.matchScore), fontSize: 11, fontWeight: 600 }}>
-                            Match : {cv.matchScore}%
-                          </span>
-                        </div>
-                      )}
+                        {photoUrl && <img src={photoUrl} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />}
+                      </div>
                     </div>
                   )}
 

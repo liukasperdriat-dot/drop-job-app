@@ -1,7 +1,22 @@
 'use client'
 
 import React from 'react'
-import { Document, Page, View, Text, StyleSheet, pdf } from '@react-pdf/renderer'
+import { Document, Page, View, Text, StyleSheet, pdf, Image } from '@react-pdf/renderer'
+
+async function toBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
 
 // ── CLASSIQUE ──────────────────────────────────────────────────────────────
 // Fond blanc, Times, ligne noire sous le nom, traits fins sous chaque section
@@ -78,17 +93,22 @@ const cl = StyleSheet.create({
   },
 })
 
-export function ClassiquePDF({ cv, profile }: { cv: any; profile: any }) {
+export function ClassiquePDF({ cv, profile, photoBase64 }: { cv: any; profile: any; photoBase64: string | null }) {
   const contact = [profile?.email, profile?.phone, profile?.location]
     .filter(Boolean).join('   ·   ')
 
   return (
     <Document>
       <Page size="A4" style={cl.page}>
-        <Text style={cl.name}>{cv.name || ''}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 7 }}>
+          <View style={{ flex: 1, paddingRight: photoBase64 ? 12 : 0 }}>
+            <Text style={[cl.name, { marginBottom: 0 }]}>{cv.name || ''}</Text>
+            {cv.title ? <Text style={cl.jobTitle}>{cv.title}</Text> : null}
+            {contact ? <Text style={cl.contact}>{contact}</Text> : null}
+          </View>
+          {photoBase64 ? <Image src={photoBase64} style={{ width: 64, height: 64, borderRadius: 4 }} /> : null}
+        </View>
         <View style={cl.nameLine} />
-        {cv.title ? <Text style={cl.jobTitle}>{cv.title}</Text> : null}
-        {contact ? <Text style={cl.contact}>{contact}</Text> : null}
 
         {cv.summary ? (
           <View>
@@ -241,7 +261,7 @@ function ModerneSection({ title }: { title: string }) {
   )
 }
 
-export function ModernePDF({ cv, profile }: { cv: any; profile: any }) {
+export function ModernePDF({ cv, profile, photoBase64 }: { cv: any; profile: any; photoBase64: string | null }) {
   const contact = [profile?.email, profile?.phone, profile?.location, profile?.linkedin]
     .filter(Boolean).join('   ·   ')
 
@@ -249,9 +269,14 @@ export function ModernePDF({ cv, profile }: { cv: any; profile: any }) {
     <Document>
       <Page size="A4" style={md.page}>
         <View style={md.header}>
-          <Text style={md.headerName}>{cv.name || ''}</Text>
-          {cv.title ? <Text style={md.headerTitle}>{cv.title}</Text> : null}
-          {contact ? <Text style={md.headerContact}>{contact}</Text> : null}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1, paddingRight: photoBase64 ? 14 : 0 }}>
+              <Text style={md.headerName}>{cv.name || ''}</Text>
+              {cv.title ? <Text style={md.headerTitle}>{cv.title}</Text> : null}
+              {contact ? <Text style={md.headerContact}>{contact}</Text> : null}
+            </View>
+            {photoBase64 ? <Image src={photoBase64} style={{ width: 64, height: 64, borderRadius: 32 }} /> : null}
+          </View>
         </View>
 
         <View style={md.content}>
@@ -379,16 +404,29 @@ const mn = StyleSheet.create({
   },
 })
 
-export function MinimalistePDF({ cv, profile }: { cv: any; profile: any }) {
+export function MinimalistePDF({ cv, profile, photoBase64 }: { cv: any; profile: any; photoBase64: string | null }) {
   const contact = [profile?.email, profile?.phone, profile?.location]
     .filter(Boolean).join('   ·   ')
 
   return (
     <Document>
       <Page size="A4" style={mn.page}>
-        <Text style={mn.name}>{cv.name || ''}</Text>
-        {cv.title ? <Text style={mn.jobTitle}>{cv.title}</Text> : null}
-        {contact ? <Text style={mn.contact}>{contact}</Text> : null}
+        {photoBase64 ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1, paddingRight: 14 }}>
+              <Text style={[mn.name, { textAlign: 'left' }]}>{cv.name || ''}</Text>
+              {cv.title ? <Text style={[mn.jobTitle, { textAlign: 'left' }]}>{cv.title}</Text> : null}
+              {contact ? <Text style={[mn.contact, { textAlign: 'left' }]}>{contact}</Text> : null}
+            </View>
+            <Image src={photoBase64} style={{ width: 64, height: 64, borderRadius: 32 }} />
+          </View>
+        ) : (
+          <View>
+            <Text style={mn.name}>{cv.name || ''}</Text>
+            {cv.title ? <Text style={mn.jobTitle}>{cv.title}</Text> : null}
+            {contact ? <Text style={mn.contact}>{contact}</Text> : null}
+          </View>
+        )}
 
         {cv.summary ? (
           <View>
@@ -450,13 +488,15 @@ export async function downloadCV(
   profile: any,
   company: string,
 ) {
+  const photoBase64 = profile?.photo_url ? await toBase64(profile.photo_url) : null
+
   let element: React.ReactElement
   if (template === 'classique') {
-    element = <ClassiquePDF cv={cv} profile={profile} />
+    element = <ClassiquePDF cv={cv} profile={profile} photoBase64={photoBase64} />
   } else if (template === 'moderne') {
-    element = <ModernePDF cv={cv} profile={profile} />
+    element = <ModernePDF cv={cv} profile={profile} photoBase64={photoBase64} />
   } else {
-    element = <MinimalistePDF cv={cv} profile={profile} />
+    element = <MinimalistePDF cv={cv} profile={profile} photoBase64={photoBase64} />
   }
 
   const blob = await pdf(element).toBlob()
