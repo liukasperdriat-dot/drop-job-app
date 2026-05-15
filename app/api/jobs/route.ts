@@ -101,6 +101,15 @@ async function resolveInseeCode(cityName: string): Promise<string | null> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Lyon, Marseille et Paris ont des codes INSEE "chapeau" que France Travail
+// rejette (400). On mappe vers le code du 1er arrondissement, qui est accepté
+// et inclut les offres de toute la commune via le paramètre distance.
+const COMMUNES_ARRONDISSEMENTS: Record<string, string> = {
+  '69123': '69381', // Lyon → Lyon 1er
+  '13055': '13201', // Marseille → Marseille 1er
+  '75056': '75101', // Paris → Paris 1er
+}
+
 function toTitleCase(str: string): string {
   return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
@@ -227,11 +236,13 @@ export async function GET(request: Request) {
         getToken(),
       ])
 
+      const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
+
       const ftParams = new URLSearchParams({ range: '0-9' })
-      if (keyword)     ftParams.append('motsCles', keyword)
-      if (codeInsee)   ftParams.append('commune', codeInsee)
-      if (codeInsee && distance) ftParams.append('distance', distance)
-      if (departement) ftParams.append('departement', departement)
+      if (keyword)      ftParams.append('motsCles', keyword)
+      if (codePourFT)   ftParams.append('commune', codePourFT)
+      if (codePourFT && distance) ftParams.append('distance', distance)
+      if (departement)  ftParams.append('departement', departement)
 
       const [ftResult, azResult] = await Promise.allSettled([
         (async () => {
@@ -261,10 +272,12 @@ export async function GET(request: Request) {
     ])
     console.log('[FT] location:', location || '(none)', '→ INSEE:', codeInsee ?? '(none)')
 
+    const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
+
     const params = new URLSearchParams({ range: '0-19' })
     if (keyword)      params.append('motsCles', keyword)
-    if (codeInsee)    params.append('commune', codeInsee)
-    if (codeInsee && distance) params.append('distance', distance)
+    if (codePourFT)   params.append('commune', codePourFT)
+    if (codePourFT && distance) params.append('distance', distance)
     if (departement)  params.append('departement', departement)
     if (salMin)       params.append('salaireMin', salMin)
     if (salMax)       params.append('salaireMax', salMax)
