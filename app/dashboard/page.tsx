@@ -62,14 +62,6 @@ export default async function DashboardPage() {
         </div>
       </nav>
 
-      {/* BETA BANNER */}
-      <div style={{ background: '#e8f0fe', borderBottom: '1px solid rgba(0,97,237,0.12)', padding: '9px 24px', textAlign: 'center' }}>
-        <p style={{ fontSize: 12.5, color: '#1a56c4', letterSpacing: '-0.01em', lineHeight: 1.5 }}>
-          🚀 <strong style={{ fontWeight: 600 }}>Beta gratuite</strong> — générations de CV illimitées jusqu'au lancement.{' '}
-          Vos retours nous aident à améliorer Drop-Job →{' '}
-          <a href="mailto:dropjob.contact@gmail.com" style={{ color: '#1a56c4', fontWeight: 500 }}>dropjob.contact@gmail.com</a>
-        </p>
-      </div>
 
       <div className="dash-content" style={{ maxWidth: 1080, margin: '0 auto', padding: '48px 24px 80px' }}>
 
