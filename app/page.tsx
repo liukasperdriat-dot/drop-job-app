@@ -17,6 +17,7 @@ const v = {
 
 export default function HomePage() {
   const [search, setSearch]   = useState('');
+  const [city, setCity]       = useState('Lyon');
   const [billing, setBilling] = useState<'monthly'|'weekly'>('monthly');
   const [salMin, setSalMin]   = useState(40);
   const [salMax, setSalMax]   = useState(65);
@@ -45,7 +46,7 @@ export default function HomePage() {
   }, []);
 
   const handleSearch = () => {
-    window.location.href = `/jobs?q=${encodeURIComponent(search)}&salaireMin=${salMin * 1000}&salaireMax=${salMax * 1000}`;
+    window.location.href = `/jobs?q=${encodeURIComponent(search)}&location=${encodeURIComponent(city)}&salaireMin=${salMin * 1000}&salaireMax=${salMax * 1000}`;
   };
 
   const startGen = () => {
@@ -117,7 +118,7 @@ export default function HomePage() {
                 <div style={{ padding:'0 10px 0 16px', display:'flex', color:v.text3, flexShrink:0 }}>
                   <svg viewBox="0 0 12 16" fill="none" stroke={v.text3} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 9 4 9s4-5.7 4-9c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.3"/></svg>
                 </div>
-                <input type="text" defaultValue="Lyon" placeholder="Ville…" style={{ flex:1, padding:'14px 10px 14px 6px', background:'transparent', border:'none', outline:'none', fontFamily:'inherit', fontSize:16, color:v.text }} />
+                <input type="text" value={city} onChange={e=>setCity(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSearch()} placeholder="Ville…" style={{ flex:1, padding:'14px 10px 14px 6px', background:'transparent', border:'none', outline:'none', fontFamily:'inherit', fontSize:16, color:v.text }} />
               </div>
               <button onClick={handleSearch} style={{ width:'100%', padding:'14px', borderRadius:14, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:16, fontWeight:500, cursor:'pointer', minHeight:44 }}>Rechercher</button>
             </div>
@@ -137,7 +138,7 @@ export default function HomePage() {
               <div style={{ width:1, height:20, background:v.line2, flexShrink:0 }} />
               <div style={{ display:'flex', alignItems:'center', gap:5, padding:'0 14px', flexShrink:0 }}>
                 <svg viewBox="0 0 12 16" fill="none" stroke={v.text3} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 9 4 9s4-5.7 4-9c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.3"/></svg>
-                <input type="text" defaultValue="Lyon" style={{ border:'none', background:'transparent', outline:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, color:v.text2, width:72 }} />
+                <input type="text" value={city} onChange={e=>setCity(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSearch()} style={{ border:'none', background:'transparent', outline:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, color:v.text2, width:72 }} />
               </div>
               <button onClick={handleSearch} style={{ margin:5, padding:'8px 20px', borderRadius:100, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', flexShrink:0 }}>Rechercher</button>
             </div>

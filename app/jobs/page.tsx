@@ -131,10 +131,12 @@ function JobsPageContent() {
   }
 
   useEffect(() => {
-    const q = searchParams.get('q') || ''
-    if (q) {
-      setKeyword(q)
-      searchJobs(q, location, departement, distance, source)
+    const q   = searchParams.get('q') || ''
+    const loc = searchParams.get('location') || ''
+    if (q || loc) {
+      if (q)   setKeyword(q)
+      if (loc) setLocation(loc)
+      searchJobs(q, loc, departement, distance, source)
     } else {
       searchJobs()
     }
