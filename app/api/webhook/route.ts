@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         .from('profiles')
         .select('id')
         .eq('email', email)
-        .single()
+        .maybeSingle()
 
       console.log('[webhook] profile trouvé:', profile, '| erreur select:', selectError?.message)
 
