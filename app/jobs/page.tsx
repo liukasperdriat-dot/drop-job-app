@@ -130,7 +130,15 @@ function JobsPageContent() {
     setLoading(false)
   }
 
-  useEffect(() => { searchJobs() }, [])
+  useEffect(() => {
+    const q = searchParams.get('q') || ''
+    if (q) {
+      setKeyword(q)
+      searchJobs(q, location, departement, distance, source)
+    } else {
+      searchJobs()
+    }
+  }, [])
 
   function handleSourceChange(src: 'tout' | 'francetravail' | 'adzuna') {
     setSource(src)

@@ -243,6 +243,8 @@ export async function GET(request: Request) {
       if (codePourFT)   ftParams.append('commune', codePourFT)
       if (codePourFT && distance) ftParams.append('distance', distance)
       if (departement)  ftParams.append('departement', departement)
+      if (salMin)       ftParams.append('salaireMin', salMin)
+      if (salMax)       ftParams.append('salaireMax', salMax)
 
       const [ftResult, azResult] = await Promise.allSettled([
         (async () => {
