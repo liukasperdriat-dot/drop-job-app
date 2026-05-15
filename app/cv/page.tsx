@@ -163,7 +163,7 @@ function CVPageInner() {
     doc.text(cv.name || '', margin, y)
     y += 7
 
-    // Ligne noire sous le nom
+    // Ligne horizontale noire sous le nom
     doc.setDrawColor(0, 0, 0)
     doc.setLineWidth(0.8)
     doc.line(margin, y, pageW - margin, y)
@@ -190,7 +190,7 @@ function CVPageInner() {
 
     const checkPage = (n: number) => { if (y + n > 280) { doc.addPage(); y = 20 } }
 
-    // Section : label en majuscules + ligne séparatrice fine en dessous
+    // Section : label en majuscules + ligne séparatrice horizontale fine en dessous
     const section = (label: string) => {
       checkPage(14)
       y += 4
@@ -206,10 +206,10 @@ function CVPageInner() {
     }
 
     // Corps : Times New Roman 10pt
-    const body = (text: string, color: [number, number, number] = [40, 40, 40]) => {
+    const body = (text: string, r = 40, g = 40, b = 40) => {
       doc.setFont('times', 'normal')
       doc.setFontSize(10)
-      doc.setTextColor(...color)
+      doc.setTextColor(r, g, b)
       const lines = doc.splitTextToSize(text, colW)
       checkPage(lines.length * 5.2)
       doc.text(lines, margin, y)
@@ -226,7 +226,7 @@ function CVPageInner() {
         doc.text(exp.title, margin, y); y += 5
         doc.setFont('times', 'italic'); doc.setFontSize(9.5); doc.setTextColor(80, 80, 80)
         doc.text(`${exp.company}${exp.period ? `  ·  ${exp.period}` : ''}`, margin, y); y += 5
-        body(exp.description || '', [50, 50, 50]); y += 4
+        body(exp.description || '', 50, 50, 50); y += 4
       }
     }
 
@@ -262,32 +262,33 @@ function CVPageInner() {
   async function renderModerne(jsPDF: any) {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const pageW = 210, margin = 20, colW = pageW - margin * 2
-    const blue: [number, number, number] = [37, 99, 235]
     let y = 0
 
-    // Rectangle bleu plein en header sur toute la largeur
-    doc.setFillColor(...blue)
-    doc.rect(0, 0, pageW, 48, 'F')
+    // Rectangle bleu plein (#2563EB) sur toute la largeur
+    doc.setFillColor(37, 99, 235)
+    doc.rect(0, 0, 210, 45, 'F')
 
     // Nom en blanc bold 22pt
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(22)
-    doc.text(cv.name || '', margin, 20)
+    doc.text(cv.name || '', margin, 19)
 
+    // Titre
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(11)
     doc.setTextColor(180, 210, 255)
-    doc.text(cv.title || '', margin, 30)
+    doc.text(cv.title || '', margin, 29)
 
+    // Contact
     const contactParts = [profileData?.email, profileData?.phone, profileData?.location, profileData?.linkedin].filter(Boolean)
     if (contactParts.length) {
       doc.setFontSize(8)
       doc.setTextColor(160, 195, 255)
-      doc.text(contactParts.join('   ·   '), margin, 40)
+      doc.text(contactParts.join('   ·   '), margin, 39)
     }
 
-    y = 58
+    y = 56
 
     const checkPage = (n: number) => { if (y + n > 280) { doc.addPage(); y = 20 } }
 
@@ -295,20 +296,20 @@ function CVPageInner() {
     const section = (label: string) => {
       checkPage(14)
       y += 4
-      doc.setFillColor(...blue)
+      doc.setFillColor(37, 99, 235)
       doc.rect(margin, y - 4, 2.5, 5.5, 'F')
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
-      doc.setTextColor(...blue)
+      doc.setTextColor(37, 99, 235)
       doc.text(label.toUpperCase(), margin + 5, y)
       y += 7
     }
 
     // Corps : Helvetica 10pt
-    const body = (text: string, color: [number, number, number] = [40, 40, 42]) => {
+    const body = (text: string, r = 40, g = 40, b = 42) => {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(10)
-      doc.setTextColor(...color)
+      doc.setTextColor(r, g, b)
       const lines = doc.splitTextToSize(text, colW)
       checkPage(lines.length * 5.5)
       doc.text(lines, margin, y)
@@ -323,9 +324,9 @@ function CVPageInner() {
         checkPage(24)
         doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(29, 29, 31)
         doc.text(exp.title, margin, y); y += 5.5
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...blue)
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(37, 99, 235)
         doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y); y += 5.5
-        body(exp.description || '', [70, 70, 75]); y += 5
+        body(exp.description || '', 70, 70, 75); y += 5
       }
       y += 2
     }
@@ -341,7 +342,7 @@ function CVPageInner() {
         checkPage(14)
         doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(29, 29, 31)
         doc.text(edu.degree || '', margin, y); y += 5.5
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...blue)
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(37, 99, 235)
         doc.text(`${edu.school}${edu.period ? `   ·   ${edu.period}` : ''}`, margin, y); y += 8
       }
       y += 2
@@ -368,7 +369,7 @@ function CVPageInner() {
     // Simule le letter-spacing en insérant un espace entre chaque caractère
     const spaced = (text: string) => text.toUpperCase().split('').join(' ')
 
-    // Nom centré, Helvetica normal 24pt (light)
+    // Nom centré, Helvetica normal 24pt
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(24)
     doc.setTextColor(20, 20, 22)
@@ -395,7 +396,7 @@ function CVPageInner() {
 
     const checkPage = (n: number) => { if (y + n > 280) { doc.addPage(); y = 28 } }
 
-    // Sections : gris foncé #666666, 9pt, majuscules espacées, aucune ligne
+    // Sections : gris #666666, 9pt, majuscules espacées, aucune ligne
     const section = (label: string) => {
       checkPage(14)
       y += 5
@@ -407,10 +408,10 @@ function CVPageInner() {
     }
 
     // Corps : Helvetica 10pt
-    const body = (text: string, color: [number, number, number] = [50, 50, 52]) => {
+    const body = (text: string, r = 50, g = 50, b = 52) => {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(10)
-      doc.setTextColor(...color)
+      doc.setTextColor(r, g, b)
       const lines = doc.splitTextToSize(text, colW)
       checkPage(lines.length * 5)
       doc.text(lines, margin, y)
@@ -427,7 +428,7 @@ function CVPageInner() {
         doc.text(exp.title, margin, y); y += 5
         doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(130, 130, 135)
         doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y); y += 5
-        body(exp.description || '', [80, 80, 85]); y += 4
+        body(exp.description || '', 80, 80, 85); y += 4
       }
     }
 
