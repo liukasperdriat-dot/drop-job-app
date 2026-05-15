@@ -153,78 +153,86 @@ function CVPageInner() {
 
   async function renderClassique(jsPDF: any) {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-    const pageW = 210, margin = 24, colW = pageW - margin * 2
-    let y = 28
+    const pageW = 210, margin = 20, colW = pageW - margin * 2
+    let y = 26
 
+    // Nom : Times New Roman 22pt bold
     doc.setFont('times', 'bold')
-    doc.setFontSize(26)
+    doc.setFontSize(22)
     doc.setTextColor(0, 0, 0)
     doc.text(cv.name || '', margin, y)
-    y += 8
+    y += 7
 
+    // Ligne noire sous le nom
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(0.8)
+    doc.line(margin, y, pageW - margin, y)
+    y += 5
+
+    // Titre en italique
     doc.setFont('times', 'italic')
-    doc.setFontSize(12)
+    doc.setFontSize(11)
     doc.setTextColor(80, 80, 80)
     doc.text(cv.title || '', margin, y)
     y += 5
 
-    doc.setDrawColor(0, 0, 0)
-    doc.setLineWidth(0.7)
-    doc.line(margin, y, pageW - margin, y)
-    y += 5
-
+    // Contact
     const contactParts = [profileData?.email, profileData?.phone, profileData?.location].filter(Boolean)
     if (contactParts.length) {
       doc.setFont('times', 'normal')
       doc.setFontSize(9)
-      doc.setTextColor(80, 80, 80)
+      doc.setTextColor(100, 100, 100)
       doc.text(contactParts.join('   ·   '), margin, y)
       y += 10
+    } else {
+      y += 4
     }
 
     const checkPage = (n: number) => { if (y + n > 280) { doc.addPage(); y = 20 } }
 
+    // Section : label en majuscules + ligne séparatrice fine en dessous
     const section = (label: string) => {
       checkPage(14)
-      doc.setDrawColor(0, 0, 0)
-      doc.setLineWidth(0.4)
-      doc.line(margin, y, pageW - margin, y)
-      y += 5
+      y += 4
       doc.setFont('times', 'bold')
       doc.setFontSize(10)
       doc.setTextColor(0, 0, 0)
       doc.text(label.toUpperCase(), margin, y)
-      y += 7
+      y += 3
+      doc.setDrawColor(0, 0, 0)
+      doc.setLineWidth(0.25)
+      doc.line(margin, y, pageW - margin, y)
+      y += 5
     }
 
+    // Corps : Times New Roman 10pt
     const body = (text: string, color: [number, number, number] = [40, 40, 40]) => {
       doc.setFont('times', 'normal')
-      doc.setFontSize(10.5)
+      doc.setFontSize(10)
       doc.setTextColor(...color)
       const lines = doc.splitTextToSize(text, colW)
-      checkPage(lines.length * 5.6)
+      checkPage(lines.length * 5.2)
       doc.text(lines, margin, y)
-      y += lines.length * 5.6
+      y += lines.length * 5.2
     }
 
-    if (cv.summary) { section('Résumé'); body(cv.summary); y += 6 }
+    if (cv.summary) { section('Résumé'); body(cv.summary); y += 4 }
 
     if (cv.experience?.length) {
       section('Expérience')
       for (const exp of cv.experience) {
-        checkPage(26)
+        checkPage(24)
         doc.setFont('times', 'bold'); doc.setFontSize(11); doc.setTextColor(0, 0, 0)
-        doc.text(exp.title, margin, y); y += 6
+        doc.text(exp.title, margin, y); y += 5
         doc.setFont('times', 'italic'); doc.setFontSize(9.5); doc.setTextColor(80, 80, 80)
-        doc.text(`${exp.company}${exp.period ? `  ·  ${exp.period}` : ''}`, margin, y); y += 6
-        body(exp.description || '', [50, 50, 50]); y += 5
+        doc.text(`${exp.company}${exp.period ? `  ·  ${exp.period}` : ''}`, margin, y); y += 5
+        body(exp.description || '', [50, 50, 50]); y += 4
       }
-      y += 2
     }
 
     if (cv.skills?.length) {
       section('Compétences')
-      body(cv.skills.join(' · ')); y += 6
+      body(cv.skills.join(' · ')); y += 4
     }
 
     if (cv.education?.length) {
@@ -232,9 +240,9 @@ function CVPageInner() {
       for (const edu of cv.education) {
         checkPage(14)
         doc.setFont('times', 'bold'); doc.setFontSize(11); doc.setTextColor(0, 0, 0)
-        doc.text(edu.degree || '', margin, y); y += 6
+        doc.text(edu.degree || '', margin, y); y += 5
         doc.setFont('times', 'italic'); doc.setFontSize(9.5); doc.setTextColor(80, 80, 80)
-        doc.text(`${edu.school}${edu.period ? `  ·  ${edu.period}` : ''}`, margin, y); y += 9
+        doc.text(`${edu.school}${edu.period ? `  ·  ${edu.period}` : ''}`, margin, y); y += 8
       }
     }
 
@@ -257,42 +265,46 @@ function CVPageInner() {
     const blue: [number, number, number] = [37, 99, 235]
     let y = 0
 
+    // Rectangle bleu plein en header sur toute la largeur
     doc.setFillColor(...blue)
-    doc.rect(0, 0, pageW, 54, 'F')
+    doc.rect(0, 0, pageW, 48, 'F')
 
+    // Nom en blanc bold 22pt
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(26)
-    doc.text(cv.name || '', margin, 22)
+    doc.setFontSize(22)
+    doc.text(cv.name || '', margin, 20)
 
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(12)
+    doc.setFontSize(11)
     doc.setTextColor(180, 210, 255)
-    doc.text(cv.title || '', margin, 33)
+    doc.text(cv.title || '', margin, 30)
 
     const contactParts = [profileData?.email, profileData?.phone, profileData?.location, profileData?.linkedin].filter(Boolean)
     if (contactParts.length) {
       doc.setFontSize(8)
       doc.setTextColor(160, 195, 255)
-      doc.text(contactParts.join('   ·   '), margin, 44)
+      doc.text(contactParts.join('   ·   '), margin, 40)
     }
 
-    y = 66
+    y = 58
 
     const checkPage = (n: number) => { if (y + n > 280) { doc.addPage(); y = 20 } }
 
+    // Section : barre verticale bleue à gauche + label bleu gras
     const section = (label: string) => {
       checkPage(14)
+      y += 4
+      doc.setFillColor(...blue)
+      doc.rect(margin, y - 4, 2.5, 5.5, 'F')
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9)
+      doc.setFontSize(10)
       doc.setTextColor(...blue)
-      doc.text(label.toUpperCase(), margin, y)
-      doc.setDrawColor(...blue)
-      doc.setLineWidth(0.5)
-      doc.line(margin, y + 1.5, margin + colW, y + 1.5)
-      y += 9
+      doc.text(label.toUpperCase(), margin + 5, y)
+      y += 7
     }
 
+    // Corps : Helvetica 10pt
     const body = (text: string, color: [number, number, number] = [40, 40, 42]) => {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(10)
@@ -303,24 +315,24 @@ function CVPageInner() {
       y += lines.length * 5.5
     }
 
-    if (cv.summary) { section('Résumé'); body(cv.summary); y += 8 }
+    if (cv.summary) { section('Résumé'); body(cv.summary); y += 6 }
 
     if (cv.experience?.length) {
       section('Expérience')
       for (const exp of cv.experience) {
-        checkPage(26)
+        checkPage(24)
         doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(29, 29, 31)
         doc.text(exp.title, margin, y); y += 5.5
         doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...blue)
-        doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y); y += 6
-        body(exp.description || '', [70, 70, 75]); y += 6
+        doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y); y += 5.5
+        body(exp.description || '', [70, 70, 75]); y += 5
       }
       y += 2
     }
 
     if (cv.skills?.length) {
       section('Compétences')
-      body(cv.skills.join('   ·   ')); y += 8
+      body(cv.skills.join('   ·   ')); y += 6
     }
 
     if (cv.education?.length) {
@@ -330,7 +342,7 @@ function CVPageInner() {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(29, 29, 31)
         doc.text(edu.degree || '', margin, y); y += 5.5
         doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...blue)
-        doc.text(`${edu.school}${edu.period ? `   ·   ${edu.period}` : ''}`, margin, y); y += 9
+        doc.text(`${edu.school}${edu.period ? `   ·   ${edu.period}` : ''}`, margin, y); y += 8
       }
       y += 2
     }
@@ -351,68 +363,88 @@ function CVPageInner() {
   async function renderMinimaliste(jsPDF: any) {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const pageW = 210, margin = 28, colW = pageW - margin * 2
-    let y = 34
+    let y = 30
 
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(30)
-    doc.setTextColor(20, 20, 22)
-    doc.text(cv.name || '', margin, y); y += 10
+    // Simule le letter-spacing en insérant un espace entre chaque caractère
+    const spaced = (text: string) => text.toUpperCase().split('').join(' ')
 
+    // Nom centré, Helvetica normal 24pt (light)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(13)
-    doc.setTextColor(120, 120, 125)
-    doc.text(cv.title || '', margin, y); y += 6
+    doc.setFontSize(24)
+    doc.setTextColor(20, 20, 22)
+    doc.text(cv.name || '', pageW / 2, y, { align: 'center' })
+    y += 9
 
+    // Titre centré
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+    doc.setTextColor(150, 150, 155)
+    doc.text(cv.title || '', pageW / 2, y, { align: 'center' })
+    y += 5
+
+    // Contact centré
     const contactParts = [profileData?.email, profileData?.phone, profileData?.location].filter(Boolean)
     if (contactParts.length) {
-      doc.setFontSize(8); doc.setTextColor(160, 160, 165)
-      doc.text(contactParts.join('   ·   '), margin, y); y += 16
-    } else { y += 10 }
+      doc.setFontSize(8)
+      doc.setTextColor(170, 170, 175)
+      doc.text(contactParts.join('   ·   '), pageW / 2, y, { align: 'center' })
+      y += 12
+    } else {
+      y += 8
+    }
 
     const checkPage = (n: number) => { if (y + n > 280) { doc.addPage(); y = 28 } }
 
+    // Sections : gris foncé #666666, 9pt, majuscules espacées, aucune ligne
     const section = (label: string) => {
-      checkPage(16); y += 4
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(160, 160, 165)
-      doc.text(label.toUpperCase(), margin, y); y += 7
+      checkPage(14)
+      y += 5
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(102, 102, 102)
+      doc.text(spaced(label), margin, y)
+      y += 6
     }
 
-    const body = (text: string, color: [number, number, number] = [40, 40, 42]) => {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(...color)
+    // Corps : Helvetica 10pt
+    const body = (text: string, color: [number, number, number] = [50, 50, 52]) => {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(...color)
       const lines = doc.splitTextToSize(text, colW)
-      checkPage(lines.length * 6)
-      doc.text(lines, margin, y); y += lines.length * 6
+      checkPage(lines.length * 5)
+      doc.text(lines, margin, y)
+      y += lines.length * 5
     }
 
-    if (cv.summary) { section('Résumé'); body(cv.summary); y += 8 }
+    if (cv.summary) { section('Résumé'); body(cv.summary); y += 5 }
 
     if (cv.experience?.length) {
       section('Expérience')
       for (const exp of cv.experience) {
-        checkPage(28)
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(20, 20, 22)
-        doc.text(exp.title, margin, y); y += 5.5
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(130, 130, 135)
-        doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y); y += 7
-        body(exp.description || '', [60, 60, 65]); y += 7
+        checkPage(22)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(20, 20, 22)
+        doc.text(exp.title, margin, y); y += 5
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(130, 130, 135)
+        doc.text(`${exp.company}${exp.period ? `   ·   ${exp.period}` : ''}`, margin, y); y += 5
+        body(exp.description || '', [80, 80, 85]); y += 4
       }
-      y += 2
     }
 
     if (cv.skills?.length) {
-      section('Compétences'); body(cv.skills.join('   ·   ')); y += 8
+      section('Compétences')
+      body(cv.skills.join('   ·   ')); y += 5
     }
 
     if (cv.education?.length) {
       section('Formation')
       for (const edu of cv.education) {
-        checkPage(16)
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(20, 20, 22)
-        doc.text(edu.degree || '', margin, y); y += 5.5
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(130, 130, 135)
-        doc.text(`${edu.school}${edu.period ? `   ·   ${edu.period}` : ''}`, margin, y); y += 9
+        checkPage(14)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(20, 20, 22)
+        doc.text(edu.degree || '', margin, y); y += 5
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(130, 130, 135)
+        doc.text(`${edu.school}${edu.period ? `   ·   ${edu.period}` : ''}`, margin, y); y += 7
       }
-      y += 2
     }
 
     if (cv.languages?.length) {
