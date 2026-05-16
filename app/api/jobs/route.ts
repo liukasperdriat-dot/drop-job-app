@@ -222,6 +222,7 @@ export async function GET(request: Request) {
     const salMax       = searchParams.get('salMax') || ''
     const departement  = searchParams.get('departement') || ''
     const distance     = searchParams.get('distance') || ''
+    const typeContrat  = searchParams.get('typeContrat') || ''
 
     // ── Adzuna only ───────────────────────────────────────────────────────
     if (source === 'adzuna') {
@@ -243,6 +244,7 @@ export async function GET(request: Request) {
       if (codePourFT)   ftParams.append('commune', codePourFT)
       if (codePourFT && distance) ftParams.append('distance', distance)
       if (departement)  ftParams.append('departement', departement)
+      if (typeContrat)  ftParams.append('typeContrat', typeContrat)
       if (salMin)       ftParams.append('salaireMin', salMin)
       if (salMax)       ftParams.append('salaireMax', salMax)
 
@@ -281,6 +283,7 @@ export async function GET(request: Request) {
     if (codePourFT)   params.append('commune', codePourFT)
     if (codePourFT && distance) params.append('distance', distance)
     if (departement)  params.append('departement', departement)
+    if (typeContrat)  params.append('typeContrat', typeContrat)
     if (salMin)       params.append('salaireMin', salMin)
     if (salMax)       params.append('salaireMax', salMax)
 

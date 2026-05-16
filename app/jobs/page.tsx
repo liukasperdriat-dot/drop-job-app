@@ -24,6 +24,16 @@ const FILTERS = [
   { val: 'devops', label: 'DevOps' },
 ]
 
+const CONTRACT_TYPES = [
+  { code: '', label: 'Tout contrat' },
+  { code: 'CDI', label: 'CDI' },
+  { code: 'CDD', label: 'CDD' },
+  { code: 'MIS', label: 'Intérim' },
+  { code: 'PRO', label: 'Alternance' },
+  { code: 'STG', label: 'Stage' },
+  { code: 'LIB', label: 'Freelance' },
+]
+
 const DEPARTEMENTS = [
   { code: '01', name: 'Ain' }, { code: '02', name: 'Aisne' }, { code: '03', name: 'Allier' },
   { code: '04', name: 'Alpes-de-Haute-Provence' }, { code: '05', name: 'Hautes-Alpes' },
@@ -71,6 +81,7 @@ function JobsPageContent() {
   const [departement, setDepartement]   = useState('')
   const [distance, setDistance]         = useState(50)
   const [source, setSource]             = useState<'tout' | 'francetravail' | 'adzuna'>('tout')
+  const [typeContrat, setTypeContrat]   = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -107,18 +118,20 @@ function JobsPageContent() {
   }, [])
 
   async function searchJobs(
-    kw   = keyword,
-    loc  = location,
-    dept = departement,
-    dist = distance,
-    src  = source,
+    kw      = keyword,
+    loc     = location,
+    dept    = departement,
+    dist    = distance,
+    src     = source,
+    contrat = typeContrat,
   ) {
     setLoading(true)
     setJobs([])
     const params = new URLSearchParams({ keyword: kw, location: loc, source: src })
     if (src !== 'adzuna') {
       params.append('distance', String(dist))
-      if (dept) params.append('departement', dept)
+      if (dept)    params.append('departement', dept)
+      if (contrat) params.append('typeContrat', contrat)
       const salMin = searchParams.get('salaireMin')
       const salMax = searchParams.get('salaireMax')
       if (salMin) params.append('salMin', salMin)
@@ -136,7 +149,7 @@ function JobsPageContent() {
     if (q || loc) {
       if (q)   setKeyword(q)
       if (loc) setLocation(loc)
-      searchJobs(q, loc, departement, distance, source)
+      searchJobs(q, loc, departement, distance, source, typeContrat)
     } else {
       searchJobs()
     }
@@ -145,27 +158,32 @@ function JobsPageContent() {
   function handleSourceChange(src: 'tout' | 'francetravail' | 'adzuna') {
     setSource(src)
     setActiveFilter('')
-    searchJobs(keyword, location, departement, distance, src)
+    searchJobs(keyword, location, departement, distance, src, typeContrat)
   }
 
   function handleFilter(val: string) {
     setActiveFilter(val)
     setKeyword(val)
-    searchJobs(val, location, departement, distance, source)
+    searchJobs(val, location, departement, distance, source, typeContrat)
   }
 
   function handleSearch() {
     setActiveFilter('')
-    searchJobs(keyword, location, departement, distance, source)
+    searchJobs(keyword, location, departement, distance, source, typeContrat)
   }
 
   function handleDeptChange(dept: string) {
     setDepartement(dept)
-    searchJobs(keyword, location, dept, distance, source)
+    searchJobs(keyword, location, dept, distance, source, typeContrat)
   }
 
   function handleDistanceCommit(dist: number) {
-    searchJobs(keyword, location, departement, dist, source)
+    searchJobs(keyword, location, departement, dist, source, typeContrat)
+  }
+
+  function handleContratChange(val: string) {
+    setTypeContrat(val)
+    searchJobs(keyword, location, departement, distance, source, val)
   }
 
   async function handleCVWithSave(job: any) {
@@ -302,7 +320,23 @@ function JobsPageContent() {
 
         {/* Advanced filters — France Travail et Tout */}
         {source !== 'adzuna' && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          {/* Contrat */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Contrat</div>
+            <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${typeContrat ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
+              <select
+                value={typeContrat}
+                onChange={e => handleContratChange(e.target.value)}
+                style={{ padding: '8px 10px 8px 12px', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13, color: typeContrat ? v.blue : v.text2, fontWeight: typeContrat ? 500 : 400, cursor: 'pointer' }}
+              >
+                {CONTRACT_TYPES.map(c => (
+                  <option key={c.code} value={c.code}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Département */}
           <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
             <div style={{ padding: '0 8px 0 12px', color: v.text3, display: 'flex', flexShrink: 0 }}>
