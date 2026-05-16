@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: "Drop-Job — Postulez. C'est fait.",
-  description: "Méta-agrégateur d'offres d'emploi avec CV généré par IA.",
+  description: "Trouvez votre emploi idéal avec Drop-Job. Offres France Travail et Adzuna réunies. L'IA génère votre CV adapté pour chaque offre en un clic.",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
