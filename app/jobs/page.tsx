@@ -29,9 +29,8 @@ const CONTRACT_TYPES = [
   { code: 'CDI', label: 'CDI' },
   { code: 'CDD', label: 'CDD' },
   { code: 'MIS', label: 'Intérim' },
-  { code: 'PRO', label: 'Alternance' },
-  { code: 'STG', label: 'Stage' },
-  { code: 'LIB', label: 'Freelance' },
+  { code: 'SAI', label: 'Saisonnier' },
+  { code: 'LIB', label: 'Freelance / Libéral' },
 ]
 
 const DEPARTEMENTS = [
