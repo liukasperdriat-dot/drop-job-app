@@ -273,103 +273,213 @@ function JobsPageContent() {
         )}
 
         {/* Filtres */}
-        <div style={{ display: 'flex', gap: 16, marginBottom: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          {/* Source */}
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Source</div>
-            <div style={{ display: 'flex', background: v.bg2, borderRadius: 100, padding: 3 }}>
-              {(['tout', 'francetravail', 'adzuna'] as const).map(s => (
-                <button
-                  key={s}
-                  onClick={() => handleSourceChange(s)}
-                  style={{
-                    padding: '4px 13px', borderRadius: 100, fontSize: 12, fontWeight: 500,
-                    background: source === s ? '#fff' : 'transparent',
-                    color: source === s ? v.text : v.text2,
-                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                    boxShadow: source === s ? '0 1px 3px rgba(0,0,0,.12)' : 'none',
-                    transition: 'all .15s',
-                  }}
-                >
-                  {s === 'tout' ? 'Tout' : s === 'francetravail' ? 'France Travail' : 'Adzuna'}
-                </button>
-              ))}
+        {isMobile ? (
+          /* ── Mobile ── */
+          <div style={{ marginBottom: 16 }}>
+            {/* Source */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Source</div>
+              <div className="scroll-x" style={{ overflowX: 'auto' }}>
+                <div style={{ display: 'inline-flex', background: v.bg2, borderRadius: 100, padding: 3 }}>
+                  {(['tout', 'francetravail', 'adzuna'] as const).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => handleSourceChange(s)}
+                      style={{
+                        padding: '6px 14px', borderRadius: 100, fontSize: 13, fontWeight: 500,
+                        background: source === s ? '#fff' : 'transparent',
+                        color: source === s ? v.text : v.text2,
+                        border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                        boxShadow: source === s ? '0 1px 3px rgba(0,0,0,.12)' : 'none',
+                        transition: 'all .15s', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {s === 'tout' ? 'Tout' : s === 'francetravail' ? 'France Travail' : 'Adzuna'}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Catégorie */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Catégorie</div>
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-              {FILTERS.map(f => (
-                <span
-                  key={f.val}
-                  onClick={() => handleFilter(f.val)}
-                  style={{ padding: '5px 14px', borderRadius: 100, background: activeFilter === f.val ? 'rgba(0,113,227,.07)' : v.white, border: `1px solid ${activeFilter === f.val ? 'rgba(0,113,227,.18)' : v.line}`, fontSize: 12, fontWeight: 500, color: activeFilter === f.val ? v.blue : v.text2, cursor: 'pointer', userSelect: 'none', transition: 'all .12s' }}
-                >
-                  {f.label}
-                </span>
-              ))}
-              {jobs.length > 0 && (
-                <span style={{ marginLeft: 'auto', fontSize: 13, color: v.text3 }}>{jobs.length} offre{jobs.length > 1 ? 's' : ''}</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Advanced filters — France Travail et Tout */}
-        {source !== 'adzuna' && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          {/* Contrat */}
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Contrat</div>
-            <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${typeContrat ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
-              <select
-                value={typeContrat}
-                onChange={e => handleContratChange(e.target.value)}
-                style={{ padding: '8px 10px 8px 12px', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13, color: typeContrat ? v.blue : v.text2, fontWeight: typeContrat ? 500 : 400, cursor: 'pointer' }}
-              >
-                {CONTRACT_TYPES.map(c => (
-                  <option key={c.code} value={c.code}>{c.label}</option>
+            {/* Catégorie */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Catégorie</div>
+              <div className="scroll-x" style={{ overflowX: 'auto', display: 'flex', gap: 5 }}>
+                {FILTERS.map(f => (
+                  <span
+                    key={f.val}
+                    onClick={() => handleFilter(f.val)}
+                    style={{ padding: '6px 14px', borderRadius: 100, background: activeFilter === f.val ? 'rgba(0,113,227,.07)' : v.white, border: `1px solid ${activeFilter === f.val ? 'rgba(0,113,227,.18)' : v.line}`, fontSize: 13, fontWeight: 500, color: activeFilter === f.val ? v.blue : v.text2, cursor: 'pointer', userSelect: 'none', transition: 'all .12s', flexShrink: 0, whiteSpace: 'nowrap' }}
+                  >
+                    {f.label}
+                  </span>
                 ))}
-              </select>
+              </div>
             </div>
-          </div>
 
-          {/* Département */}
-          <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
-            <div style={{ padding: '0 8px 0 12px', color: v.text3, display: 'flex', flexShrink: 0 }}>
-              <svg viewBox="0 0 12 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 8 4 8s4-4.7 4-8c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.5"/></svg>
+            {/* Filtres FT */}
+            {source !== 'adzuna' && (
+              <>
+                {/* Contrat */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Contrat</div>
+                  <div style={{ background: v.white, borderRadius: 10, border: `1px solid ${typeContrat ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow }}>
+                    <select
+                      value={typeContrat}
+                      onChange={e => handleContratChange(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 14, color: typeContrat ? v.blue : v.text2, fontWeight: typeContrat ? 500 : 400, cursor: 'pointer' }}
+                    >
+                      {CONTRACT_TYPES.map(c => (
+                        <option key={c.code} value={c.code}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Département */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, display: 'flex', alignItems: 'center' }}>
+                    <div style={{ padding: '0 8px 0 12px', color: v.text3, display: 'flex', flexShrink: 0 }}>
+                      <svg viewBox="0 0 12 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 8 4 8s4-4.7 4-8c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.5"/></svg>
+                    </div>
+                    <select
+                      value={departement}
+                      onChange={e => handleDeptChange(e.target.value)}
+                      style={{ flex: 1, padding: '10px 10px 10px 0', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 14, color: departement ? v.blue : v.text2, fontWeight: departement ? 500 : 400, cursor: 'pointer' }}
+                    >
+                      <option value="">Tous les départements</option>
+                      {DEPARTEMENTS.map(d => (
+                        <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Rayon */}
+                <div style={{ background: v.white, borderRadius: 10, border: `1px solid ${v.line2}`, boxShadow: v.shadow, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: v.text2, flexShrink: 0 }}>Rayon</span>
+                  <input
+                    type="range"
+                    min={5} max={100} step={5}
+                    value={distance}
+                    onChange={e => setDistance(Number(e.target.value))}
+                    onMouseUp={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
+                    onTouchEnd={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
+                    style={{ flex: 1, accentColor: v.blue, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: v.blue, minWidth: 40, textAlign: 'right' }}>{distance} km</span>
+                </div>
+              </>
+            )}
+
+            {/* Compteur */}
+            {jobs.length > 0 && (
+              <div style={{ textAlign: 'right', fontSize: 13, color: v.text3 }}>
+                {jobs.length} offre{jobs.length > 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ── Desktop ── */
+          <>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              {/* Source */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Source</div>
+                <div style={{ display: 'flex', background: v.bg2, borderRadius: 100, padding: 3 }}>
+                  {(['tout', 'francetravail', 'adzuna'] as const).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => handleSourceChange(s)}
+                      style={{
+                        padding: '4px 13px', borderRadius: 100, fontSize: 12, fontWeight: 500,
+                        background: source === s ? '#fff' : 'transparent',
+                        color: source === s ? v.text : v.text2,
+                        border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                        boxShadow: source === s ? '0 1px 3px rgba(0,0,0,.12)' : 'none',
+                        transition: 'all .15s',
+                      }}
+                    >
+                      {s === 'tout' ? 'Tout' : s === 'francetravail' ? 'France Travail' : 'Adzuna'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Catégorie */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Catégorie</div>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {FILTERS.map(f => (
+                    <span
+                      key={f.val}
+                      onClick={() => handleFilter(f.val)}
+                      style={{ padding: '5px 14px', borderRadius: 100, background: activeFilter === f.val ? 'rgba(0,113,227,.07)' : v.white, border: `1px solid ${activeFilter === f.val ? 'rgba(0,113,227,.18)' : v.line}`, fontSize: 12, fontWeight: 500, color: activeFilter === f.val ? v.blue : v.text2, cursor: 'pointer', userSelect: 'none', transition: 'all .12s' }}
+                    >
+                      {f.label}
+                    </span>
+                  ))}
+                  {jobs.length > 0 && (
+                    <span style={{ marginLeft: 'auto', fontSize: 13, color: v.text3 }}>{jobs.length} offre{jobs.length > 1 ? 's' : ''}</span>
+                  )}
+                </div>
+              </div>
             </div>
-            <select
-              value={departement}
-              onChange={e => handleDeptChange(e.target.value)}
-              style={{ padding: '8px 10px 8px 0', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13, color: departement ? v.blue : v.text2, fontWeight: departement ? 500 : 400, cursor: 'pointer', maxWidth: isMobile ? 180 : 220 }}
-            >
-              <option value="">Tous les départements</option>
-              {DEPARTEMENTS.map(d => (
-                <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
-              ))}
-            </select>
-          </div>
 
-          {/* Distance */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: v.white, borderRadius: 10, border: `1px solid ${v.line2}`, boxShadow: v.shadow, padding: '7px 14px' }}>
-            <span style={{ fontSize: 12, color: v.text2, flexShrink: 0 }}>Rayon</span>
-            <input
-              type="range"
-              min={5} max={100} step={5}
-              value={distance}
-              onChange={e => setDistance(Number(e.target.value))}
-              onMouseUp={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
-              onTouchEnd={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
-              style={{ width: isMobile ? 100 : 120, accentColor: v.blue, cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: 12, fontWeight: 600, color: v.blue, minWidth: 40, textAlign: 'right' }}>{distance} km</span>
-          </div>
-        </div>
+            {source !== 'adzuna' && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              {/* Contrat */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Contrat</div>
+                <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${typeContrat ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
+                  <select
+                    value={typeContrat}
+                    onChange={e => handleContratChange(e.target.value)}
+                    style={{ padding: '8px 10px 8px 12px', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13, color: typeContrat ? v.blue : v.text2, fontWeight: typeContrat ? 500 : 400, cursor: 'pointer' }}
+                  >
+                    {CONTRACT_TYPES.map(c => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Département */}
+              <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
+                <div style={{ padding: '0 8px 0 12px', color: v.text3, display: 'flex', flexShrink: 0 }}>
+                  <svg viewBox="0 0 12 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 8 4 8s4-4.7 4-8c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.5"/></svg>
+                </div>
+                <select
+                  value={departement}
+                  onChange={e => handleDeptChange(e.target.value)}
+                  style={{ padding: '8px 10px 8px 0', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13, color: departement ? v.blue : v.text2, fontWeight: departement ? 500 : 400, cursor: 'pointer', maxWidth: 220 }}
+                >
+                  <option value="">Tous les départements</option>
+                  {DEPARTEMENTS.map(d => (
+                    <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Distance */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: v.white, borderRadius: 10, border: `1px solid ${v.line2}`, boxShadow: v.shadow, padding: '7px 14px' }}>
+                <span style={{ fontSize: 12, color: v.text2, flexShrink: 0 }}>Rayon</span>
+                <input
+                  type="range"
+                  min={5} max={100} step={5}
+                  value={distance}
+                  onChange={e => setDistance(Number(e.target.value))}
+                  onMouseUp={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
+                  onTouchEnd={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
+                  style={{ width: 120, accentColor: v.blue, cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: 12, fontWeight: 600, color: v.blue, minWidth: 40, textAlign: 'right' }}>{distance} km</span>
+              </div>
+            </div>
+            )}
+            {source === 'adzuna' && <div style={{ marginBottom: 24 }} />}
+          </>
         )}
-        {source === 'adzuna' && <div style={{ marginBottom: 24 }} />}
 
 
         {/* Loading */}
@@ -448,6 +558,8 @@ function JobsPageContent() {
       html { scroll-behavior: smooth; }
       @keyframes spin { to { transform: rotate(360deg); } }
       @media (max-width: 768px) { input, textarea { font-size: 16px !important; } }
+      .scroll-x { -ms-overflow-style: none; scrollbar-width: none; }
+      .scroll-x::-webkit-scrollbar { display: none; }
     `}</style>
     </>
   )
