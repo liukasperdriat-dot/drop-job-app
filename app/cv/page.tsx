@@ -108,6 +108,12 @@ function CVPageInner() {
   type ProfileState = 'loading' | 'loaded' | 'empty' | 'error'
   const [profileState, setProfileState] = useState<ProfileState>('loading')
 
+  const [letter, setLetter]               = useState<string | null>(null)
+  const [letterLoading, setLetterLoading] = useState(false)
+  const [letterError, setLetterError]     = useState('')
+  const [activeTab, setActiveTab]         = useState<'cv' | 'letter'>('cv')
+  const [copied, setCopied]               = useState(false)
+
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -132,7 +138,7 @@ function CVPageInner() {
   }, [])
 
   async function handleGenerate() {
-    setLoading(true); setError(''); setCv(null)
+    setLoading(true); setError(''); setCv(null); setLetter(null); setActiveTab('cv')
     const res = await fetch('/api/generate-cv', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -177,6 +183,27 @@ function CVPageInner() {
     await fetch('/api/profile/photo', { method: 'DELETE' })
     setPhotoUploading(false)
     setPhotoUrl(null)
+  }
+
+  async function handleGenerateLetter() {
+    setLetterLoading(true); setLetterError('')
+    const res = await fetch('/api/generate-cover-letter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobTitle, company, jobDescription }),
+    })
+    const data = await res.json()
+    setLetterLoading(false)
+    if (data.error) { setLetterError(data.message || data.error); return }
+    setLetter(data.letter)
+    setActiveTab('letter')
+  }
+
+  async function handleCopyLetter() {
+    if (!letter) return
+    await navigator.clipboard.writeText(letter)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const canGenerate =
@@ -371,6 +398,33 @@ function CVPageInner() {
             >
               {loading ? 'Génération en cours…' : 'Générer mon CV'}
             </button>
+
+            {cv && (
+              !isPremium ? (
+                <>
+                  <button disabled style={{ padding: '13px', borderRadius: 10, background: '#e8e8ed', color: v.text3, border: 'none', fontSize: 15, fontWeight: 500, cursor: 'not-allowed', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    Lettre de motivation
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: 'rgba(0,113,227,.09)', color: v.blue }}>Premium</span>
+                  </button>
+                  <div style={{ fontSize: 11, color: v.text3, textAlign: 'center' as any }}>Réservé aux abonnés Premium</div>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleGenerateLetter}
+                    disabled={letterLoading}
+                    style={{ padding: '13px', borderRadius: 10, background: letterLoading ? '#e8e8ed' : 'rgba(0,113,227,.07)', color: letterLoading ? v.text3 : v.blue, border: `1px solid ${letterLoading ? 'transparent' : 'rgba(0,113,227,.18)'}`, fontSize: 15, fontWeight: 500, cursor: letterLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background .2s' }}
+                  >
+                    {letterLoading ? 'Génération en cours…' : 'Générer la lettre de motivation'}
+                  </button>
+                  {letterError && (
+                    <div style={{ background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#c0392b' }}>
+                      {letterError}
+                    </div>
+                  )}
+                </>
+              )
+            )}
           </div>
 
           {/* ── PREVIEW CARD ──────────────────────────────────────────────── */}
@@ -382,13 +436,29 @@ function CVPageInner() {
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
               </div>
-              <div style={{ fontSize: 11, color: v.text3, fontWeight: 500 }}>
-                Aperçu CV · {TEMPLATES.find(t => t.id === template)?.label}
-              </div>
+              {letter ? (
+                <div style={{ display: 'flex', background: '#f5f5f7', borderRadius: 100, padding: 2 }}>
+                  {(['cv', 'letter'] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      style={{ padding: '4px 14px', borderRadius: 100, fontSize: 12, fontWeight: 500, background: activeTab === tab ? '#fff' : 'transparent', color: activeTab === tab ? v.text : v.text2, border: 'none', cursor: 'pointer', fontFamily: 'inherit', boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,.12)' : 'none', transition: 'all .15s' }}
+                    >
+                      {tab === 'cv' ? 'CV' : 'Lettre'}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 11, color: v.text3, fontWeight: 500 }}>
+                  Aperçu CV · {TEMPLATES.find(t => t.id === template)?.label}
+                </div>
+              )}
               <div style={{ width: 54 }} />
             </div>
 
-            <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', alignItems: cv || loading ? 'flex-start' : 'center', justifyContent: 'center' }}>
+            <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', alignItems: (cv || loading) || (activeTab === 'letter' && !!letter) ? 'flex-start' : 'center', justifyContent: 'center' }}>
+
+              {(activeTab === 'cv' || !letter) && <>
 
               {loading && (
                 <div style={{ textAlign: 'center' as any, width: '100%', paddingTop: 60 }}>
@@ -548,6 +618,23 @@ function CVPageInner() {
                       <line x1="2" y1="15" x2="14" y2="15"/>
                     </svg>
                     {downloading ? 'Génération du PDF…' : `Télécharger — ${TEMPLATES.find(t => t.id === template)?.label}`}
+                  </button>
+                </div>
+              )}
+
+              </>}
+
+              {activeTab === 'letter' && letter && (
+                <div style={{ width: '100%' }}>
+                  {letter.split('\n\n').filter(p => p.trim()).map((para, i) => (
+                    <p key={i} style={{ fontSize: 14, color: v.text2, lineHeight: 1.85, marginBottom: 16 }}>{para}</p>
+                  ))}
+                  <button
+                    onClick={handleCopyLetter}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 8, padding: '12px', borderRadius: 10, background: copied ? 'rgba(29,131,72,.07)' : v.bg, color: copied ? '#1d8348' : v.text2, border: `1px solid ${copied ? 'rgba(29,131,72,.2)' : v.line2}`, fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}
+                  >
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}><rect x="4" y="4" width="9" height="11" rx="1.5"/><path d="M4 4V3a1 1 0 011-1h6a1 1 0 011 1v9a1 1 0 01-1 1h-1"/></svg>
+                    {copied ? '✓ Copié !' : 'Copier la lettre'}
                   </button>
                 </div>
               )}
