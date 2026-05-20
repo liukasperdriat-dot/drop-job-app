@@ -85,6 +85,8 @@ function CVPageInner() {
   const router = useRouter()
   const params = useSearchParams()
 
+  const applyUrl = params.get('applyUrl') || ''
+
   const [jobTitle, setJobTitle]         = useState(params.get('title') || '')
   const [company, setCompany]           = useState(params.get('company') || '')
   const [jobDescription, setJobDescription] = useState(params.get('description') || '')
@@ -619,6 +621,20 @@ function CVPageInner() {
                     </svg>
                     {downloading ? 'Génération du PDF…' : `Télécharger — ${TEMPLATES.find(t => t.id === template)?.label}`}
                   </button>
+
+                  {applyUrl && (
+                    <a
+                      href={applyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 10, padding: '12px', borderRadius: 10, background: '#1d8348', color: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none', transition: 'background .2s' }}
+                    >
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}>
+                        <path d="M10 2h4v4M14 2l-8 8M4 4H2a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-2"/>
+                      </svg>
+                      Postuler à cette offre
+                    </a>
+                  )}
                 </div>
               )}
 

@@ -185,6 +185,15 @@ function JobsPageContent() {
     searchJobs(keyword, location, departement, distance, source, val)
   }
 
+  function getApplyUrl(job: any): string {
+    const src = (job.source || '').toLowerCase()
+    if (src.includes('adzuna')) return job.redirect_url || job.url || ''
+    if (src.includes('francetravail') || src.includes('france travail')) {
+      return `https://candidat.francetravail.fr/offres/recherche/detail/${job.id}`
+    }
+    return ''
+  }
+
   async function handleCVWithSave(job: any) {
     try {
       await fetch('/api/applications', {
@@ -202,7 +211,8 @@ function JobsPageContent() {
     } catch {
       // Ne pas bloquer la navigation si la sauvegarde échoue
     }
-    router.push(`/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description || '')}`)
+    const applyUrl = getApplyUrl(job)
+    router.push(`/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description || '')}${applyUrl ? `&applyUrl=${encodeURIComponent(applyUrl)}` : ''}`)
   }
 
   return (
