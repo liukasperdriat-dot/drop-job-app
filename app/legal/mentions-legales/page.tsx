@@ -73,15 +73,21 @@ export default function MentionsLegalesPage() {
           </p>
 
           <Section title="1. Éditeur du site">
-            <InfoRow label="Nom" value="Liukas Perdriat" />
-            <InfoRow label="Statut" value="Particulier" />
-            <InfoRow label="Adresse" value="Puget-Ville, 83390 Var, France" />
+            <InfoRow label="Nom légal" value="Liukas Guillaume PERDRIAT" />
+            <InfoRow label="Forme juridique" value="Entrepreneur individuel (micro-entreprise)" />
+            <InfoRow label="SIREN" value="105 128 920" />
+            <InfoRow label="SIRET" value="105 128 920 00011" />
+            <InfoRow label="Code APE" value="6201Z" />
+            <InfoRow label="Adresse" value="250 Chemin des Bosquets, 83390 Puget-Ville, France" />
             <InfoRow label="Email de contact" value="dropjob.contact@gmail.com" />
+            <InfoRow label="Téléphone" value="06 14 49 26 88" />
+            <InfoRow label="Date d'immatriculation" value="19/05/2026" />
+            <InfoRow label="Régime TVA" value="Franchise en base de TVA (non assujetti à TVA)" />
           </Section>
 
           <Section title="2. Directeur de la publication">
             <P>
-              Le directeur de la publication du site Drop-Job est <strong style={{ color: s.text }}>Liukas Perdriat</strong>, en qualité d'éditeur du Service.
+              Le directeur de la publication du site Drop-Job est <strong style={{ color: s.text }}>Liukas Guillaume PERDRIAT</strong>, en qualité d'éditeur du Service.
             </P>
           </Section>
 
@@ -96,7 +102,7 @@ export default function MentionsLegalesPage() {
 
           <Section title="4. Propriété intellectuelle">
             <P>
-              L'ensemble des éléments constituant le site Drop-Job (textes, graphismes, logo, icônes, code source, algorithmes, structure) est la propriété exclusive de Liukas Perdriat, à l'exception des marques, logos ou contenus appartenant à des tiers (France Travail, entreprises partenaires, etc.) qui demeurent la propriété de leurs détenteurs respectifs.
+              L'ensemble des éléments constituant le site Drop-Job (textes, graphismes, logo, icônes, code source, algorithmes, structure) est la propriété exclusive de Liukas Guillaume PERDRIAT, à l'exception des marques, logos ou contenus appartenant à des tiers (France Travail, entreprises partenaires, etc.) qui demeurent la propriété de leurs détenteurs respectifs.
             </P>
             <P>
               Toute reproduction, représentation, modification, publication, adaptation, totale ou partielle, des éléments du site, par quelque procédé que ce soit, est interdite sans autorisation écrite préalable de l'Éditeur. Toute utilisation non autorisée peut constituer une contrefaçon passible de poursuites judiciaires.

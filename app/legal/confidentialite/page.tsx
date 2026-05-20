@@ -93,13 +93,16 @@ export default function ConfidentialitePage() {
           <Section title="1. Responsable du traitement">
             <P>Le responsable du traitement des données personnelles collectées via le Service Drop-Job est :</P>
             <div style={{ background: s.bg, borderRadius: 12, padding: '16px 20px', marginTop: 8 }}>
-              <div><strong style={{ color: s.text }}>Liukas Perdriat</strong></div>
-              <div>Particulier — Puget-Ville, 83390 Var, France</div>
+              <div><strong style={{ color: s.text }}>Liukas Guillaume PERDRIAT</strong></div>
+              <div>Entrepreneur individuel (micro-entreprise)</div>
+              <div>SIREN : 105 128 920 — SIRET : 105 128 920 00011</div>
+              <div>250 Chemin des Bosquets, 83390 Puget-Ville, France</div>
               <div style={{ marginTop: 4 }}>
                 Contact :{' '}
                 <a href="mailto:dropjob.contact@gmail.com" style={{ color: s.blue, textDecoration: 'none' }}>
                   dropjob.contact@gmail.com
                 </a>
+                {' — Tél. : 06 14 49 26 88'}
               </div>
             </div>
           </Section>

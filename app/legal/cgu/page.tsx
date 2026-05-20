@@ -38,6 +38,15 @@ function Li({ children }: { children: React.ReactNode }) {
   return <li style={{ listStyleType: 'disc' }}>{children}</li>;
 }
 
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: 'flex', gap: 16, paddingBottom: 10, borderBottom: `1px solid ${s.line}`, marginBottom: 10, flexWrap: 'wrap' }}>
+      <span style={{ fontWeight: 500, color: s.text, minWidth: 200, flexShrink: 0 }}>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
 export default function CGUPage() {
   return (
     <div style={{ background: s.bg, minHeight: '100vh', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", color: s.text, WebkitFontSmoothing: 'antialiased' }}>
@@ -71,9 +80,22 @@ export default function CGUPage() {
             Dernière mise à jour : 10 mai 2026
           </p>
 
+          <Section title="Éditeur / Vendeur">
+            <InfoRow label="Nom légal" value="Liukas Guillaume PERDRIAT" />
+            <InfoRow label="Forme juridique" value="Entrepreneur individuel (micro-entreprise)" />
+            <InfoRow label="SIREN" value="105 128 920" />
+            <InfoRow label="SIRET" value="105 128 920 00011" />
+            <InfoRow label="Code APE" value="6201Z" />
+            <InfoRow label="Adresse" value="250 Chemin des Bosquets, 83390 Puget-Ville, France" />
+            <InfoRow label="Email" value="dropjob.contact@gmail.com" />
+            <InfoRow label="Téléphone" value="06 14 49 26 88" />
+            <InfoRow label="Date d'immatriculation" value="19/05/2026" />
+            <InfoRow label="Régime TVA" value="Franchise en base de TVA (non assujetti à TVA)" />
+          </Section>
+
           <Section title="Article 1 — Objet">
             <P>
-              Les présentes conditions générales d'utilisation (ci-après « CGU ») régissent l'accès et l'utilisation de la plateforme Drop-Job (ci-après « le Service »), éditée par Liukas Perdriat en qualité de particulier.
+              Les présentes conditions générales d'utilisation (ci-après « CGU ») régissent l'accès et l'utilisation de la plateforme Drop-Job (ci-après « le Service »), éditée par Liukas Guillaume PERDRIAT, entrepreneur individuel (micro-entreprise), SIREN 105 128 920.
             </P>
             <P>
               Tout accès ou utilisation du Service implique l'acceptation sans réserve des présentes CGU. Si vous n'acceptez pas ces conditions, vous devez cesser d'utiliser le Service.
@@ -87,7 +109,7 @@ export default function CGUPage() {
               <Li>« Compte » : espace personnel créé par l'Utilisateur lors de son inscription.</Li>
               <Li>« Contenu » : toute donnée saisie par l'Utilisateur (profil, expériences, formations, compétences, etc.).</Li>
               <Li>« CV Généré » : document PDF produit automatiquement par le Service à partir du Contenu de l'Utilisateur.</Li>
-              <Li>« Éditeur » : Liukas Perdriat, particulier, Puget-Ville 83390 Var, France.</Li>
+              <Li>« Éditeur » : Liukas Guillaume PERDRIAT, entrepreneur individuel (micro-entreprise), SIREN 105 128 920, 250 Chemin des Bosquets, 83390 Puget-Ville, France.</Li>
             </Ul>
           </Section>
 
