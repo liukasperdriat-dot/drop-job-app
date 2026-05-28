@@ -154,8 +154,10 @@ function CVPageInner() {
     })
     const data = await res.json()
     setLoading(false)
+    if (data.error === 'QUOTA_EXCEEDED') { setShowUpsell(true); return }
     if (data.error) { setError(data.error); return }
     setCv(data.cv)
+    setCvCount(c => c + 1)
   }
 
   async function handleDownloadPDF() {
