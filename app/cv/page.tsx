@@ -116,6 +116,7 @@ function CVPageInner() {
   const [activeTab, setActiveTab]         = useState<'cv' | 'letter'>('cv')
   const [copied, setCopied]               = useState(false)
   const [letterDownloading, setLetterDownloading] = useState(false)
+  const [showUpsell, setShowUpsell] = useState(false)
 
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -159,6 +160,7 @@ function CVPageInner() {
     try {
       const { downloadCV } = await import('./pdf-templates')
       await downloadCV(template, cv, { ...profileData, photo_url: photoUrl }, company)
+      if (!isPremium) setShowUpsell(true)
     } finally {
       setDownloading(false)
     }
@@ -682,6 +684,44 @@ function CVPageInner() {
           </div>
         </div>
       </div>
+
+      {/* UPSELL MODAL */}
+      {showUpsell && (
+        <div
+          onClick={() => setShowUpsell(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 20, padding: isMobile ? '32px 24px' : '40px 40px', maxWidth: 460, width: '100%', boxShadow: '0 8px 48px rgba(0,0,0,0.18)', textAlign: 'center' as const }}
+          >
+            <div style={{ fontSize: 36, marginBottom: 16 }}>🚀</div>
+            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: '#1d1d1f', marginBottom: 12 }}>
+              Vous avez aimé votre CV ?
+            </div>
+            <p style={{ fontSize: 14, color: '#6e6e73', lineHeight: 1.7, marginBottom: 20 }}>
+              Avec Premium, générez autant de CV que vous voulez, obtenez votre lettre de motivation IA, et accédez aux templates Moderne et Minimaliste.
+            </p>
+            <div style={{ fontSize: 15, fontWeight: 600, color: v.blue, marginBottom: 24 }}>
+              À partir de 3,49 €/semaine
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={() => { setShowUpsell(false); window.location.href = '/pricing' }}
+                style={{ padding: '13px', borderRadius: 12, background: v.blue, color: '#fff', border: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Passer Premium
+              </button>
+              <button
+                onClick={() => setShowUpsell(false)}
+                style={{ padding: '13px', borderRadius: 12, background: '#f5f5f7', color: '#6e6e73', border: 'none', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Plus tard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
