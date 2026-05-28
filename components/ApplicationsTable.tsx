@@ -97,7 +97,7 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
             <div onClick={() => setOpenMenuId(null)} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
           )}
 
-          <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, overflow: 'hidden', boxShadow: v.shadow }}>
+          <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, boxShadow: v.shadow }}>
 
             {/* ── MOBILE CARD VIEW ── */}
             {isMobile ? (
@@ -109,6 +109,7 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
                     style={{
                       padding: '16px',
                       borderBottom: i < apps.length - 1 ? `1px solid ${v.line}` : 'none',
+                      borderRadius: i === 0 ? '17px 17px 0 0' : i === apps.length - 1 ? '0 0 17px 17px' : 0,
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
@@ -168,7 +169,7 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
             ) : (
               /* ── DESKTOP TABLE VIEW ── */
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '11px 20px', borderBottom: `1px solid ${v.line}`, background: v.bg }}>
+                <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '11px 20px', borderBottom: `1px solid ${v.line}`, background: v.bg, borderRadius: '17px 17px 0 0' }}>
                   {(['Poste · Entreprise', 'Statut', 'Contrat', 'Date'] as const).map(label => (
                     <div key={label} style={{ fontSize: 11, fontWeight: 600, color: v.text3, letterSpacing: '.04em', textTransform: 'uppercase' }}>{label}</div>
                   ))}
@@ -189,6 +190,7 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
                         padding: '14px 20px',
                         alignItems: 'center',
                         borderBottom: i < apps.length - 1 ? `1px solid ${v.line}` : 'none',
+                        borderRadius: i === apps.length - 1 ? '0 0 17px 17px' : 0,
                         background: isHovered ? 'rgba(0,0,0,.015)' : 'transparent',
                         transition: 'background .1s',
                       }}
