@@ -101,6 +101,7 @@ function CVPageInner() {
 
   const [template, setTemplate] = useState<Template>('classique')
   const [isPremium, setIsPremium] = useState(false)
+  const [cvCount, setCvCount] = useState(0)
 
   const [photoUrl, setPhotoUrl]             = useState<string | null>(null)
   const [photoUploading, setPhotoUploading] = useState(false)
@@ -137,7 +138,10 @@ function CVPageInner() {
 
     fetch('/api/me')
       .then(r => r.json())
-      .then(({ is_premium }) => setIsPremium(!!is_premium))
+      .then(({ is_premium, cv_count_this_month }) => {
+        setIsPremium(!!is_premium)
+        setCvCount(cv_count_this_month ?? 0)
+      })
       .catch(() => {})
   }, [])
 
@@ -414,6 +418,19 @@ function CVPageInner() {
             >
               {loading ? 'Génération en cours…' : 'Générer mon CV'}
             </button>
+
+            {!isPremium && (
+              cvCount >= 1 ? (
+                <p style={{ textAlign: 'center', fontSize: 13, color: '#ff3b30', margin: 0 }}>
+                  0 CV gratuit restant ce mois —{' '}
+                  <a href="/pricing" style={{ color: v.blue, fontWeight: 500, textDecoration: 'none' }}>Passez Premium</a>
+                </p>
+              ) : (
+                <p style={{ textAlign: 'center', fontSize: 13, color: '#6e6e73', margin: 0 }}>
+                  1 CV gratuit restant ce mois
+                </p>
+              )
+            )}
 
             {cv && (
               !isPremium ? (
