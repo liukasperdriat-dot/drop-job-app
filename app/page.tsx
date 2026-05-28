@@ -28,6 +28,7 @@ export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
   const [realJobs, setRealJobs]       = useState<any[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -220,6 +221,53 @@ export default function HomePage() {
               ))}
             </div>
           </BCard>
+        </div>
+      </div>
+
+      {/* FAQ */}
+      <div style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '0 16px 56px' : '0 24px 80px' }}>
+        <div style={{ fontSize: isMobile ? 26 : 34, fontWeight:600, letterSpacing:'-0.03em', marginBottom:32, textAlign:'center' }}>Questions fréquentes</div>
+        <div style={{ maxWidth:720, margin:'0 auto', display:'flex', flexDirection:'column', gap:0 }}>
+          {([
+            ['C\'est vraiment gratuit ?', 'Oui, 1 CV par mois est gratuit, sans carte bancaire. Le Premium à 3,49 €/semaine ou 9,90 €/mois donne accès aux CV illimités, à la lettre de motivation IA et aux templates Moderne et Minimaliste.'],
+            ['Est-ce que l\'IA invente des informations ?', 'Non. L\'IA reformule uniquement ce que tu as renseigné dans ton profil. Elle n\'invente jamais de compétences ou d\'expériences que tu n\'as pas.'],
+            ['Quelles sources d\'offres sont disponibles ?', 'Drop-Job agrège les offres de France Travail et Adzuna, soit plusieurs centaines de milliers d\'offres en France.'],
+            ['Mes données sont-elles sécurisées ?', 'Oui. Tes données sont stockées sur Supabase (hébergé en Europe) et ne sont jamais vendues à des tiers.'],
+            ['Puis-je annuler mon abonnement Premium ?', 'Oui, à tout moment depuis ton dashboard, sans engagement.'],
+          ] as [string, string][]).map(([q, a], i) => {
+            const open = faqOpen === i;
+            const isFirst = i === 0;
+            const isLast = i === 4;
+            return (
+              <div
+                key={i}
+                style={{
+                  background: v.white,
+                  border: `1px solid ${v.line}`,
+                  borderRadius: isFirst ? '14px 14px 0 0' : isLast ? '0 0 14px 14px' : 0,
+                  borderTopWidth: i === 0 ? 1 : 0,
+                  boxShadow: open ? '0 2px 12px rgba(0,0,0,.06)' : 'none',
+                  zIndex: open ? 1 : 0,
+                  position: 'relative',
+                }}
+              >
+                <button
+                  onClick={() => setFaqOpen(open ? null : i)}
+                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, padding: isMobile ? '16px 20px' : '18px 24px', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}
+                >
+                  <span style={{ fontSize: isMobile ? 14 : 15, fontWeight:600, color:v.text, letterSpacing:'-0.01em' }}>{q}</span>
+                  <span style={{ flexShrink:0, width:20, height:20, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'50%', background:open ? v.blue : v.bg, transition:'background .2s' }}>
+                    <svg viewBox="0 0 10 6" fill="none" stroke={open ? '#fff' : v.text3} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={10} height={6} style={{ transform: open ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>
+                      <polyline points="1,1 5,5 9,1" />
+                    </svg>
+                  </span>
+                </button>
+                {open && (
+                  <div style={{ padding: isMobile ? '0 20px 18px' : '0 24px 20px', fontSize:14, color:v.text2, lineHeight:1.7 }}>{a}</div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
