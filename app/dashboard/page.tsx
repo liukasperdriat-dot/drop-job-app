@@ -67,10 +67,10 @@ export default async function DashboardPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 36 }}>
-          <h1 style={{ fontSize: 'clamp(28px,4vw,42px)', fontWeight: 600, letterSpacing: '-0.04em', marginBottom: 4 }}>
+          <h1 style={{ fontSize: 'clamp(28px,4vw,42px)', fontWeight: 600, letterSpacing: '-0.04em', marginBottom: 4, color: '#1d1d1f' }}>
             {greeting}, {displayName}.
           </h1>
-          <p style={{ fontSize: 14, color: v.text3 }}>{user.email}</p>
+          <p style={{ fontSize: 14, color: v.text2 }}>{user.email}</p>
         </div>
 
         {/* Mobile CV CTA */}
