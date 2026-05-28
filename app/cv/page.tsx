@@ -115,6 +115,7 @@ function CVPageInner() {
   const [letterError, setLetterError]     = useState('')
   const [activeTab, setActiveTab]         = useState<'cv' | 'letter'>('cv')
   const [copied, setCopied]               = useState(false)
+  const [letterDownloading, setLetterDownloading] = useState(false)
 
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -206,6 +207,17 @@ function CVPageInner() {
     await navigator.clipboard.writeText(letter)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleDownloadLetter() {
+    if (!letter) return
+    setLetterDownloading(true)
+    try {
+      const { downloadLetter } = await import('./pdf-templates')
+      await downloadLetter(letter, cv?.name || profileData?.full_name || '', company)
+    } finally {
+      setLetterDownloading(false)
+    }
   }
 
   const canGenerate =
@@ -645,13 +657,25 @@ function CVPageInner() {
                   {letter.split('\n\n').filter(p => p.trim()).map((para, i) => (
                     <p key={i} style={{ fontSize: 14, color: v.text2, lineHeight: 1.85, marginBottom: 16 }}>{para}</p>
                   ))}
-                  <button
-                    onClick={handleCopyLetter}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 8, padding: '12px', borderRadius: 10, background: copied ? 'rgba(29,131,72,.07)' : v.bg, color: copied ? '#1d8348' : v.text2, border: `1px solid ${copied ? 'rgba(29,131,72,.2)' : v.line2}`, fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}
-                  >
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}><rect x="4" y="4" width="9" height="11" rx="1.5"/><path d="M4 4V3a1 1 0 011-1h6a1 1 0 011 1v9a1 1 0 01-1 1h-1"/></svg>
-                    {copied ? '✓ Copié !' : 'Copier la lettre'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button
+                      onClick={handleCopyLetter}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 1, padding: '12px', borderRadius: 10, background: copied ? 'rgba(29,131,72,.07)' : v.bg, color: copied ? '#1d8348' : v.text2, border: `1px solid ${copied ? 'rgba(29,131,72,.2)' : v.line2}`, fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}
+                    >
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}><rect x="4" y="4" width="9" height="11" rx="1.5"/><path d="M4 4V3a1 1 0 011-1h6a1 1 0 011 1v9a1 1 0 01-1 1h-1"/></svg>
+                      {copied ? '✓ Copié !' : 'Copier la lettre'}
+                    </button>
+                    <button
+                      onClick={handleDownloadLetter}
+                      disabled={letterDownloading}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 1, padding: '12px', borderRadius: 10, background: letterDownloading ? '#e8e8ed' : v.blue, color: letterDownloading ? v.text3 : '#fff', border: 'none', fontSize: 14, fontWeight: 500, cursor: letterDownloading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background .2s' }}
+                    >
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width={14} height={14}>
+                        <line x1="8" y1="1" x2="8" y2="11"/><polyline points="4,7 8,11 12,7"/><line x1="2" y1="15" x2="14" y2="15"/>
+                      </svg>
+                      {letterDownloading ? 'Génération…' : 'Télécharger la lettre'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

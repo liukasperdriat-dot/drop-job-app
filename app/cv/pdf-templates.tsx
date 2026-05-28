@@ -480,7 +480,66 @@ export function MinimalistePDF({ cv, profile, photoBase64 }: { cv: any; profile:
   )
 }
 
-// ── Téléchargement ─────────────────────────────────────────────────────────
+// ── LETTRE DE MOTIVATION ───────────────────────────────────────────────────
+// A4, Times New Roman, sobre, noir sur blanc
+
+const lt = StyleSheet.create({
+  page: {
+    paddingTop: 57,
+    paddingBottom: 57,
+    paddingLeft: 57,
+    paddingRight: 57,
+    backgroundColor: '#ffffff',
+  },
+  name: {
+    fontFamily: 'Times-Bold',
+    fontSize: 18,
+    color: '#000000',
+    marginBottom: 4,
+  },
+  nameLine: {
+    borderBottomWidth: 0.8,
+    borderBottomColor: '#000000',
+    marginBottom: 24,
+  },
+  paragraph: {
+    fontFamily: 'Times-Roman',
+    fontSize: 11,
+    color: '#1a1a1a',
+    lineHeight: 1.75,
+    marginBottom: 14,
+  },
+})
+
+export function LettrePDF({ letter, name }: { letter: string; name: string }) {
+  const paragraphs = letter.split('\n\n').filter(p => p.trim())
+  return (
+    <Document>
+      <Page size="A4" style={lt.page}>
+        <Text style={lt.name}>{name}</Text>
+        <View style={lt.nameLine} />
+        {paragraphs.map((para, i) => (
+          <Text key={i} style={lt.paragraph}>{para}</Text>
+        ))}
+      </Page>
+    </Document>
+  )
+}
+
+export async function downloadLetter(letter: string, name: string, company: string) {
+  const element = <LettrePDF letter={letter} name={name} />
+  const blob = await pdf(element).toBlob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `Lettre_${(name || 'lettre').replace(/\s+/g, '_')}_${(company || 'entreprise').replace(/\s+/g, '_')}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+// ── Téléchargement CV ───────────────────────────────────────────────────────
 
 export async function downloadCV(
   template: string,
