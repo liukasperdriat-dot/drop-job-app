@@ -17,11 +17,11 @@ const v = {
 
 const FILTERS = [
   { val: '', label: 'Tout' },
-  { val: 'developpeur', label: 'Dev' },
-  { val: 'designer', label: 'Design' },
-  { val: 'data', label: 'Data' },
-  { val: 'product manager', label: 'Product' },
-  { val: 'devops', label: 'DevOps' },
+  { val: 'developpeur', label: 'Informatique & Dev' },
+  { val: 'designer', label: 'Design & Créatif' },
+  { val: 'data', label: 'Data & IA' },
+  { val: 'product manager', label: 'Product & Business' },
+  { val: 'devops', label: 'DevOps & Cloud' },
 ]
 
 const CONTRACT_TYPES = [
