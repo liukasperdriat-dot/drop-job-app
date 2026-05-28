@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import CompanyLogo from '@/components/CompanyLogo';
+import { createClient } from '@/lib/supabase/client';
 
 const GEN_STEPS = ['Analyse des mots-clés ATS','Interrogation de votre profil','Adaptation du vocabulaire','Calcul du score de matching','Génération du PDF'];
 
@@ -26,10 +27,16 @@ export default function HomePage() {
   const [genStep, setGenStep] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const [realJobs, setRealJobs]       = useState<any[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<any>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user));
+  }, []);
 
   useEffect(() => {
     fetch('/api/jobs?keyword=&location=')
@@ -86,7 +93,10 @@ export default function HomePage() {
             </ul>
           )}
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            {!isMobile && <Link href="/auth/login" style={{ fontSize:13, color:v.text2, textDecoration:'none', padding:'5px 4px' }}>Connexion</Link>}
+            {!isMobile && (isLoggedIn
+              ? <Link href="/dashboard" style={{ fontSize:13, color:v.text2, textDecoration:'none', padding:'5px 4px' }}>Dashboard</Link>
+              : <Link href="/auth/login" style={{ fontSize:13, color:v.text2, textDecoration:'none', padding:'5px 4px' }}>Connexion</Link>
+            )}
             <button onClick={()=>window.location.href='/auth/register'} style={{ padding:'7px 17px', borderRadius:100, fontSize:13, fontWeight:500, background:v.blue, color:'#fff', border:'none', cursor:'pointer', fontFamily:'inherit', minHeight:44 }}>Commencer</button>
             {isMobile && (
               <button onClick={()=>setMenuOpen(true)} style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', cursor:'pointer', fontSize:20, color:v.text, flexShrink:0 }}>☰</button>
@@ -354,7 +364,10 @@ export default function HomePage() {
           {[['#jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
             <a key={h} href={h} onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>{l}</a>
           ))}
-          <Link href="/auth/login" onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>Connexion</Link>
+          {isLoggedIn
+            ? <Link href="/dashboard" onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>Dashboard</Link>
+            : <Link href="/auth/login" onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>Connexion</Link>
+          }
         </div>
         <div style={{ padding:'24px' }}>
           <button onClick={()=>{ setMenuOpen(false); window.location.href='/auth/register'; }} style={{ width:'100%', padding:'16px', borderRadius:14, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:16, fontWeight:500, cursor:'pointer' }}>Commencer gratuitement</button>
