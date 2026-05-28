@@ -437,11 +437,10 @@ function CVPageInner() {
             {cv && (
               !isPremium ? (
                 <>
-                  <button disabled style={{ padding: '13px', borderRadius: 10, background: '#e8e8ed', color: v.text3, border: 'none', fontSize: 15, fontWeight: 500, cursor: 'not-allowed', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <button onClick={() => setShowUpsell(true)} style={{ padding: '13px', borderRadius: 10, background: 'rgba(0,113,227,.07)', color: v.blue, border: '1px solid rgba(0,113,227,.18)', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     Lettre de motivation
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: 'rgba(0,113,227,.09)', color: v.blue }}>Premium</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: 'rgba(0,113,227,.12)', color: v.blue }}>Premium</span>
                   </button>
-                  <div style={{ fontSize: 11, color: v.text3, textAlign: 'center' as any }}>Réservé aux abonnés Premium</div>
                 </>
               ) : (
                 <>
