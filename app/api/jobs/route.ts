@@ -67,6 +67,17 @@ function invalidateToken() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Jobs results cache (5 min TTL) ───────────────────────────────────────
+const CACHE_TTL    = 300_000
+const CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' }
+const jobsCache    = new Map<string, { jobs: any[]; expiresAt: number }>()
+
+function buildCacheKey(source: string, keyword: string, location: string, typeContrat: string, departement: string) {
+  return `${source}|${keyword}|${location}|${typeContrat}|${departement}`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Warm in-memory cache: avoids hitting geo API on repeated city lookups within the same worker
 const inseeCache = new Map<string, string>()
 
@@ -224,10 +235,18 @@ export async function GET(request: Request) {
     const distance     = searchParams.get('distance') || ''
     const typeContrat  = searchParams.get('typeContrat') || ''
 
+    const cacheKey = buildCacheKey(source, keyword, location, typeContrat, departement)
+    const cached = jobsCache.get(cacheKey)
+    if (cached && Date.now() < cached.expiresAt) {
+      console.log('[cache] HIT', cacheKey)
+      return NextResponse.json({ jobs: cached.jobs }, { headers: CACHE_HEADERS })
+    }
+
     // ── Adzuna only ───────────────────────────────────────────────────────
     if (source === 'adzuna') {
       const jobs = await fetchAdzunaJobs(keyword, location)
-      return NextResponse.json({ jobs })
+      jobsCache.set(cacheKey, { jobs, expiresAt: Date.now() + CACHE_TTL })
+      return NextResponse.json({ jobs }, { headers: CACHE_HEADERS })
     }
 
     // ── Tout : FT (10) + Adzuna (10) en parallèle, tolérant aux pannes ───
@@ -265,7 +284,9 @@ export async function GET(request: Request) {
       if (ftResult.status === 'rejected') console.warn('[tout] FT failed:', (ftResult as PromiseRejectedResult).reason?.message)
       if (azResult.status === 'rejected') console.warn('[tout] Adzuna failed:', (azResult as PromiseRejectedResult).reason?.message)
 
-      return NextResponse.json({ jobs: [...ftJobs, ...azJobs] })
+      const jobs = [...ftJobs, ...azJobs]
+      jobsCache.set(cacheKey, { jobs, expiresAt: Date.now() + CACHE_TTL })
+      return NextResponse.json({ jobs }, { headers: CACHE_HEADERS })
     }
     // ─────────────────────────────────────────────────────────────────────
 
@@ -333,7 +354,8 @@ export async function GET(request: Request) {
 
     const jobs = (data.resultats || []).map(mapJob)
     console.log('[FT] jobs returned:', jobs.length)
-    return NextResponse.json({ jobs })
+    jobsCache.set(cacheKey, { jobs, expiresAt: Date.now() + CACHE_TTL })
+    return NextResponse.json({ jobs }, { headers: CACHE_HEADERS })
 
   } catch (err: any) {
     console.error('[FT] FATAL:', err.message, err.stack?.split('\n')[1])
