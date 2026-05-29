@@ -173,6 +173,27 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* COMMENT ÇA MARCHE */}
+      <div style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '0 16px 56px' : '0 24px 80px' }}>
+        <div style={{ textAlign:'center', marginBottom: isMobile ? 36 : 48 }}>
+          <div style={{ fontSize: isMobile ? 26 : 34, fontWeight:600, letterSpacing:'-0.03em' }}>Comment ça marche ?</div>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: isMobile ? 20 : 24 }}>
+          {([
+            { num:'01', icon:'🔍', title:'Trouve une offre',        desc:'Recherche parmi des milliers d\'offres France Travail et Adzuna en France.' },
+            { num:'02', icon:'⚡', title:'Génère ton CV en 1 clic', desc:'L\'IA analyse l\'offre et adapte ton CV et ta lettre de motivation en quelques secondes.' },
+            { num:'03', icon:'📩', title:'Postule directement',     desc:'Télécharge ton CV et postule directement depuis Drop-Job.' },
+          ] as {num:string;icon:string;title:string;desc:string}[]).map(step => (
+            <div key={step.num} style={{ textAlign:'center', padding: isMobile ? '24px 20px' : '32px 24px', background:v.white, borderRadius:18, border:`1px solid ${v.line}`, boxShadow:v.shadow }}>
+              <div style={{ fontSize:11, fontWeight:700, letterSpacing:'.1em', color:'#2563eb', marginBottom:14 }}>{step.num}</div>
+              <div style={{ fontSize:36, marginBottom:14, lineHeight:1 }}>{step.icon}</div>
+              <div style={{ fontSize:15, fontWeight:600, letterSpacing:'-0.02em', color:v.text, marginBottom:8 }}>{step.title}</div>
+              <div style={{ fontSize:13, color:v.text2, lineHeight:1.65 }}>{step.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* BENTO */}
       <div id="bento" style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '0 16px 48px' : '0 24px 72px' }}>
         <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap:12 }}>
