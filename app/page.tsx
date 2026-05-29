@@ -346,7 +346,7 @@ export default function HomePage() {
             <div style={{ fontSize:42, fontWeight:300, letterSpacing:'-0.04em', lineHeight:1 }}>0€</div>
             <div style={{ fontSize:12, color:v.text2, marginTop:6, marginBottom:20 }}>Pour démarrer, sans limite de durée.</div>
             <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:10, marginBottom:24 }}>
-              {[{l:'Toutes les offres agrégées',ok:true},{l:'1 CV Smart / mois',ok:true},{l:'Jauge salariale IA',ok:true},{l:'Suppression du filigrane',ok:false},{l:'Filtres avancés',ok:false},{l:'Édition manuelle du CV',ok:false}].map(f=>(
+              {[{l:'Toutes les offres France Travail et Adzuna',ok:true},{l:'1 CV adapté par IA / mois',ok:true},{l:'1 lettre de motivation / mois (avec filigrane)',ok:true},{l:'Template Classique',ok:true},{l:'Filigrane sur les documents',ok:false},{l:'Templates Moderne et Minimaliste',ok:false},{l:'Lettre de motivation illimitée',ok:false}].map(f=>(
                 <li key={f.l} style={{ display:'flex', alignItems:'flex-start', gap:9, fontSize:13, color: f.ok ? v.text2 : v.text3 }}>
                   <div style={{ flexShrink:0, marginTop:1 }}>
                     {f.ok
@@ -367,7 +367,7 @@ export default function HomePage() {
             </div>
             <div style={{ fontSize:12, color:v.text2, marginTop:6, marginBottom:20 }}>{billing==='monthly'?'Sans engagement, annulez quand vous voulez.':'Idéal pour une recherche intensive et courte.'}</div>
             <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:10, marginBottom:24 }}>
-              {['Tout du plan Gratuit','CV illimités, sans filigrane','Édition manuelle complète','Filtres avancés + remote','Score de matching IA','Alertes email & push'].map(f=>(
+              {['Tout du plan Gratuit','CV illimités, sans filigrane','Lettre de motivation IA illimitée','Templates Moderne et Minimaliste','Photo de profil sur le CV','Téléchargement PDF CV + Lettre','Sans engagement, annulez quand vous voulez'].map(f=>(
                 <li key={f} style={{ display:'flex', alignItems:'flex-start', gap:9, fontSize:13, color:v.text2 }}>
                   <div style={{ flexShrink:0, marginTop:1 }}><svg viewBox="0 0 14 14" fill="none" stroke="#1d8348" strokeWidth="1.6" strokeLinecap="round" width={14} height={14}><polyline points="2,7 6,11 12,3"/></svg></div>
                   {f}
@@ -393,7 +393,7 @@ export default function HomePage() {
             <a href="#" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>Blog</a>
             <a href="#" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>API</a>
           </div>
-          <div style={{ fontSize:12, color:v.text3 }}>© 2025 Drop-Job</div>
+          <div style={{ fontSize:12, color:v.text3 }}>© 2026 Drop-Job</div>
         </div>
       </footer>
     </div>
