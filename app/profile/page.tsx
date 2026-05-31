@@ -80,25 +80,25 @@ export default function ProfilePage() {
   const firstName = fullName.trim().split(' ')[0] || ''
 
   useEffect(() => {
-    fetch('/api/profile')
-      .then(r => r.json())
-      .then(({ profile }) => {
-        if (profile) {
-          setFullName(profile.full_name || '')
-          setEmail(profile.email || '')
-          setPhone(profile.phone || '')
-          setLocation(profile.location || '')
-          setLinkedin(profile.linkedin || '')
-          setTitle(profile.title || '')
-          setSummary(profile.summary || '')
-          setExperiences(profile.experiences || [])
-          setEducation(profile.education || [])
-          setSkills(profile.skills || [])
-          setLanguages(profile.languages || [])
-          setIsPremium(profile.is_premium === true || profile.subscription_status === 'premium')
-        }
-      })
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch('/api/profile').then(r => r.json()),
+      fetch('/api/me').then(r => r.json()),
+    ]).then(([{ profile }, me]) => {
+      if (profile) {
+        setFullName(profile.full_name || '')
+        setEmail(profile.email || '')
+        setPhone(profile.phone || '')
+        setLocation(profile.location || '')
+        setLinkedin(profile.linkedin || '')
+        setTitle(profile.title || '')
+        setSummary(profile.summary || '')
+        setExperiences(profile.experiences || [])
+        setEducation(profile.education || [])
+        setSkills(profile.skills || [])
+        setLanguages(profile.languages || [])
+      }
+      setIsPremium(me?.is_premium === true)
+    }).finally(() => setLoading(false))
   }, [])
 
   async function handleSave() {
