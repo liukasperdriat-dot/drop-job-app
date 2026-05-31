@@ -1,16 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-
-const v = {
-  bg: '#f5f5f7', white: '#fff',
-  text: '#1d1d1f', text2: '#6e6e73', text3: '#aeaeb2',
-  line: 'rgba(0,0,0,0.08)', line2: 'rgba(0,0,0,0.14)',
-  blue: '#0071e3',
-  green: '#1d8348',
-  shadow: '0 1px 2px rgba(0,0,0,.05), 0 2px 12px rgba(0,0,0,.05)',
-}
 
 type Experience = {
   title: string; company: string; location: string
@@ -30,6 +21,34 @@ const emptyExp = (): Experience => ({ title: '', company: '', location: '', star
 const emptyEdu = (): Education => ({ degree: '', school: '', location: '', start_date: '', end_date: '', description: '' })
 const emptyLang = (): Language => ({ name: '', level: 'B1' })
 
+const STRIPE_URL = 'https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00'
+
+function computeScore(
+  fullName: string, email: string, phone: string, location: string,
+  title: string, summary: string, experiences: Experience[],
+  education: Education[], skills: string[], languages: Language[]
+): number {
+  let s = 0
+  if (fullName.trim()) s += 15
+  if (email.trim()) s += 10
+  if (phone.trim()) s += 10
+  if (location.trim()) s += 5
+  if (title.trim()) s += 10
+  if (summary.trim()) s += 15
+  if (experiences.length > 0) s += 15
+  if (education.length > 0) s += 10
+  if (skills.length > 0) s += 5
+  if (languages.length > 0) s += 5
+  return s
+}
+
+function scoreMessage(score: number): string {
+  if (score < 40) return 'Complétez votre profil pour des CV plus précis'
+  if (score < 70) return 'Bon début ! Encore quelques infos pour optimiser vos CV'
+  if (score < 100) return 'Presque parfait ! Ajoutez les derniers détails'
+  return '✨ Profil complet ! Vos CV seront parfaitement optimisés'
+}
+
 export default function ProfilePage() {
   const router = useRouter()
 
@@ -37,6 +56,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [isPremium, setIsPremium] = useState(false)
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -52,13 +72,12 @@ export default function ProfilePage() {
   const [skillInput, setSkillInput] = useState('')
   const skillInputRef = useRef<HTMLInputElement>(null)
 
-  const [isMobile, setIsMobile] = useState(false)
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const score = useMemo(
+    () => computeScore(fullName, email, phone, location, title, summary, experiences, education, skills, languages),
+    [fullName, email, phone, location, title, summary, experiences, education, skills, languages]
+  )
+
+  const firstName = fullName.trim().split(' ')[0] || ''
 
   useEffect(() => {
     fetch('/api/profile')
@@ -76,6 +95,7 @@ export default function ProfilePage() {
           setEducation(profile.education || [])
           setSkills(profile.skills || [])
           setLanguages(profile.languages || [])
+          setIsPremium(profile.is_premium === true || profile.subscription_status === 'premium')
         }
       })
       .finally(() => setLoading(false))
@@ -121,20 +141,22 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: v.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Inter',-apple-system,sans-serif" }}>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid #e8e8ed', borderTopColor: v.blue, animation: 'spin .7s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-blue-600 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: v.bg, fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif", WebkitFontSmoothing: 'antialiased' }}>
+    <div className="min-h-screen bg-[#f8fafc] font-sans antialiased">
 
-      {/* NAV */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 200, height: 52, background: 'rgba(245,245,247,0.92)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: `1px solid ${v.line}` }}>
-        <div style={{ maxWidth: 780, margin: '0 auto', height: '100%', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={() => router.push('/dashboard')} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: v.text, fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em', fontFamily: 'inherit' }}>
+      {/* STICKY NAV */}
+      <nav className="sticky top-0 z-50 h-14 bg-white/90 backdrop-blur-xl border-b border-gray-100 shadow-sm">
+        <div className="max-w-3xl mx-auto h-full px-6 flex items-center justify-between">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="flex items-center gap-2 text-gray-800 font-semibold text-[15px] tracking-tight hover:opacity-70 transition-opacity bg-transparent border-none cursor-pointer"
+          >
             <svg viewBox="0 0 40 40" fill="none" width={26} height={26}>
               <rect x="5" y="5" width="30" height="30" rx="7" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="2.2" fill="none"/>
               <rect x="9" y="9" width="22" height="22" rx="5" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.45"/>
@@ -144,234 +166,338 @@ export default function ProfilePage() {
             </svg>
             drop-job
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {saved && <span style={{ fontSize: 12, color: v.green, fontWeight: 500 }}>✓ Profil sauvegardé</span>}
-            {saveError && <span style={{ fontSize: 12, color: '#c0392b', fontWeight: 500 }}>{saveError}</span>}
-            <button onClick={() => router.push('/dashboard')} style={{ fontSize: 13, color: v.text2, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Dashboard</button>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-blue-600 hidden sm:block">
+              Profil à {score}%
+            </span>
+            {saved && (
+              <span className="text-xs font-medium text-emerald-600 flex items-center gap-1">
+                <svg viewBox="0 0 16 16" fill="none" width={13} height={13}><path d="M3 8l3.5 3.5L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Sauvegardé
+              </span>
+            )}
+            {saveError && <span className="text-xs font-medium text-red-600">{saveError}</span>}
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="text-sm text-gray-500 hover:text-gray-800 transition-colors bg-transparent border-none cursor-pointer"
+            >
+              ← Dashboard
+            </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              style={{ padding: '7px 18px', borderRadius: 100, background: saving ? '#e8e8ed' : v.blue, color: saving ? v.text3 : '#fff', border: 'none', fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background .2s' }}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                saving
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : saved
+                  ? 'bg-emerald-500 text-white cursor-pointer'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+              }`}
             >
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
+              {saving ? 'Enregistrement…' : saved ? '✓ Enregistré' : 'Enregistrer'}
             </button>
           </div>
         </div>
       </nav>
 
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '48px 24px 100px' }}>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 pb-24 space-y-6">
 
-        {/* Hero */}
-        <div style={{ marginBottom: 40 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.04em', color: v.text, marginBottom: 6 }}>Mon profil</h1>
-          <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>Ces informations servent à pré-remplir vos CV générés par l'IA.</p>
+        {/* HERO HEADER */}
+        <div className="pt-2 pb-2">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2">
+            Bonjour{firstName ? `, ${firstName}` : ''} 👋
+          </h1>
+          <p className="text-gray-500 text-base">
+            Un profil complet = un CV généré plus précis par l&apos;IA
+          </p>
         </div>
+
+        {/* PROGRESS BAR */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-blue-600">Profil complété à {score}%</span>
+            <span className="text-xs text-gray-400">{score}/100 pts</span>
+          </div>
+          <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mb-3">
+            <div
+              className="h-full rounded-full transition-all duration-700 ease-out"
+              style={{
+                width: `${score}%`,
+                background: 'linear-gradient(90deg, #2563eb 0%, #60a5fa 100%)',
+              }}
+            />
+          </div>
+          <p className="text-sm text-gray-500">{scoreMessage(score)}</p>
+        </div>
+
+        {/* SUBSCRIPTION CARD */}
+        {isPremium ? (
+          <div
+            className="rounded-2xl p-5 flex items-center gap-4"
+            style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' }}
+          >
+            <span className="text-3xl">✨</span>
+            <div>
+              <p className="text-white font-semibold text-base">Premium actif — CV illimités</p>
+              <p className="text-blue-200 text-sm">Merci de faire confiance à drop-job !</p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border-2 border-dashed border-blue-300 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚡</span>
+              <div>
+                <p className="font-semibold text-gray-800 text-base">Plan gratuit — 1 CV par mois</p>
+                <p className="text-gray-500 text-sm">Passez Premium pour des CV illimités et des fonctionnalités avancées</p>
+              </div>
+            </div>
+            <a
+              href={STRIPE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 inline-block px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors no-underline"
+            >
+              Passer Premium → 9,90€/mois
+            </a>
+          </div>
+        )}
 
         {/* SECTION: Informations personnelles */}
         <Section title="Informations personnelles">
-          <Grid2 isMobile={isMobile}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Nom complet">
-              <input style={inp} value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Jean Dupont" />
+              <input className={inp} value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Jean Dupont" />
             </Field>
             <Field label="Email">
-              <input style={inp} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jean@exemple.fr" />
+              <input className={inp} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jean@exemple.fr" />
             </Field>
-          </Grid2>
-          <Grid2 isMobile={isMobile}>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Téléphone">
-              <input style={inp} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+33 6 00 00 00 00" />
+              <input className={inp} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+33 6 00 00 00 00" />
             </Field>
             <Field label="Ville / Région">
-              <input style={inp} value={location} onChange={e => setLocation(e.target.value)} placeholder="Paris, Île-de-France" />
+              <input className={inp} value={location} onChange={e => setLocation(e.target.value)} placeholder="Paris, Île-de-France" />
             </Field>
-          </Grid2>
-          <Grid2 isMobile={isMobile}>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="LinkedIn">
-              <input style={inp} value={linkedin} onChange={e => setLinkedin(e.target.value)} placeholder="linkedin.com/in/jean-dupont" />
+              <input className={inp} value={linkedin} onChange={e => setLinkedin(e.target.value)} placeholder="linkedin.com/in/jean-dupont" />
             </Field>
             <Field label="Titre professionnel">
-              <input style={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="Développeur Full Stack Senior" />
+              <input className={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="Développeur Full Stack Senior" />
             </Field>
-          </Grid2>
+          </div>
           <Field label="Pitch / Résumé">
-            <textarea style={{ ...inp, resize: 'vertical' }} rows={4} value={summary} onChange={e => setSummary(e.target.value)} placeholder="Brève description de votre profil et de vos ambitions professionnelles…" />
+            <textarea className={`${inp} resize-y`} rows={4} value={summary} onChange={e => setSummary(e.target.value)} placeholder="Brève description de votre profil et de vos ambitions professionnelles…" />
           </Field>
         </Section>
 
         {/* SECTION: Expériences */}
         <Section title="Expériences professionnelles">
-          {experiences.map((exp, i) => (
-            <ExpCard key={i}>
-              <Grid2 isMobile={isMobile}>
-                <Field label="Poste">
-                  <input style={inp} value={exp.title} onChange={e => updateExp(i, 'title', e.target.value)} placeholder="Développeur React" />
+          <div className="space-y-4">
+            {experiences.map((exp, i) => (
+              <ExpCard key={i}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Poste">
+                    <input className={inp} value={exp.title} onChange={e => updateExp(i, 'title', e.target.value)} placeholder="Développeur React" />
+                  </Field>
+                  <Field label="Entreprise">
+                    <input className={inp} value={exp.company} onChange={e => updateExp(i, 'company', e.target.value)} placeholder="Acme Corp" />
+                  </Field>
+                </div>
+                <Field label="Lieu">
+                  <input className={inp} value={exp.location} onChange={e => updateExp(i, 'location', e.target.value)} placeholder="Paris" />
                 </Field>
-                <Field label="Entreprise">
-                  <input style={inp} value={exp.company} onChange={e => updateExp(i, 'company', e.target.value)} placeholder="Acme Corp" />
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+                  <Field label="Date de début">
+                    <input className={inp} type="month" value={exp.start_date} onChange={e => updateExp(i, 'start_date', e.target.value)} />
+                  </Field>
+                  <Field label="Date de fin">
+                    <input className={`${inp} ${exp.current ? 'opacity-40' : ''}`} type="month" value={exp.end_date} onChange={e => updateExp(i, 'end_date', e.target.value)} disabled={exp.current} />
+                  </Field>
+                  <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer pb-0.5 whitespace-nowrap">
+                    <input type="checkbox" checked={exp.current} onChange={e => updateExp(i, 'current', e.target.checked)} className="w-4 h-4 accent-blue-600 cursor-pointer" />
+                    Poste actuel
+                  </label>
+                </div>
+                <Field label="Description">
+                  <textarea className={`${inp} resize-y`} rows={3} value={exp.description} onChange={e => updateExp(i, 'description', e.target.value)} placeholder="Missions, technologies, réalisations…" />
                 </Field>
-              </Grid2>
-              <Field label="Lieu">
-                <input style={inp} value={exp.location} onChange={e => updateExp(i, 'location', e.target.value)} placeholder="Paris" />
-              </Field>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr auto', gap: 12, alignItems: 'end' }}>
-                <Field label="Date de début">
-                  <input style={inp} type="month" value={exp.start_date} onChange={e => updateExp(i, 'start_date', e.target.value)} />
-                </Field>
-                <Field label="Date de fin">
-                  <input style={{ ...inp, opacity: exp.current ? 0.4 : 1 }} type="month" value={exp.end_date} onChange={e => updateExp(i, 'end_date', e.target.value)} disabled={exp.current} />
-                </Field>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: v.text2, cursor: 'pointer', paddingBottom: 2, whiteSpace: 'nowrap' }}>
-                  <input type="checkbox" checked={exp.current} onChange={e => updateExp(i, 'current', e.target.checked)} style={{ width: 15, height: 15, accentColor: v.blue, cursor: 'pointer' }} />
-                  Poste actuel
-                </label>
-              </div>
-              <Field label="Description">
-                <textarea style={{ ...inp, resize: 'vertical' }} rows={3} value={exp.description} onChange={e => updateExp(i, 'description', e.target.value)} placeholder="Missions, technologies, réalisations…" />
-              </Field>
-              <button onClick={() => setExperiences(prev => prev.filter((_, idx) => idx !== i))} style={btnDelete}>
-                Supprimer cette expérience
-              </button>
-            </ExpCard>
-          ))}
-          <button onClick={() => setExperiences(prev => [...prev, emptyExp()])} style={btnAdd}>
-            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Ajouter une expérience
+                <button
+                  onClick={() => setExperiences(prev => prev.filter((_, idx) => idx !== i))}
+                  className="self-start px-4 py-2 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 transition-colors border border-red-100 cursor-pointer"
+                >
+                  Supprimer cette expérience
+                </button>
+              </ExpCard>
+            ))}
+          </div>
+          <button
+            onClick={() => setExperiences(prev => [...prev, emptyExp()])}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-blue-200 text-blue-600 text-sm font-medium hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-transparent"
+          >
+            <span className="text-lg leading-none">+</span> Ajouter une expérience
           </button>
         </Section>
 
         {/* SECTION: Formation */}
         <Section title="Formation">
-          {education.map((edu, i) => (
-            <ExpCard key={i}>
-              <Grid2 isMobile={isMobile}>
-                <Field label="Diplôme / Formation">
-                  <input style={inp} value={edu.degree} onChange={e => updateEdu(i, 'degree', e.target.value)} placeholder="Master Informatique" />
+          <div className="space-y-4">
+            {education.map((edu, i) => (
+              <ExpCard key={i}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Diplôme / Formation">
+                    <input className={inp} value={edu.degree} onChange={e => updateEdu(i, 'degree', e.target.value)} placeholder="Master Informatique" />
+                  </Field>
+                  <Field label="École / Université">
+                    <input className={inp} value={edu.school} onChange={e => updateEdu(i, 'school', e.target.value)} placeholder="Université Paris-Saclay" />
+                  </Field>
+                </div>
+                <Field label="Lieu">
+                  <input className={inp} value={edu.location} onChange={e => updateEdu(i, 'location', e.target.value)} placeholder="Paris" />
                 </Field>
-                <Field label="École / Université">
-                  <input style={inp} value={edu.school} onChange={e => updateEdu(i, 'school', e.target.value)} placeholder="Université Paris-Saclay" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Date de début">
+                    <input className={inp} type="month" value={edu.start_date} onChange={e => updateEdu(i, 'start_date', e.target.value)} />
+                  </Field>
+                  <Field label="Date de fin">
+                    <input className={inp} type="month" value={edu.end_date} onChange={e => updateEdu(i, 'end_date', e.target.value)} />
+                  </Field>
+                </div>
+                <Field label="Description (optionnel)">
+                  <textarea className={`${inp} resize-y`} rows={2} value={edu.description} onChange={e => updateEdu(i, 'description', e.target.value)} placeholder="Spécialisation, mention, projets…" />
                 </Field>
-              </Grid2>
-              <Field label="Lieu">
-                <input style={inp} value={edu.location} onChange={e => updateEdu(i, 'location', e.target.value)} placeholder="Paris" />
-              </Field>
-              <Grid2 isMobile={isMobile}>
-                <Field label="Date de début">
-                  <input style={inp} type="month" value={edu.start_date} onChange={e => updateEdu(i, 'start_date', e.target.value)} />
-                </Field>
-                <Field label="Date de fin">
-                  <input style={inp} type="month" value={edu.end_date} onChange={e => updateEdu(i, 'end_date', e.target.value)} />
-                </Field>
-              </Grid2>
-              <Field label="Description (optionnel)">
-                <textarea style={{ ...inp, resize: 'vertical' }} rows={2} value={edu.description} onChange={e => updateEdu(i, 'description', e.target.value)} placeholder="Spécialisation, mention, projets…" />
-              </Field>
-              <button onClick={() => setEducation(prev => prev.filter((_, idx) => idx !== i))} style={btnDelete}>
-                Supprimer cette formation
-              </button>
-            </ExpCard>
-          ))}
-          <button onClick={() => setEducation(prev => [...prev, emptyEdu()])} style={btnAdd}>
-            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Ajouter une formation
+                <button
+                  onClick={() => setEducation(prev => prev.filter((_, idx) => idx !== i))}
+                  className="self-start px-4 py-2 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 transition-colors border border-red-100 cursor-pointer"
+                >
+                  Supprimer cette formation
+                </button>
+              </ExpCard>
+            ))}
+          </div>
+          <button
+            onClick={() => setEducation(prev => [...prev, emptyEdu()])}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-blue-200 text-blue-600 text-sm font-medium hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-transparent"
+          >
+            <span className="text-lg leading-none">+</span> Ajouter une formation
           </button>
         </Section>
 
         {/* SECTION: Compétences */}
         <Section title="Compétences">
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+          <div className="flex gap-3">
             <input
               ref={skillInputRef}
-              style={{ ...inp, flex: 1 }}
+              className={`${inp} flex-1`}
               value={skillInput}
               onChange={e => setSkillInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSkill() } }}
               placeholder="ex : React, TypeScript, Figma…"
             />
-            <button onClick={addSkill} style={{ padding: '11px 18px', borderRadius: 10, background: v.blue, color: '#fff', border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            <button
+              onClick={addSkill}
+              className="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors cursor-pointer whitespace-nowrap border-none"
+            >
               Ajouter
             </button>
           </div>
-          {skills.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {skills.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
               {skills.map((s, i) => (
-                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 100, background: 'rgba(0,113,227,.07)', border: '1px solid rgba(0,113,227,.16)', fontSize: 13, color: v.blue, fontWeight: 500 }}>
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-medium"
+                >
                   {s}
-                  <button onClick={() => setSkills(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: v.blue, fontSize: 14, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', opacity: 0.6 }}>×</button>
+                  <button
+                    onClick={() => setSkills(prev => prev.filter((_, idx) => idx !== i))}
+                    className="text-blue-400 hover:text-blue-700 transition-colors leading-none bg-transparent border-none cursor-pointer p-0 text-base"
+                  >
+                    ×
+                  </button>
                 </span>
               ))}
             </div>
-          )}
-          {skills.length === 0 && (
-            <div style={{ fontSize: 13, color: v.text3, fontStyle: 'italic' }}>Aucune compétence ajoutée</div>
+          ) : (
+            <p className="text-sm text-gray-400 italic">Aucune compétence ajoutée</p>
           )}
         </Section>
 
         {/* SECTION: Langues */}
         <Section title="Langues">
-          {languages.map((lang, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12, alignItems: 'end', marginBottom: 10 }}>
-              <Field label="Langue">
-                <input style={inp} value={lang.name} onChange={e => updateLang(i, 'name', e.target.value)} placeholder="Anglais" />
-              </Field>
-              <Field label="Niveau">
-                <select style={{ ...inp, cursor: 'pointer' }} value={lang.level} onChange={e => updateLang(i, 'level', e.target.value)}>
-                  {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-              </Field>
-              <button onClick={() => setLanguages(prev => prev.filter((_, idx) => idx !== i))} style={{ ...btnDelete, marginBottom: 2, padding: '10px 14px' }}>
-                ×
-              </button>
-            </div>
-          ))}
-          <button onClick={() => setLanguages(prev => [...prev, emptyLang()])} style={btnAdd}>
-            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Ajouter une langue
+          <div className="space-y-3">
+            {languages.map((lang, i) => (
+              <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                <Field label="Langue">
+                  <input className={inp} value={lang.name} onChange={e => updateLang(i, 'name', e.target.value)} placeholder="Anglais" />
+                </Field>
+                <Field label="Niveau">
+                  <select className={`${inp} cursor-pointer`} value={lang.level} onChange={e => updateLang(i, 'level', e.target.value)}>
+                    {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </Field>
+                <button
+                  onClick={() => setLanguages(prev => prev.filter((_, idx) => idx !== i))}
+                  className="px-3 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition-colors border border-red-100 cursor-pointer mb-px"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setLanguages(prev => [...prev, emptyLang()])}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-blue-200 text-blue-600 text-sm font-medium hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-transparent"
+          >
+            <span className="text-lg leading-none">+</span> Ajouter une langue
           </button>
         </Section>
 
-        {/* Bottom save */}
-        <div style={{ marginTop: 12 }}>
+        {/* BOTTOM SAVE */}
+        <div className="pt-2">
           {saveError && (
-            <div style={{ background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#c0392b', marginBottom: 14 }}>
+            <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-600 mb-4">
               {saveError}
             </div>
           )}
           <button
             onClick={handleSave}
             disabled={saving}
-            style={{ width: '100%', padding: '15px', borderRadius: 12, background: saving ? '#e8e8ed' : v.blue, color: saving ? v.text3 : '#fff', border: 'none', fontSize: 15, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background .2s' }}
+            className={`w-full py-4 rounded-2xl text-[15px] font-semibold transition-all ${
+              saving
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : saved
+                ? 'bg-emerald-500 text-white cursor-pointer'
+                : 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-md shadow-blue-200'
+            }`}
           >
-            {saving ? 'Enregistrement…' : 'Enregistrer le profil'}
+            {saving ? 'Enregistrement…' : saved ? '✓ Profil enregistré !' : 'Enregistrer le profil'}
           </button>
         </div>
       </div>
-
-      <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        input:focus, textarea:focus, select:focus { outline: none; border-color: rgba(0,113,227,0.45) !important; box-shadow: 0 0 0 3px rgba(0,113,227,0.08) !important; }
-        @media (max-width: 768px) { input, textarea, select { font-size: 16px !important; } }
-      `}</style>
     </div>
   )
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 18, border: '1px solid rgba(0,0,0,0.08)', padding: '28px 26px', boxShadow: '0 1px 2px rgba(0,0,0,.05), 0 2px 12px rgba(0,0,0,.05)', marginBottom: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: '#aeaeb2', marginBottom: 22 }}>{title}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {children}
-      </div>
+    <div
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4"
+      style={{ borderLeft: '4px solid #2563eb' }}
+    >
+      <h2 className="text-[11px] font-bold tracking-widest uppercase text-blue-600">{title}</h2>
+      {children}
     </div>
   )
 }
 
-function Grid2({ children, isMobile }: { children: React.ReactNode; isMobile?: boolean }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>{children}</div>
-}
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 12, fontWeight: 500, color: '#1d1d1f' }}>{label}</label>
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-bold text-gray-700">{label}</label>
       {children}
     </div>
   )
@@ -379,36 +505,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function ExpCard({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 12, padding: '20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 space-y-4">
       {children}
     </div>
   )
 }
 
-const inp: React.CSSProperties = {
-  padding: '11px 14px',
-  borderRadius: 10,
-  border: '1px solid rgba(0,0,0,0.14)',
-  fontSize: 14,
-  fontFamily: 'inherit',
-  color: '#1d1d1f',
-  background: '#fff',
-  width: '100%',
-  transition: 'border-color .15s, box-shadow .15s',
-}
-
-const btnAdd: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 8,
-  padding: '10px 16px', borderRadius: 10,
-  background: 'none', border: '1.5px dashed rgba(0,0,0,0.14)',
-  fontSize: 13, fontWeight: 500, color: '#6e6e73',
-  cursor: 'pointer', fontFamily: 'inherit',
-  transition: 'border-color .15s, color .15s',
-  width: '100%', justifyContent: 'center',
-}
-
-const btnDelete: React.CSSProperties = {
-  alignSelf: 'flex-start', padding: '7px 14px', borderRadius: 8,
-  background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.12)',
-  fontSize: 12, color: '#c0392b', cursor: 'pointer', fontFamily: 'inherit',
-}
+const inp = 'w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 bg-white font-sans focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400 sm:text-sm'
