@@ -184,7 +184,7 @@ function mapAdzunaJob(j: any) {
   }
 }
 
-async function fetchAdzunaJobs(keyword: string, location: string, limit = 20): Promise<any[]> {
+async function fetchAdzunaJobs(keyword: string, location: string, limit = 20, contractLabel?: string): Promise<any[]> {
   const appId  = process.env.ADZUNA_APP_ID
   const appKey = process.env.ADZUNA_APP_KEY
   if (!appId || !appKey) throw new Error('Adzuna credentials manquants (ADZUNA_APP_ID / ADZUNA_APP_KEY)')
@@ -207,7 +207,8 @@ async function fetchAdzunaJobs(keyword: string, location: string, limit = 20): P
     throw new Error(`Adzuna HTTP ${res.status}: ${body.slice(0, 200)}`)
   }
   const data = await res.json()
-  const jobs = (data.results || []).map(mapAdzunaJob)
+  let jobs = (data.results || []).map(mapAdzunaJob)
+  if (contractLabel) jobs = jobs.map((j: any) => ({ ...j, contract: contractLabel }))
   console.log('[Adzuna] jobs returned:', jobs.length)
   return jobs
 }
@@ -245,7 +246,8 @@ export async function GET(request: Request) {
     // ── Adzuna only ───────────────────────────────────────────────────────
     if (source === 'adzuna') {
       const azKeyword = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
-      const jobs = await fetchAdzunaJobs(azKeyword, location)
+      const azContractLabel = typeContrat === 'ALTERNANCE' ? 'Alternance' : undefined
+      const jobs = await fetchAdzunaJobs(azKeyword, location, 20, azContractLabel)
       jobsCache.set(cacheKey, { jobs, expiresAt: Date.now() + CACHE_TTL })
       return NextResponse.json({ jobs }, { headers: CACHE_HEADERS })
     }
@@ -260,15 +262,16 @@ export async function GET(request: Request) {
       const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
 
       const ftParams = new URLSearchParams({ range: '0-9' })
+      const ftMotsCles = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
       const azKeyword = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
+      const azContractLabel = typeContrat === 'ALTERNANCE' ? 'Alternance' : undefined
 
-      if (keyword)      ftParams.append('motsCles', keyword)
+      if (ftMotsCles)   ftParams.append('motsCles', ftMotsCles)
       if (codePourFT)   ftParams.append('commune', codePourFT)
       if (codePourFT && distance) ftParams.append('distance', distance)
       if (departement)  ftParams.append('departement', departement)
       if (typeContrat === 'ALTERNANCE') {
-        ftParams.append('typeContrat', 'E2')
-        ftParams.append('typeContrat', 'NS')
+        console.log('[FT ALTERNANCE] params envoyés:', ftParams.toString())
       } else if (typeContrat) {
         ftParams.append('typeContrat', typeContrat)
       }
@@ -280,11 +283,16 @@ export async function GET(request: Request) {
           let tok = token
           let r = await searchJobs(tok, ftParams)
           if (r.status === 401) { invalidateToken(); tok = await getToken(); r = await searchJobs(tok, ftParams) }
-          if (!r.ok) throw new Error(`FT ${r.status}`)
+          if (!r.ok) {
+            const body = await r.text()
+            console.error('[FT tout] error', r.status, body.slice(0, 400))
+            throw new Error(`FT ${r.status}`)
+          }
           const d = await r.json()
+          console.log('[FT tout] resultats:', d.resultats?.length ?? 0, '| totalCount:', d.totalCount)
           return (d.resultats || []).map(mapJob)
         })(),
-        fetchAdzunaJobs(azKeyword, location, 10),
+        fetchAdzunaJobs(azKeyword, location, 10, azContractLabel),
       ])
 
       const ftJobs = ftResult.status === 'fulfilled' ? ftResult.value : []
@@ -308,14 +316,14 @@ export async function GET(request: Request) {
     const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
 
     const params = new URLSearchParams({ range: '0-19' })
+    const ftMotsCles = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
 
-    if (keyword)      params.append('motsCles', keyword)
-    if (codePourFT)   params.append('commune', codePourFT)
+    if (ftMotsCles)    params.append('motsCles', ftMotsCles)
+    if (codePourFT)    params.append('commune', codePourFT)
     if (codePourFT && distance) params.append('distance', distance)
-    if (departement)  params.append('departement', departement)
+    if (departement)   params.append('departement', departement)
     if (typeContrat === 'ALTERNANCE') {
-      params.append('typeContrat', 'E2')
-      params.append('typeContrat', 'NS')
+      console.log('[FT ALTERNANCE] params envoyés:', params.toString())
     } else if (typeContrat) {
       params.append('typeContrat', typeContrat)
     }
