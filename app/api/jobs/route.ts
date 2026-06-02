@@ -244,7 +244,8 @@ export async function GET(request: Request) {
 
     // ── Adzuna only ───────────────────────────────────────────────────────
     if (source === 'adzuna') {
-      const jobs = await fetchAdzunaJobs(keyword, location)
+      const azKeyword = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
+      const jobs = await fetchAdzunaJobs(azKeyword, location)
       jobsCache.set(cacheKey, { jobs, expiresAt: Date.now() + CACHE_TTL })
       return NextResponse.json({ jobs }, { headers: CACHE_HEADERS })
     }
@@ -259,13 +260,16 @@ export async function GET(request: Request) {
       const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
 
       const ftParams = new URLSearchParams({ range: '0-9' })
-      if (keyword)      ftParams.append('motsCles', keyword)
-      if (codePourFT)   ftParams.append('commune', codePourFT)
+      const ftTypeContrat = typeContrat === 'ALTERNANCE' ? 'E2,NS' : typeContrat
+      const azKeyword = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
+
+      if (keyword)       ftParams.append('motsCles', keyword)
+      if (codePourFT)    ftParams.append('commune', codePourFT)
       if (codePourFT && distance) ftParams.append('distance', distance)
-      if (departement)  ftParams.append('departement', departement)
-      if (typeContrat)  ftParams.append('typeContrat', typeContrat)
-      if (salMin)       ftParams.append('salaireMin', salMin)
-      if (salMax)       ftParams.append('salaireMax', salMax)
+      if (departement)   ftParams.append('departement', departement)
+      if (ftTypeContrat) ftParams.append('typeContrat', ftTypeContrat)
+      if (salMin)        ftParams.append('salaireMin', salMin)
+      if (salMax)        ftParams.append('salaireMax', salMax)
 
       const [ftResult, azResult] = await Promise.allSettled([
         (async () => {
@@ -276,7 +280,7 @@ export async function GET(request: Request) {
           const d = await r.json()
           return (d.resultats || []).map(mapJob)
         })(),
-        fetchAdzunaJobs(keyword, location, 10),
+        fetchAdzunaJobs(azKeyword, location, 10),
       ])
 
       const ftJobs = ftResult.status === 'fulfilled' ? ftResult.value : []
@@ -300,13 +304,15 @@ export async function GET(request: Request) {
     const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
 
     const params = new URLSearchParams({ range: '0-19' })
-    if (keyword)      params.append('motsCles', keyword)
-    if (codePourFT)   params.append('commune', codePourFT)
+    const ftTypeContrat = typeContrat === 'ALTERNANCE' ? 'E2,NS' : typeContrat
+
+    if (keyword)       params.append('motsCles', keyword)
+    if (codePourFT)    params.append('commune', codePourFT)
     if (codePourFT && distance) params.append('distance', distance)
-    if (departement)  params.append('departement', departement)
-    if (typeContrat)  params.append('typeContrat', typeContrat)
-    if (salMin)       params.append('salaireMin', salMin)
-    if (salMax)       params.append('salaireMax', salMax)
+    if (departement)   params.append('departement', departement)
+    if (ftTypeContrat) params.append('typeContrat', ftTypeContrat)
+    if (salMin)        params.append('salaireMin', salMin)
+    if (salMax)        params.append('salaireMax', salMax)
 
     let currentToken = token
     let res = await searchJobs(currentToken, params)

@@ -28,6 +28,7 @@ const CONTRACT_TYPES = [
   { code: '', label: 'Tout contrat' },
   { code: 'CDI', label: 'CDI' },
   { code: 'CDD', label: 'CDD' },
+  { code: 'ALTERNANCE', label: 'Alternance / Apprentissage' },
   { code: 'MIS', label: 'Intérim' },
   { code: 'SAI', label: 'Saisonnier' },
   { code: 'LIB', label: 'Freelance / Libéral' },
@@ -127,10 +128,10 @@ function JobsPageContent() {
     setLoading(true)
     setJobs([])
     const params = new URLSearchParams({ keyword: kw, location: loc, source: src })
+    if (contrat) params.append('typeContrat', contrat)
     if (src !== 'adzuna') {
       params.append('distance', String(dist))
-      if (dept)    params.append('departement', dept)
-      if (contrat) params.append('typeContrat', contrat)
+      if (dept) params.append('departement', dept)
       const salMin = searchParams.get('salaireMin')
       const salMax = searchParams.get('salaireMax')
       if (salMin) params.append('salMin', salMin)
@@ -327,25 +328,25 @@ function JobsPageContent() {
               </div>
             </div>
 
-            {/* Filtres FT */}
+            {/* Contrat */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Contrat</div>
+              <div style={{ background: v.white, borderRadius: 10, border: `1px solid ${typeContrat ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow }}>
+                <select
+                  value={typeContrat}
+                  onChange={e => handleContratChange(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 14, color: typeContrat ? v.blue : v.text2, fontWeight: typeContrat ? 500 : 400, cursor: 'pointer' }}
+                >
+                  {CONTRACT_TYPES.map(c => (
+                    <option key={c.code} value={c.code}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Filtres FT uniquement */}
             {source !== 'adzuna' && (
               <>
-                {/* Contrat */}
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Contrat</div>
-                  <div style={{ background: v.white, borderRadius: 10, border: `1px solid ${typeContrat ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow }}>
-                    <select
-                      value={typeContrat}
-                      onChange={e => handleContratChange(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 14, color: typeContrat ? v.blue : v.text2, fontWeight: typeContrat ? 500 : 400, cursor: 'pointer' }}
-                    >
-                      {CONTRACT_TYPES.map(c => (
-                        <option key={c.code} value={c.code}>{c.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
                 {/* Département */}
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, display: 'flex', alignItems: 'center' }}>
@@ -436,7 +437,6 @@ function JobsPageContent() {
               </div>
             </div>
 
-            {source !== 'adzuna' && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               {/* Contrat */}
               <div>
@@ -454,40 +454,43 @@ function JobsPageContent() {
                 </div>
               </div>
 
-              {/* Département */}
-              <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
-                <div style={{ padding: '0 8px 0 12px', color: v.text3, display: 'flex', flexShrink: 0 }}>
-                  <svg viewBox="0 0 12 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 8 4 8s4-4.7 4-8c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.5"/></svg>
-                </div>
-                <select
-                  value={departement}
-                  onChange={e => handleDeptChange(e.target.value)}
-                  style={{ padding: '8px 10px 8px 0', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13, color: departement ? v.blue : v.text2, fontWeight: departement ? 500 : 400, cursor: 'pointer', maxWidth: 220 }}
-                >
-                  <option value="">Tous les départements</option>
-                  {DEPARTEMENTS.map(d => (
-                    <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Département + Distance - FT uniquement */}
+              {source !== 'adzuna' && (
+                <>
+                  {/* Département */}
+                  <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${departement ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
+                    <div style={{ padding: '0 8px 0 12px', color: v.text3, display: 'flex', flexShrink: 0 }}>
+                      <svg viewBox="0 0 12 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width={12} height={12}><path d="M6 1C3.8 1 2 2.8 2 5c0 3.3 4 8 4 8s4-4.7 4-8c0-2.2-1.8-4-4-4z"/><circle cx="6" cy="5" r="1.5"/></svg>
+                    </div>
+                    <select
+                      value={departement}
+                      onChange={e => handleDeptChange(e.target.value)}
+                      style={{ padding: '8px 10px 8px 0', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13, color: departement ? v.blue : v.text2, fontWeight: departement ? 500 : 400, cursor: 'pointer', maxWidth: 220 }}
+                    >
+                      <option value="">Tous les départements</option>
+                      {DEPARTEMENTS.map(d => (
+                        <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Distance */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: v.white, borderRadius: 10, border: `1px solid ${v.line2}`, boxShadow: v.shadow, padding: '7px 14px' }}>
-                <span style={{ fontSize: 12, color: v.text2, flexShrink: 0 }}>Rayon</span>
-                <input
-                  type="range"
-                  min={5} max={100} step={5}
-                  value={distance}
-                  onChange={e => setDistance(Number(e.target.value))}
-                  onMouseUp={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
-                  onTouchEnd={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
-                  style={{ width: 120, accentColor: v.blue, cursor: 'pointer' }}
-                />
-                <span style={{ fontSize: 12, fontWeight: 600, color: v.blue, minWidth: 40, textAlign: 'right' }}>{distance} km</span>
-              </div>
+                  {/* Distance */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: v.white, borderRadius: 10, border: `1px solid ${v.line2}`, boxShadow: v.shadow, padding: '7px 14px' }}>
+                    <span style={{ fontSize: 12, color: v.text2, flexShrink: 0 }}>Rayon</span>
+                    <input
+                      type="range"
+                      min={5} max={100} step={5}
+                      value={distance}
+                      onChange={e => setDistance(Number(e.target.value))}
+                      onMouseUp={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
+                      onTouchEnd={e => handleDistanceCommit(Number((e.target as HTMLInputElement).value))}
+                      style={{ width: 120, accentColor: v.blue, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: v.blue, minWidth: 40, textAlign: 'right' }}>{distance} km</span>
+                  </div>
+                </>
+              )}
             </div>
-            )}
-            {source === 'adzuna' && <div style={{ marginBottom: 24 }} />}
           </>
         )}
 
