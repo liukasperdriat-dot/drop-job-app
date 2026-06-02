@@ -260,14 +260,18 @@ export async function GET(request: Request) {
       const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
 
       const ftParams = new URLSearchParams({ range: '0-9' })
-      const ftTypeContrat = typeContrat === 'ALTERNANCE' ? 'E2,NS' : typeContrat
       const azKeyword = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
 
-      if (keyword)       ftParams.append('motsCles', keyword)
-      if (codePourFT)    ftParams.append('commune', codePourFT)
+      if (keyword)      ftParams.append('motsCles', keyword)
+      if (codePourFT)   ftParams.append('commune', codePourFT)
       if (codePourFT && distance) ftParams.append('distance', distance)
-      if (departement)   ftParams.append('departement', departement)
-      if (ftTypeContrat) ftParams.append('typeContrat', ftTypeContrat)
+      if (departement)  ftParams.append('departement', departement)
+      if (typeContrat === 'ALTERNANCE') {
+        ftParams.append('typeContrat', 'E2')
+        ftParams.append('typeContrat', 'NS')
+      } else if (typeContrat) {
+        ftParams.append('typeContrat', typeContrat)
+      }
       if (salMin)        ftParams.append('salaireMin', salMin)
       if (salMax)        ftParams.append('salaireMax', salMax)
 
@@ -304,13 +308,17 @@ export async function GET(request: Request) {
     const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
 
     const params = new URLSearchParams({ range: '0-19' })
-    const ftTypeContrat = typeContrat === 'ALTERNANCE' ? 'E2,NS' : typeContrat
 
-    if (keyword)       params.append('motsCles', keyword)
-    if (codePourFT)    params.append('commune', codePourFT)
+    if (keyword)      params.append('motsCles', keyword)
+    if (codePourFT)   params.append('commune', codePourFT)
     if (codePourFT && distance) params.append('distance', distance)
-    if (departement)   params.append('departement', departement)
-    if (ftTypeContrat) params.append('typeContrat', ftTypeContrat)
+    if (departement)  params.append('departement', departement)
+    if (typeContrat === 'ALTERNANCE') {
+      params.append('typeContrat', 'E2')
+      params.append('typeContrat', 'NS')
+    } else if (typeContrat) {
+      params.append('typeContrat', typeContrat)
+    }
     if (salMin)        params.append('salaireMin', salMin)
     if (salMax)        params.append('salaireMax', salMax)
 
