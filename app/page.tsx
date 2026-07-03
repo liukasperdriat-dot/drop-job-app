@@ -158,13 +158,49 @@ export default function HomePage() {
           {/* Salary strip */}
           <div style={{ display:'flex', alignItems:'center', gap:14, width:'100%', maxWidth: isMobile ? '100%' : 620, background:v.white, borderRadius:12, border:`1px solid ${v.line}`, padding:'16px 20px', boxShadow:v.shadow, overflow:'visible' }}>
             <span style={{ fontSize:12, fontWeight:500, color:v.text2, flexShrink:0, whiteSpace:'nowrap' }}>Rémunération (Annuelle)</span>
-            <div style={{ flex:1, position:'relative', height:20, overflow:'visible' }}>
-              <div style={{ position:'absolute', left:0, right:0, top:'50%', transform:'translateY(-50%)', height:3, background:v.bg2, borderRadius:2 }} />
-              <div style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', height:3, background:v.blue, borderRadius:2, left:`${pct(salMin)}%`, width:`${pct(salMax)-pct(salMin)}%` }} />
-              <input type="range" min={20} max={120} step={1} value={salMin} onChange={e => { const n = +e.target.value; if (n < salMax - 5) setSalMin(n); }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:2 }} />
-              <input type="range" min={20} max={120} step={1} value={salMax} onChange={e => { const n = +e.target.value; if (n > salMin + 5) setSalMax(n); }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:3 }} />
-            </div>
-            <span style={{ fontSize:13, fontWeight:600, color:v.text, flexShrink:0, minWidth:108, textAlign:'right', letterSpacing:'-0.02em' }}>{salMin}k€ — {salMax}k€</span>
+            {isMobile ? (
+              <div style={{ flex:1, display:'flex', gap:8, alignItems:'flex-end' }}>
+                <div style={{ flex:1, display:'flex', flexDirection:'column', gap:3 }}>
+                  <span style={{ fontSize:11, color:v.text3, fontWeight:500 }}>Min</span>
+                  <div style={{ display:'flex', alignItems:'center', border:`1px solid ${v.line2}`, borderRadius:8, padding:'6px 8px', background:v.bg }}>
+                    <input
+                      type="number"
+                      min={20}
+                      max={salMax - 5}
+                      value={salMin}
+                      onChange={e => { const n = Math.max(20, Math.min(+e.target.value, salMax - 5)); setSalMin(n); }}
+                      style={{ width:'100%', border:'none', background:'transparent', outline:'none', fontFamily:'inherit', fontSize:15, fontWeight:600, color:v.text, textAlign:'center', MozAppearance:'textfield' } as React.CSSProperties}
+                    />
+                    <span style={{ fontSize:12, color:v.text2, flexShrink:0 }}>k€</span>
+                  </div>
+                </div>
+                <span style={{ fontSize:13, color:v.text3, paddingBottom:10 }}>—</span>
+                <div style={{ flex:1, display:'flex', flexDirection:'column', gap:3 }}>
+                  <span style={{ fontSize:11, color:v.text3, fontWeight:500 }}>Max</span>
+                  <div style={{ display:'flex', alignItems:'center', border:`1px solid ${v.line2}`, borderRadius:8, padding:'6px 8px', background:v.bg }}>
+                    <input
+                      type="number"
+                      min={salMin + 5}
+                      max={120}
+                      value={salMax}
+                      onChange={e => { const n = Math.max(salMin + 5, Math.min(+e.target.value, 120)); setSalMax(n); }}
+                      style={{ width:'100%', border:'none', background:'transparent', outline:'none', fontFamily:'inherit', fontSize:15, fontWeight:600, color:v.text, textAlign:'center', MozAppearance:'textfield' } as React.CSSProperties}
+                    />
+                    <span style={{ fontSize:12, color:v.text2, flexShrink:0 }}>k€</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ flex:1, position:'relative', height:20, overflow:'visible' }}>
+                  <div style={{ position:'absolute', left:0, right:0, top:'50%', transform:'translateY(-50%)', height:3, background:v.bg2, borderRadius:2 }} />
+                  <div style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', height:3, background:v.blue, borderRadius:2, left:`${pct(salMin)}%`, width:`${pct(salMax)-pct(salMin)}%` }} />
+                  <input type="range" min={20} max={120} step={1} value={salMin} onChange={e => { const n = +e.target.value; if (n < salMax - 5) setSalMin(n); }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:2 }} />
+                  <input type="range" min={20} max={120} step={1} value={salMax} onChange={e => { const n = +e.target.value; if (n > salMin + 5) setSalMax(n); }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:3 }} />
+                </div>
+                <span style={{ fontSize:13, fontWeight:600, color:v.text, flexShrink:0, minWidth:108, textAlign:'right', letterSpacing:'-0.02em' }}>{salMin}k€ — {salMax}k€</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -522,6 +558,8 @@ export default function HomePage() {
       input.dualrange::-webkit-slider-runnable-track { background: transparent; height: 20px; }
       @keyframes spin { to { transform: rotate(360deg); } }
       @media (max-width: 768px) { input:not(.dualrange), textarea { font-size: 16px !important; } }
+      input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+      input[type=number] { -moz-appearance: textfield; }
     `}</style>
     </>
   );
