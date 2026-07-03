@@ -21,7 +21,7 @@ export default function HomePage() {
   const [city, setCity]       = useState('Lyon');
   const [billing, setBilling] = useState<'monthly'|'weekly'>('monthly');
   const [salMin, setSalMin]   = useState(40);
-  const [salMax, setSalMax]   = useState(65);
+  const [salMax, setSalMax]   = useState(70);
   const [paywall, setPaywall] = useState(false);
   const [genOpen, setGenOpen] = useState(false);
   const [genStep, setGenStep] = useState(0);
@@ -162,32 +162,32 @@ export default function HomePage() {
               <div style={{ flex:1, display:'flex', gap:8, alignItems:'flex-end' }}>
                 <div style={{ flex:1, display:'flex', flexDirection:'column', gap:3 }}>
                   <span style={{ fontSize:11, color:v.text3, fontWeight:500 }}>Min</span>
-                  <div style={{ display:'flex', alignItems:'center', border:`1px solid ${v.line2}`, borderRadius:8, padding:'6px 8px', background:v.bg }}>
-                    <input
-                      type="number"
-                      min={20}
-                      max={salMax - 5}
-                      value={salMin}
-                      onChange={e => { const n = Math.max(20, Math.min(+e.target.value, salMax - 5)); setSalMin(n); }}
-                      style={{ width:'100%', border:'none', background:'transparent', outline:'none', fontFamily:'inherit', fontSize:15, fontWeight:600, color:v.text, textAlign:'center', MozAppearance:'textfield' } as React.CSSProperties}
-                    />
-                    <span style={{ fontSize:12, color:v.text2, flexShrink:0 }}>k€</span>
-                  </div>
+                  <select
+                    value={salMin}
+                    onChange={e => {
+                      const n = +e.target.value;
+                      setSalMin(n);
+                      if (salMax <= n) setSalMax(Math.min(n + 10, 100));
+                    }}
+                    style={{ width:'100%', border:`1px solid ${v.line2}`, borderRadius:8, padding:'8px 6px', background:v.bg, fontFamily:'inherit', fontSize:15, fontWeight:600, color:v.text, outline:'none' }}
+                  >
+                    {[10,20,30,40,50,60,70,80,90].map(k => (
+                      <option key={k} value={k}>{k}k€</option>
+                    ))}
+                  </select>
                 </div>
                 <span style={{ fontSize:13, color:v.text3, paddingBottom:10 }}>—</span>
                 <div style={{ flex:1, display:'flex', flexDirection:'column', gap:3 }}>
                   <span style={{ fontSize:11, color:v.text3, fontWeight:500 }}>Max</span>
-                  <div style={{ display:'flex', alignItems:'center', border:`1px solid ${v.line2}`, borderRadius:8, padding:'6px 8px', background:v.bg }}>
-                    <input
-                      type="number"
-                      min={salMin + 5}
-                      max={120}
-                      value={salMax}
-                      onChange={e => { const n = Math.max(salMin + 5, Math.min(+e.target.value, 120)); setSalMax(n); }}
-                      style={{ width:'100%', border:'none', background:'transparent', outline:'none', fontFamily:'inherit', fontSize:15, fontWeight:600, color:v.text, textAlign:'center', MozAppearance:'textfield' } as React.CSSProperties}
-                    />
-                    <span style={{ fontSize:12, color:v.text2, flexShrink:0 }}>k€</span>
-                  </div>
+                  <select
+                    value={salMax > 90 ? 100 : salMax}
+                    onChange={e => setSalMax(+e.target.value)}
+                    style={{ width:'100%', border:`1px solid ${v.line2}`, borderRadius:8, padding:'8px 6px', background:v.bg, fontFamily:'inherit', fontSize:15, fontWeight:600, color:v.text, outline:'none' }}
+                  >
+                    {[20,30,40,50,60,70,80,90,100].filter(k => k > salMin).map(k => (
+                      <option key={k} value={k}>{k === 100 ? '100k€+' : `${k}k€`}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             ) : (
