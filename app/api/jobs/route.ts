@@ -208,20 +208,17 @@ function niveauRank(libelle: string | undefined): number | null {
 }
 
 // Résume les formations d'une offre France Travail :
-// - niveau exigé le plus élevé (sert au filtre « jusqu'à mon niveau »)
-// - libellé court pour le badge (« Bac+2 exigé », « CAP / BEP souhaité »)
+// - niveau le plus élevé indiqué, qu'il soit exigé OU souhaité (sert au filtre
+//   « jusqu'à mon niveau » : une offre « Bac+2 souhaité » n'apparaît pas pour un Bac)
+// - libellé court pour le badge, sur ce même niveau (« Bac+2 exigé », « Bac souhaité »)
 function summarizeDiploma(formations: any[] | undefined) {
   const list = (formations || [])
     .map(f => ({ rank: niveauRank(f.niveauLibelle), required: f.exigence === 'E' }))
     .filter((f): f is { rank: number; required: boolean } => f.rank !== null)
-  if (!list.length) return { diplomaRequiredRank: null, diploma: null }
-  const required = list.filter(f => f.required)
-  if (required.length) {
-    const rank = Math.max(...required.map(f => f.rank))
-    return { diplomaRequiredRank: rank, diploma: `${NIVEAUX[rank]} exigé` }
-  }
-  const rank = Math.min(...list.map(f => f.rank))
-  return { diplomaRequiredRank: null, diploma: `${NIVEAUX[rank]} souhaité` }
+  if (!list.length) return { diplomaRank: null, diploma: null }
+  const rank = Math.max(...list.map(f => f.rank))
+  const required = list.some(f => f.rank === rank && f.required)
+  return { diplomaRank: rank, diploma: `${NIVEAUX[rank]} ${required ? 'exigé' : 'souhaité'}` }
 }
 
 function mapJob(j: any) {
@@ -271,7 +268,7 @@ function mapAdzunaJob(j: any) {
     salaryMax:   j.salary_max || null,
     // Adzuna ne fournit ni le diplôme ni l'expérience demandés
     diploma:     null,
-    diplomaRequiredRank: null,
+    diplomaRank: null,
     debutant:    null,
     description: j.description || '',
     url:         j.redirect_url || '',
@@ -433,9 +430,9 @@ export async function GET(request: Request) {
 
     const cacheKey = buildCacheKey(source, keyword, location, typeContrat, departement, distance, salMin, salMax, niveau, debutant ? 1 : 0)
 
-    // « Jusqu'à mon niveau » : on retire les offres qui EXIGENT un diplôme plus élevé.
-    // Les offres sans diplôme indiqué ou avec un diplôme seulement souhaité restent.
-    const fitsLevel = (j: any) => niveau === null || j.diplomaRequiredRank == null || j.diplomaRequiredRank <= niveau
+    // « Jusqu'à mon niveau » : on retire les offres qui indiquent un diplôme plus élevé
+    // (exigé ou souhaité). Les offres sans diplôme indiqué restent visibles.
+    const fitsLevel = (j: any) => niveau === null || j.diplomaRank == null || j.diplomaRank <= niveau
     // Département (offres France Travail, lieu au format « 33 - BORDEAUX »)
     const inDepartement = (j: any) => !departement || String(j.location || '').startsWith(`${departement} `)
     // Avec ce filtre, on demande plus d'offres à France Travail pour en garder assez
