@@ -467,9 +467,13 @@ export async function GET(request: Request) {
 
     const codeInsee = location ? await resolveInseeCode(location) : null
     console.log('[FT] location:', location || '(none)', '→ INSEE:', codeInsee ?? '(none)')
+    // Le code INSEE commence par le numéro du département (69123 = Lyon, Rhône)
+    const villeHorsDepartement = !!(codeInsee && departement && !codeInsee.startsWith(departement))
     const villeWarning = location && !codeInsee
       ? `La ville « ${location} » n’a pas été reconnue : les offres France Travail ne sont pas filtrées par ville.`
-      : undefined
+      : villeHorsDepartement
+        ? `La ville « ${location} » ne se trouve pas dans le département choisi : retirez l’un des deux filtres pour voir des offres.`
+        : undefined
 
     // ── Tout : FT (10) + Adzuna (10) en parallèle, tolérant aux pannes ───
     if (source === 'tout') {
