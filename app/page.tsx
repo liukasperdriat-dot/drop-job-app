@@ -22,6 +22,8 @@ export default function HomePage() {
   const [billing, setBilling] = useState<'monthly'|'weekly'>('monthly');
   const [salMin, setSalMin]   = useState(40);
   const [salMax, setSalMax]   = useState(70);
+  // Le filtre salaire n'est appliqué que si le visiteur a touché au curseur
+  const [salaryTouched, setSalaryTouched] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,7 +54,13 @@ export default function HomePage() {
   }, []);
 
   const handleSearch = () => {
-    window.location.href = `/jobs?q=${encodeURIComponent(search)}&location=${encodeURIComponent(city)}&salaireMin=${salMin * 1000}&salaireMax=${salMax * 1000}`;
+    const params = new URLSearchParams({ q: search, location: city });
+    if (salaryTouched) {
+      params.set('salaireMin', String(salMin * 1000));
+      // 100 k€ et plus : pas de plafond
+      if (salMax < 100) params.set('salaireMax', String(salMax * 1000));
+    }
+    window.location.href = `/jobs?${params}`;
   };
 
   // Envoie vers la vraie génération de CV pour cette offre
@@ -159,6 +167,7 @@ export default function HomePage() {
                     onChange={e => {
                       const n = +e.target.value;
                       setSalMin(n);
+                      setSalaryTouched(true);
                       if (salMax <= n) setSalMax(Math.min(n + 10, 100));
                     }}
                     style={{ width:'100%', border:`1px solid ${v.line2}`, borderRadius:8, padding:'8px 6px', background:v.bg, fontFamily:'inherit', fontSize:15, fontWeight:600, color:v.text, outline:'none' }}
@@ -173,7 +182,7 @@ export default function HomePage() {
                   <span style={{ fontSize:11, color:v.text3, fontWeight:500 }}>Max</span>
                   <select
                     value={salMax > 90 ? 100 : salMax}
-                    onChange={e => setSalMax(+e.target.value)}
+                    onChange={e => { setSalMax(+e.target.value); setSalaryTouched(true); }}
                     style={{ width:'100%', border:`1px solid ${v.line2}`, borderRadius:8, padding:'8px 6px', background:v.bg, fontFamily:'inherit', fontSize:15, fontWeight:600, color:v.text, outline:'none' }}
                   >
                     {[20,30,40,50,60,70,80,90,100].filter(k => k > salMin).map(k => (
@@ -187,8 +196,8 @@ export default function HomePage() {
                 <div style={{ flex:1, position:'relative', height:20, overflow:'visible' }}>
                   <div style={{ position:'absolute', left:0, right:0, top:'50%', transform:'translateY(-50%)', height:3, background:v.bg2, borderRadius:2 }} />
                   <div style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', height:3, background:v.blue, borderRadius:2, left:`${pct(salMin)}%`, width:`${pct(salMax)-pct(salMin)}%` }} />
-                  <input type="range" min={20} max={120} step={1} value={salMin} onChange={e => { const n = +e.target.value; if (n < salMax - 5) setSalMin(n); }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:2 }} />
-                  <input type="range" min={20} max={120} step={1} value={salMax} onChange={e => { const n = +e.target.value; if (n > salMin + 5) setSalMax(n); }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:3 }} />
+                  <input type="range" min={20} max={120} step={1} value={salMin} onChange={e => { const n = +e.target.value; if (n < salMax - 5) { setSalMin(n); setSalaryTouched(true); } }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:2 }} />
+                  <input type="range" min={20} max={120} step={1} value={salMax} onChange={e => { const n = +e.target.value; if (n > salMin + 5) { setSalMax(n); setSalaryTouched(true); } }} className="dualrange" style={{ position:'absolute', width:'100%', top:0, left:0, zIndex:3 }} />
                 </div>
                 <span style={{ fontSize:13, fontWeight:600, color:v.text, flexShrink:0, minWidth:108, textAlign:'right', letterSpacing:'-0.02em' }}>{salMin}k€ — {salMax}k€</span>
               </>

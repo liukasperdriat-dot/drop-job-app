@@ -342,8 +342,8 @@ export async function GET(request: Request) {
     // et mise en cache, sauf si la recherche est incomplète (avertissement).
     const respond = (rawJobs: any[], warning?: string) => {
       const jobs = rawJobs.filter(j => {
-        // Offres sans salaire indiqué : conservées
-        if (j.salaryMin == null) return true
+        // Offres sans salaire indiqué : retirées seulement si un filtre salaire est demandé
+        if (j.salaryMin == null) return !salMin && !salMax
         const top = j.salaryMax ?? j.salaryMin
         if (salMin && top < salMin) return false        // payée moins que le minimum demandé
         if (salMax && j.salaryMin > salMax) return false // payée plus que le maximum demandé

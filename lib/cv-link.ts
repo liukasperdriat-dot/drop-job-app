@@ -2,13 +2,16 @@
 
 // Passage d'une offre vers la page /cv.
 //
-// La description complète est gardée dans le sessionStorage plutôt que dans
-// l'URL : l'adresse reste courte, ce qui permet à un visiteur non connecté de
-// passer par la connexion (paramètre ?next=) sans perdre l'offre choisie.
+// La description complète est gardée dans le navigateur (localStorage, 1 h)
+// plutôt que dans l'URL : l'adresse reste courte, ce qui permet à un visiteur
+// non connecté de passer par la connexion ou l'inscription (même en confirmant
+// son e-mail dans un autre onglet) sans perdre l'offre choisie.
 
 const STORAGE_KEY = 'dropjob:pending-cv'
+const MAX_AGE_MS = 60 * 60 * 1000
 
 export type PendingJob = {
+  savedAt?: number
   job_id?: string
   title: string
   company: string
@@ -31,6 +34,7 @@ export function getApplyUrl(job: { source?: string; id?: string; url?: string; r
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function openCvForJob(job: any, navigate: (url: string) => void = url => { window.location.href = url }) {
   const pending: PendingJob = {
+    savedAt: Date.now(),
     job_id: job.id ? String(job.id) : undefined,
     title: job.title || '',
     company: job.company || '',
@@ -41,7 +45,7 @@ export function openCvForJob(job: any, navigate: (url: string) => void = url => 
     salary: job.salary || '',
   }
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(pending))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pending))
   } catch {
     // stockage indisponible (navigation privée stricte) : la description sera à coller à la main
   }
@@ -52,11 +56,15 @@ export function openCvForJob(job: any, navigate: (url: string) => void = url => 
 // Lit (et consomme) l'offre en attente, si elle correspond au poste affiché.
 export function takePendingJob(title: string, company: string): PendingJob | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const pending = JSON.parse(raw) as PendingJob
+    if (!pending.savedAt || Date.now() - pending.savedAt > MAX_AGE_MS) {
+      localStorage.removeItem(STORAGE_KEY)
+      return null
+    }
     if (pending.title !== title || pending.company !== company) return null
-    sessionStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(STORAGE_KEY)
     return pending
   } catch {
     return null
