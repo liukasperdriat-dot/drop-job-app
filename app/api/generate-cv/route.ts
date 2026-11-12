@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { currentCvCount } from '@/lib/quota'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -30,35 +32,42 @@ export async function POST(request: Request) {
     }
 
     // ── Vérification du quota ──────────────────────────────────────────────
-    const { data: profile, error: profileError } = await supabase
+    // Lecture/écriture via la clé service_role : les utilisateurs n'ont plus
+    // le droit de modifier eux-mêmes la table profiles (cf. supabase/profiles-securite.sql).
+    const admin = createAdminClient()
+    const { data: profile, error: profileError } = await admin
       .from('profiles')
-      .select('is_premium, cv_count_this_month')
+      .select('*')
       .eq('id', user.id)
-      .single()
-    console.log('[generate-cv] quota select → data:', JSON.stringify(profile), '| error:', profileError ? `${profileError.code} ${profileError.message}` : null)
+      .maybeSingle()
 
-    if (profileError && profileError.code !== 'PGRST116') {
-      return NextResponse.json({ error: 'Erreur quota', code: profileError.code, details: profileError.message }, { status: 500 })
+    if (profileError) {
+      console.error('[generate-cv] quota select error:', profileError.code, profileError.message)
+      return NextResponse.json({ error: 'Erreur lors de la vérification du quota.' }, { status: 500 })
     }
 
     // Aucune ligne → on initialise avec les valeurs par défaut
     let quota = profile
     if (!quota) {
-      console.log('[generate-cv] no quota row, upserting…')
-      const { data: created, error: createError } = await supabase
+      const { data: created, error: createError } = await admin
         .from('profiles')
-        .upsert({ id: user.id, is_premium: false, cv_count_this_month: 0 })
-        .select('is_premium, cv_count_this_month')
+        .upsert({ id: user.id, email: user.email, is_premium: false, cv_count_this_month: 0 })
+        .select('*')
         .single()
-      console.log('[generate-cv] upsert → data:', JSON.stringify(created), '| error:', createError ? `${createError.code} ${createError.message} — ${createError.details}` : null)
 
       if (createError || !created) {
-        return NextResponse.json({ error: 'Impossible d\'initialiser le quota.', code: createError?.code, details: createError?.message }, { status: 500 })
+        console.error('[generate-cv] quota init error:', createError?.code, createError?.message)
+        return NextResponse.json({ error: 'Impossible d\'initialiser le quota.' }, { status: 500 })
       }
       quota = created
     }
 
-    if (!quota.is_premium && quota.cv_count_this_month >= 1) {
+    // Remise à zéro mensuelle du compteur (si la colonne cv_count_period existe)
+    const currentPeriod = new Date().toISOString().slice(0, 7) // 'AAAA-MM'
+    const hasPeriod = 'cv_count_period' in quota
+    const cvCount = currentCvCount(quota)
+
+    if (!quota.is_premium && cvCount >= 1) {
       return NextResponse.json(
         { error: 'QUOTA_EXCEEDED', message: 'Vous avez utilisé votre CV gratuit ce mois-ci. Passez à Premium pour en générer plus.' },
         { status: 403 }
@@ -151,10 +160,13 @@ Réponds avec cette structure JSON exacte :
     }
 
     // ── Incrémenter le compteur ────────────────────────────────────────────
-    await supabase
+    const { error: countError } = await admin
       .from('profiles')
-      .update({ cv_count_this_month: quota.cv_count_this_month + 1 })
+      .update(hasPeriod
+        ? { cv_count_this_month: cvCount + 1, cv_count_period: currentPeriod }
+        : { cv_count_this_month: cvCount + 1 })
       .eq('id', user.id)
+    if (countError) console.error('[generate-cv] quota update error:', countError.code, countError.message)
 
     cv.watermark = !quota.is_premium
 

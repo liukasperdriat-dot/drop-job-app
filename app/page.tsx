@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CompanyLogo from '@/components/CompanyLogo';
 import { createClient } from '@/lib/supabase/client';
-
-const GEN_STEPS = ['Analyse des mots-clés ATS','Interrogation de votre profil','Adaptation du vocabulaire','Calcul du score de matching','Génération du PDF'];
+import { goToPremium } from '@/lib/premium-link';
 
 const v = {
   bg: '#f5f5f7', bg2: '#e8e8ed', white: '#fff',
@@ -23,8 +22,6 @@ export default function HomePage() {
   const [salMin, setSalMin]   = useState(40);
   const [salMax, setSalMax]   = useState(70);
   const [paywall, setPaywall] = useState(false);
-  const [genOpen, setGenOpen] = useState(false);
-  const [genStep, setGenStep] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -57,14 +54,10 @@ export default function HomePage() {
     window.location.href = `/jobs?q=${encodeURIComponent(search)}&location=${encodeURIComponent(city)}&salaireMin=${salMin * 1000}&salaireMax=${salMax * 1000}`;
   };
 
-  const startGen = () => {
-    setSelectedJob(null); setGenStep(0); setGenOpen(true);
-    let s = 0;
-    const iv = setInterval(() => {
-      s++;
-      if (s >= GEN_STEPS.length) { clearInterval(iv); setTimeout(() => { setGenOpen(false); setPaywall(true); }, 600); }
-      else setGenStep(s);
-    }, 800);
+  // Envoie vers la vraie génération de CV pour cette offre
+  // (un visiteur non connecté sera redirigé vers la connexion).
+  const goToCV = (job: any) => {
+    window.location.href = `/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description||'')}`;
   };
 
   const pct = (val: number) => ((val - 20) / 100) * 100;
@@ -365,7 +358,7 @@ export default function HomePage() {
                   <span style={{ fontSize:14, fontWeight:600, letterSpacing:'-0.02em' }}>{job.salary || 'Salaire NC'}</span>
                 </div>
                 <button
-                  onClick={e => { e.stopPropagation(); window.location.href = `/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description||'')}`; }}
+                  onClick={e => { e.stopPropagation(); goToCV(job); }}
                   style={{ display:'block', width:'100%', marginTop:12, padding:9, background:'rgba(0,113,227,.07)', color:v.blue, border:'1px solid rgba(0,113,227,.14)', borderRadius:8, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit', minHeight:44 }}
                 >
                   Postuler avec CV IA
@@ -403,7 +396,7 @@ export default function HomePage() {
             <div style={{ fontSize:42, fontWeight:300, letterSpacing:'-0.04em', lineHeight:1 }}>0€</div>
             <div style={{ fontSize:12, color:v.text2, marginTop:6, marginBottom:20 }}>Pour démarrer, sans limite de durée.</div>
             <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:10, marginBottom:24 }}>
-              {[{l:'Toutes les offres France Travail et Adzuna',ok:true},{l:'1 CV adapté par IA / mois',ok:true},{l:'1 lettre de motivation / mois (avec filigrane)',ok:true},{l:'Template Classique',ok:true},{l:'Filigrane sur les documents',ok:false},{l:'Templates Moderne et Minimaliste',ok:false},{l:'Lettre de motivation illimitée',ok:false}].map(f=>(
+              {[{l:'Toutes les offres France Travail et Adzuna',ok:true},{l:'1 CV adapté par IA / mois',ok:true},{l:'Template Classique',ok:true},{l:'Filigrane sur les documents',ok:false},{l:'Templates Moderne et Minimaliste',ok:false},{l:'Lettre de motivation illimitée',ok:false}].map(f=>(
                 <li key={f.l} style={{ display:'flex', alignItems:'flex-start', gap:9, fontSize:13, color: f.ok ? v.text2 : v.text3 }}>
                   <div style={{ flexShrink:0, marginTop:1 }}>
                     {f.ok
@@ -414,7 +407,7 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <button onClick={()=>setPaywall(true)} style={{ width:'100%', padding:11, borderRadius:8, fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', background:v.bg, color:v.text2, border:`1px solid ${v.line2}`, minHeight:44 }}>Commencer gratuitement</button>
+            <button onClick={()=>{ window.location.href = isLoggedIn ? '/dashboard' : '/auth/register'; }} style={{ width:'100%', padding:11, borderRadius:8, fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', background:v.bg, color:v.text2, border:`1px solid ${v.line2}`, minHeight:44 }}>Commencer gratuitement</button>
           </div>
           <div style={{ background:v.white, border:`1.5px solid ${v.blue}`, borderRadius:18, padding:'28px 26px', boxShadow:`0 0 0 3px rgba(0,113,227,.07), ${v.shadow2}` }}>
             <div style={{ fontSize:11, fontWeight:500, letterSpacing:'.06em', textTransform:'uppercase', color:v.blue, marginBottom:14 }}>Premium</div>
@@ -485,21 +478,17 @@ export default function HomePage() {
       <div onClick={e=>e.target===e.currentTarget&&setPaywall(false)} style={{ display:'flex', position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,.22)', backdropFilter:'blur(8px)', alignItems:'flex-end', justifyContent:'center' }}>
         <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', borderTop:`1px solid rgba(0,0,0,.08)`, width:'100%', maxWidth:560, padding:'24px 28px 32px', boxShadow:'0 -4px 32px rgba(0,0,0,.1)' }}>
           <div style={{ width:32, height:4, borderRadius:2, background:'#e8e8ed', margin:'0 auto 22px' }} />
-          <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(192,57,43,.05)', border:'1px solid rgba(192,57,43,.12)', borderRadius:8, padding:'10px 13px', fontSize:12, color:'#c0392b', marginBottom:18 }}>
-            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width={14} height={14}><circle cx="7" cy="7" r="5.5"/><line x1="7" y1="4.5" x2="7" y2="7.5"/><circle cx="7" cy="9.5" r=".5" fill="currentColor" stroke="none"/></svg>
-            Vous avez utilisé votre CV gratuit ce mois-ci
-          </div>
           <div style={{ fontSize:21, fontWeight:500, letterSpacing:'-0.03em', marginBottom:5 }}>Passez à Premium</div>
-          <div style={{ fontSize:14, color:'#6e6e73', marginBottom:18, lineHeight:1.5, fontWeight:300 }}>Débloquez des CV sans filigrane, l'édition manuelle et des candidatures illimitées.</div>
+          <div style={{ fontSize:14, color:'#6e6e73', marginBottom:18, lineHeight:1.5, fontWeight:300 }}>CV illimités sans filigrane, lettres de motivation IA et tous les templates.</div>
           <div style={{ display:'flex', flexDirection:'column', gap:9, marginBottom:22 }}>
-            {['CV illimités, propres, éditables','Filtres avancés — télétravail, culture, taille','Score de matching IA pour chaque offre'].map(p=>(
+            {['CV illimités, sans filigrane','Lettre de motivation IA illimitée','Templates Moderne et Minimaliste'].map(p=>(
               <div key={p} style={{ display:'flex', alignItems:'center', gap:9, fontSize:13, color:'#6e6e73' }}>
                 <svg viewBox="0 0 14 14" fill="none" stroke="#1d8348" strokeWidth="1.6" strokeLinecap="round" width={14} height={14}><polyline points="2,7 6,11 12,3"/></svg>{p}
               </div>
             ))}
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <button onClick={() => { window.location.href = billing === 'weekly' ? 'https://buy.stripe.com/8x26oGh2QbJX553c9w4wM01' : 'https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00' }} style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:'pointer', minHeight:44 }}>Passer à Premium — {billing === 'weekly' ? '3,49€ / semaine' : '9,90€ / mois'}</button>
+            <button onClick={() => goToPremium(billing)} style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:'pointer', minHeight:44 }}>Passer à Premium — {billing === 'weekly' ? '3,49€ / semaine' : '9,90€ / mois'}</button>
             <button onClick={()=>setPaywall(false)} style={{ width:'100%', padding:11, borderRadius:8, background:'transparent', color:'#6e6e73', border:'1px solid rgba(0,0,0,.14)', fontFamily:'inherit', fontSize:13, cursor:'pointer', minHeight:44 }}>Continuer avec le plan gratuit</button>
           </div>
         </div>
@@ -525,28 +514,11 @@ export default function HomePage() {
               <p style={{ fontSize:13, color:'#6e6e73', lineHeight:1.65 }}>{selectedJob.description?.slice(0,500)}{selectedJob.description?.length > 500 ? '…' : ''}</p>
             </div>
           )}
-          <button onClick={startGen} style={{ width:'100%', padding:12, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, cursor:'pointer', minHeight:44 }}>Générer mon CV pour cette offre</button>
+          <button onClick={() => goToCV(selectedJob)} style={{ width:'100%', padding:12, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:14, fontWeight:500, cursor:'pointer', minHeight:44 }}>Générer mon CV pour cette offre</button>
         </div>
       </div>
     )}
 
-    {/* GEN */}
-    {genOpen && (
-      <div style={{ display:'flex', position:'fixed', inset:0, zIndex:400, background:'rgba(0,0,0,.4)', backdropFilter:'blur(12px)', alignItems:'center', justifyContent:'center' }}>
-        <div style={{ background:'#fff', borderRadius:18, border:'1px solid rgba(0,0,0,.08)', width:'100%', maxWidth:360, padding:32, textAlign:'center', boxShadow:'0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)', margin:'0 16px' }}>
-          <div style={{ width:40, height:40, borderRadius:'50%', border:'2px solid #e8e8ed', borderTopColor:'#0071e3', animation:'spin .7s linear infinite', margin:'0 auto 18px' }} />
-          <div style={{ fontSize:17, fontWeight:500, letterSpacing:'-0.025em', marginBottom:18 }}>Génération de votre CV…</div>
-          <div style={{ textAlign:'left', display:'flex', flexDirection:'column', gap:9 }}>
-            {GEN_STEPS.map((s,i)=>(
-              <div key={s} style={{ display:'flex', alignItems:'center', gap:9, fontSize:12, color: i<genStep ? '#1d8348' : i===genStep ? '#1d1d1f' : '#aeaeb2', fontWeight: i===genStep ? 500 : 400, transition:'color .3s' }}>
-                <div style={{ width:7, height:7, borderRadius:'50%', background: i<genStep ? '#1d8348' : i===genStep ? '#0071e3' : '#e8e8ed', flexShrink:0, transition:'all .3s', boxShadow: i===genStep ? '0 0 0 3px rgba(0,113,227,.12)' : 'none' }} />
-                {s}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )}
 
     <style>{`
       * { box-sizing: border-box; margin: 0; padding: 0; }

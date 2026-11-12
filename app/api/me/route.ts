@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { currentCvCount } from '@/lib/quota'
 
 export async function GET() {
   const supabase = await createClient()
@@ -8,12 +9,12 @@ export async function GET() {
 
   const { data } = await supabase
     .from('profiles')
-    .select('is_premium, cv_count_this_month')
+    .select('*')
     .eq('id', user.id)
     .single()
 
   return NextResponse.json({
     is_premium: data?.is_premium ?? false,
-    cv_count_this_month: data?.cv_count_this_month ?? 0,
+    cv_count_this_month: currentCvCount(data),
   })
 }

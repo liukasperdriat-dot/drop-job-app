@@ -127,7 +127,7 @@ function buildHtml(firstName: string): string {
             <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:32px;">
               <tr>
                 <td align="center">
-                  <a href="https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00"
+                  <a href="https://www.drop-job.fr/dashboard"
                      style="display:inline-block;color:#2563eb;text-decoration:none;font-size:14px;font-weight:600;padding:11px 28px;border-radius:10px;border:1.5px solid #2563eb;letter-spacing:-0.01em;">
                     Découvrir Premium
                   </a>

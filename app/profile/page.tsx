@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { goToPremium } from '@/lib/premium-link'
+import ManageSubscriptionButton from '@/components/ManageSubscriptionButton'
 
 type Experience = {
   title: string; company: string; location: string
@@ -21,7 +23,6 @@ const emptyExp = (): Experience => ({ title: '', company: '', location: '', star
 const emptyEdu = (): Education => ({ degree: '', school: '', location: '', start_date: '', end_date: '', description: '' })
 const emptyLang = (): Language => ({ name: '', level: 'B1' })
 
-const STRIPE_URL = 'https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00'
 
 function computeScore(
   fullName: string, email: string, phone: string, location: string,
@@ -242,6 +243,9 @@ export default function ProfilePage() {
               <p className="text-white font-semibold text-base">Premium actif — CV illimités</p>
               <p className="text-blue-200 text-sm">Merci de faire confiance à drop-job !</p>
             </div>
+            <div className="ml-auto">
+              <ManageSubscriptionButton />
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border-2 border-dashed border-blue-300 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -252,14 +256,13 @@ export default function ProfilePage() {
                 <p className="text-gray-500 text-sm">Passez Premium pour des CV illimités et des fonctionnalités avancées</p>
               </div>
             </div>
-            <a
-              href={STRIPE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 inline-block px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors no-underline"
+            <button
+              type="button"
+              onClick={() => goToPremium('monthly')}
+              className="shrink-0 inline-block px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
             >
               Passer Premium → 9,90€/mois
-            </a>
+            </button>
           </div>
         )}
 

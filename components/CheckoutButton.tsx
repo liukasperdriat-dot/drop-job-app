@@ -1,11 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-
-const STRIPE_LINKS = {
-  monthly: 'https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00',
-  weekly:  'https://buy.stripe.com/8x26oGh2QbJX553c9w4wM01',
-}
+import { goToPremium } from '@/lib/premium-link'
 
 export default function CheckoutButton() {
   const [period, setPeriod] = useState<'monthly' | 'weekly'>('monthly')
@@ -26,7 +22,7 @@ export default function CheckoutButton() {
           3,49€/semaine
         </button>
       </div>
-      <button onClick={() => { window.location.href = STRIPE_LINKS[period] }} style={styles.btn}>
+      <button onClick={() => goToPremium(period)} style={styles.btn}>
         Passer Premium →
       </button>
       <p style={styles.legal}>

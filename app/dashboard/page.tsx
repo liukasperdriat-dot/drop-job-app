@@ -4,6 +4,8 @@ import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
 import CheckoutButton from '@/components/CheckoutButton'
 import ApplicationsTable from '@/components/ApplicationsTable'
+import ManageSubscriptionButton from '@/components/ManageSubscriptionButton'
+import { currentCvCount } from '@/lib/quota'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -12,12 +14,12 @@ export default async function DashboardPage() {
   if (!user) redirect('/auth/login')
 
   const [{ data: profile }, { data: applications }] = await Promise.all([
-    supabase.from('profiles').select('is_premium, cv_count_this_month').eq('id', user.id).single(),
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase.from('applications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
   ])
 
   const isPremium = profile?.is_premium || false
-  const cvUsed = profile?.cv_count_this_month || 0
+  const cvUsed = currentCvCount(profile)
   const cvMax = isPremium ? '∞' : 1
   const cvPct = isPremium ? 0 : Math.min((cvUsed / 1) * 100, 100)
 
@@ -109,7 +111,12 @@ export default async function DashboardPage() {
               {isPremium ? 'Premium' : 'Gratuit'}
             </div>
             {!isPremium && <div style={{ marginTop: 12 }}><CheckoutButton /></div>}
-            {isPremium && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Merci de votre confiance.</div>}
+            {isPremium && (
+              <>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 12 }}>Merci de votre confiance.</div>
+                <ManageSubscriptionButton />
+              </>
+            )}
           </div>
 
           {/* Accès rapide */}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import { goToPremium } from '@/lib/premium-link'
 
 type Template = 'classique' | 'moderne' | 'minimaliste'
 
@@ -323,7 +324,7 @@ function CVPageInner() {
           {!isPremium && (
             <div style={{ marginTop: 10, padding: '9px 14px', background: 'rgba(0,113,227,.04)', border: '1px solid rgba(0,113,227,.12)', borderRadius: 10, fontSize: 12, color: v.blue, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Moderne et Minimaliste sont réservés aux membres Premium.</span>
-              <a href="https://buy.stripe.com/6oUcN4cMAbJX553a1o4wM00" style={{ fontWeight: 600, color: v.blue, textDecoration: 'none', flexShrink: 0, marginLeft: 12 }}>Passer Premium →</a>
+              <button type="button" onClick={() => goToPremium('monthly')} style={{ fontWeight: 600, color: v.blue, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, flexShrink: 0, marginLeft: 12 }}>Passer Premium →</button>
             </div>
           )}
         </div>
@@ -425,7 +426,7 @@ function CVPageInner() {
               cvCount >= 1 ? (
                 <p style={{ textAlign: 'center', fontSize: 13, color: '#ff3b30', margin: 0 }}>
                   0 CV gratuit restant ce mois —{' '}
-                  <a href="/pricing" style={{ color: v.blue, fontWeight: 500, textDecoration: 'none' }}>Passez Premium</a>
+                  <button type="button" onClick={() => goToPremium('monthly')} style={{ color: v.blue, fontWeight: 500, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Passez Premium</button>
                 </p>
               ) : (
                 <p style={{ textAlign: 'center', fontSize: 13, color: '#6e6e73', margin: 0 }}>
@@ -725,7 +726,7 @@ function CVPageInner() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button
-                onClick={() => { setShowUpsell(false); window.location.href = '/pricing' }}
+                onClick={() => { setShowUpsell(false); goToPremium('monthly') }}
                 style={{ padding: '13px', borderRadius: 12, background: v.blue, color: '#fff', border: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 Passer Premium

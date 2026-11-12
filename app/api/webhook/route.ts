@@ -1,66 +1,93 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+// Statuts Stripe pour lesquels l'abonnement donne accès au Premium.
+// past_due : Stripe retente encore le prélèvement, on laisse l'accès pendant ce délai.
+const PREMIUM_STATUSES: Stripe.Subscription.Status[] = ['active', 'trialing', 'past_due']
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function POST(request: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+
   const body = await request.text()
-  const sig = request.headers.get('stripe-signature')!
+  const sig = request.headers.get('stripe-signature')
+  if (!sig) return NextResponse.json({ error: 'Signature manquante' }, { status: 400 })
 
   let event: Stripe.Event
-
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    )
-  } catch (err) {
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
+  } catch {
     return NextResponse.json({ error: 'Webhook invalide' }, { status: 400 })
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
-    const email = session.customer_details?.email
+  const supabase = createAdminClient()
 
-    console.log('[webhook] checkout.session.completed — email reçu de Stripe:', JSON.stringify(email))
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session
+      const profileId = await findProfileId(supabase, session)
 
-    if (email) {
-      const { data: profile, error: selectError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle()
-
-      console.log('[webhook] profile trouvé:', profile, '| erreur select:', selectError?.message)
-
-      if (profile) {
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            is_premium: true,
-            stripe_customer_id: session.customer as string,
-            stripe_subscription_id: session.subscription as string,
-          })
-          .eq('id', profile.id)
-
-        console.log('[webhook] update is_premium — erreur:', updateError?.message ?? 'aucune')
+      if (!profileId) {
+        // Paiement reçu mais compte introuvable : à traiter à la main dans Stripe.
+        console.error('[webhook] compte introuvable pour la session', session.id)
+        return NextResponse.json({ received: true, matched: false })
       }
-    }
-  }
 
-  if (event.type === 'customer.subscription.deleted') {
-    const subscription = event.data.object as Stripe.Subscription
-    
-    await supabase
-      .from('profiles')
-      .update({ is_premium: false })
-      .eq('stripe_subscription_id', subscription.id)
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          is_premium: true,
+          stripe_customer_id: typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
+          stripe_subscription_id: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null,
+        })
+        .eq('id', profileId)
+
+      // En cas d'échec, on renvoie 500 pour que Stripe renvoie l'événement plus tard.
+      if (error) throw new Error(`update premium: ${error.message}`)
+    }
+
+    if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object as Stripe.Subscription
+      const isPremium = event.type === 'customer.subscription.updated' && PREMIUM_STATUSES.includes(subscription.status)
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_premium: isPremium })
+        .eq('stripe_subscription_id', subscription.id)
+
+      if (error) throw new Error(`update subscription: ${error.message}`)
+    }
+  } catch (err) {
+    console.error('[webhook]', event.type, err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: 'Erreur de traitement' }, { status: 500 })
   }
 
   return NextResponse.json({ received: true })
+}
+
+// Retrouve le compte : d'abord par l'identifiant transmis au lien de paiement
+// (client_reference_id), sinon par l'e-mail saisi sur Stripe.
+async function findProfileId(supabase: ReturnType<typeof createAdminClient>, session: Stripe.Checkout.Session): Promise<string | null> {
+  const ref = session.client_reference_id
+  if (ref && UUID.test(ref)) {
+    const { data } = await supabase.from('profiles').select('id').eq('id', ref).maybeSingle()
+    if (data) return data.id
+    // Le compte existe mais n'a pas encore de ligne profiles : on la crée.
+    const { data: user } = await supabase.auth.admin.getUserById(ref)
+    if (user?.user) {
+      const { error } = await supabase.from('profiles').upsert({ id: ref, email: user.user.email })
+      if (!error) return ref
+    }
+  }
+
+  const email = session.customer_details?.email
+  if (email) {
+    // Comparaison insensible à la casse ; % et _ sont échappés pour ne pas servir de jokers.
+    const pattern = email.replace(/[\\%_]/g, '\\$&')
+    const { data } = await supabase.from('profiles').select('id').ilike('email', pattern).limit(1).maybeSingle()
+    if (data) return data.id
+  }
+
+  return null
 }
