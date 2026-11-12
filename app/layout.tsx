@@ -16,8 +16,8 @@ export const viewport: Viewport = {
   themeColor: '#2563eb',
   width: 'device-width',
   initialScale: 1,
-  minimumScale: 1,
-  maximumScale: 1,
+  // Pas de maximumScale : les visiteurs malvoyants doivent pouvoir zoomer.
+  // (Le zoom automatique d'iOS sur les champs est déjà évité par leur taille de 16 px.)
 }
 
 export const metadata: Metadata = {
@@ -57,11 +57,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function () {
+                var registerSW = function () {
                   navigator.serviceWorker.register('/sw.js')
-                    .then(function (reg) { console.log('SW registered:', reg.scope) })
                     .catch(function (err) { console.error('SW registration failed:', err) })
-                })
+                }
+                // Le script peut s'exécuter après l'événement « load » : on enregistre alors tout de suite
+                if (document.readyState === 'complete') registerSW()
+                else window.addEventListener('load', registerSW)
               }
             `,
           }}

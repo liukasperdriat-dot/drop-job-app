@@ -21,11 +21,9 @@ RÈGLES ABSOLUES — à respecter impérativement :
 - Tu réponds UNIQUEMENT en JSON valide selon le schéma demandé, sans markdown ni backticks.`
 
 export async function POST(request: Request) {
-  console.log('[generate-cv] START')
   try {
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    console.log('[generate-cv] auth:', user?.id ?? null, authError?.message ?? null)
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
@@ -82,10 +80,10 @@ export async function POST(request: Request) {
       .select('*')
       .eq('user_id', user.id)
       .single()
-    console.log('[generate-cv] user_profiles → found:', !!structuredProfile, '| error:', spError ? `${spError.code} ${spError.message}` : null)
 
     if (spError || !structuredProfile) {
-      return NextResponse.json({ error: 'Profil introuvable. Complétez votre profil avant de générer un CV.', code: spError?.code, details: spError?.message }, { status: 404 })
+      if (spError && spError.code !== 'PGRST116') console.error('[generate-cv] user_profiles error:', spError.code, spError.message)
+      return NextResponse.json({ error: 'Profil introuvable. Complétez votre profil avant de générer un CV.' }, { status: 404 })
     }
 
     // ── Génération ────────────────────────────────────────────────────────
@@ -172,8 +170,9 @@ Réponds avec cette structure JSON exacte :
 
     return NextResponse.json({ cv, isPremium: quota.is_premium })
 
-  } catch (err: any) {
-    console.error('[generate-cv] FATAL ERROR:', err?.message, '| code:', err?.code, '| stack:', err?.stack)
-    return NextResponse.json({ error: err?.message ?? 'Erreur inconnue', code: err?.code, details: err?.details }, { status: 500 })
+  } catch (err) {
+    const e = err as Error
+    console.error('[generate-cv] FATAL ERROR:', e?.message, '| stack:', e?.stack)
+    return NextResponse.json({ error: 'La génération du CV a échoué. Réessayez dans un instant.' }, { status: 500 })
   }
 }

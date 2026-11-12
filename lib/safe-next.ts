@@ -19,6 +19,14 @@ export function rememberNext(next: string) {
   document.cookie = `${NEXT_COOKIE}=${encodeURIComponent(safeNext(next))}; path=/; max-age=3600; samesite=lax`
 }
 
+// Lien entre connexion et inscription : on transmet ?next= s'il existe
+export function keepNext(e: { preventDefault: () => void }, path: string) {
+  const next = nextFromLocation()
+  if (next === '/dashboard') return
+  e.preventDefault()
+  window.location.assign(`${path}?next=${encodeURIComponent(next)}`)
+}
+
 // Lit ?next= dans l'adresse de la page courante (côté navigateur)
 export function nextFromLocation(fallback = '/dashboard'): string {
   if (typeof window === 'undefined') return fallback

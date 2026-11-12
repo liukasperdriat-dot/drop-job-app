@@ -13,7 +13,8 @@ export async function GET() {
     .single()
 
   if (error && error.code !== 'PGRST116') {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[profile] select error:', error.code, error.message)
+    return NextResponse.json({ error: 'Une erreur est survenue. Réessayez dans un instant.' }, { status: 500 })
   }
 
   return NextResponse.json({ profile: data ?? null })
@@ -24,7 +25,7 @@ export async function PUT(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json()
+  const body = await request.json().catch(() => ({}))
   const { full_name, email, phone, location, linkedin, title, summary, experiences, education, skills, languages } = body
 
   const { data, error } = await supabase
@@ -47,7 +48,10 @@ export async function PUT(request: Request) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[profile] upsert error:', error.code, error.message)
+    return NextResponse.json({ error: 'La sauvegarde du profil a échoué. Réessayez.' }, { status: 500 })
+  }
 
   return NextResponse.json({ profile: data })
 }

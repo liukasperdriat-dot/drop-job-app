@@ -50,19 +50,21 @@ export function generateStaticParams() {
   )
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const parsed = parseSlug(params.slug)
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
+  const parsed = parseSlug(slug)
   if (!parsed) return {}
   const { metierLabel, villeLabel } = parsed
   return {
     title: `Offres d'emploi ${metierLabel} à ${villeLabel} | Drop-Job`,
     description: `Trouvez les meilleures offres d'emploi ${metierLabel} à ${villeLabel}. Postulez aux offres France Travail et Adzuna. Générez votre CV adapté gratuitement avec Drop-Job.`,
-    alternates: { canonical: `/jobs/${params.slug}` },
+    alternates: { canonical: `/jobs/${slug}` },
   }
 }
 
-export default function JobsSlugPage({ params }: { params: { slug: string } }) {
-  const parsed = parseSlug(params.slug)
+export default async function JobsSlugPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const parsed = parseSlug(slug)
   if (!parsed) notFound()
   const { metier, ville, metierLabel, villeLabel } = parsed!
 

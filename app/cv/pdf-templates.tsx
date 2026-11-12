@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { Document, Page, View, Text, StyleSheet, pdf, Image } from '@react-pdf/renderer'
+import type { DocumentProps } from '@react-pdf/renderer'
 
 async function toBase64(url: string): Promise<string | null> {
   try {
@@ -549,13 +550,14 @@ export async function downloadCV(
 ) {
   const photoBase64 = profile?.photo_url ? await toBase64(profile.photo_url) : null
 
-  let element: React.ReactElement
+  // Chaque modèle renvoie un <Document> : on le type comme tel pour pdf()
+  let element: React.ReactElement<DocumentProps>
   if (template === 'classique') {
-    element = <ClassiquePDF cv={cv} profile={profile} photoBase64={photoBase64} />
+    element = <ClassiquePDF cv={cv} profile={profile} photoBase64={photoBase64} /> as React.ReactElement<DocumentProps>
   } else if (template === 'moderne') {
-    element = <ModernePDF cv={cv} profile={profile} photoBase64={photoBase64} />
+    element = <ModernePDF cv={cv} profile={profile} photoBase64={photoBase64} /> as React.ReactElement<DocumentProps>
   } else {
-    element = <MinimalistePDF cv={cv} profile={profile} photoBase64={photoBase64} />
+    element = <MinimalistePDF cv={cv} profile={profile} photoBase64={photoBase64} /> as React.ReactElement<DocumentProps>
   }
 
   const blob = await pdf(element).toBlob()

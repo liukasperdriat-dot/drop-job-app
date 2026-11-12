@@ -30,7 +30,10 @@ export async function POST(request: Request) {
     .from('cv-photos')
     .upload(path, await file.arrayBuffer(), { contentType: file.type, upsert: true })
 
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 })
+  if (uploadError) {
+    console.error('[photo] upload error:', uploadError.message)
+    return NextResponse.json({ error: 'L’envoi de la photo a échoué. Réessayez.' }, { status: 500 })
+  }
 
   const { data: { publicUrl } } = admin.storage.from('cv-photos').getPublicUrl(path)
   const photoUrl = `${publicUrl}?t=${Date.now()}`

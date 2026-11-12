@@ -1,11 +1,28 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Client créé au moment de l'envoi (et non au chargement du fichier) :
+// une clé manquante n'empêche plus la connexion, seul l'e-mail n'est pas envoyé.
+let resend: Resend | null = null
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null
+  if (!resend) resend = new Resend(process.env.RESEND_API_KEY)
+  return resend
+}
+
+// Le prénom vient du compte Google : on neutralise tout caractère HTML
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
+}
 
 export async function sendWelcomeEmail(email: string, firstName?: string) {
-  const name = firstName || email.split('@')[0]
+  const client = getResend()
+  if (!client) {
+    console.warn('[welcome-email] RESEND_API_KEY manquante : e-mail non envoyé')
+    return
+  }
+  const name = escapeHtml((firstName || email.split('@')[0]).slice(0, 60))
 
-  await resend.emails.send({
+  await client.emails.send({
     from: 'Drop-Job <noreply@drop-job.fr>',
     to: email,
     subject: 'Bienvenue sur Drop-Job 👋',

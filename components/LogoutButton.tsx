@@ -9,6 +9,15 @@ export default function LogoutButton() {
 
   async function handleLogout() {
     await supabase.auth.signOut()
+    // Efface les copies de pages gardées par le service worker sur cet appareil
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map(k => caches.delete(k)))
+      }
+    } catch {
+      // sans incidence sur la déconnexion
+    }
     router.push('/')
     router.refresh()
   }

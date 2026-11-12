@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { goToPremium } from '@/lib/premium-link'
-import { takePendingJob } from '@/lib/cv-link'
+import { peekPendingJob, clearPendingJob } from '@/lib/cv-link'
 
 type Template = 'classique' | 'moderne' | 'minimaliste'
 
@@ -87,11 +87,14 @@ function CVPageInner() {
   const router = useRouter()
   const params = useSearchParams()
 
-  const [applyUrl, setApplyUrl] = useState(params.get('applyUrl') || '')
+  // Offre choisie sur la liste : description et lien de candidature gardés dans
+  // le navigateur (cette page n'est rendue que côté navigateur, sous <Suspense>)
+  const [pending] = useState(() => peekPendingJob(params.get('title') || '', params.get('company') || ''))
+  const applyUrl = params.get('applyUrl') || pending?.applyUrl || ''
 
   const [jobTitle, setJobTitle]         = useState(params.get('title') || '')
   const [company, setCompany]           = useState(params.get('company') || '')
-  const [jobDescription, setJobDescription] = useState(params.get('description') || '')
+  const [jobDescription, setJobDescription] = useState(params.get('description') || pending?.description || '')
 
   const [profileData, setProfileData]   = useState<any>(null)
 
@@ -128,13 +131,10 @@ function CVPageInner() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Offre choisie sur la liste : description et lien de candidature conservés
-  // dans le navigateur, puis candidature ajoutée au tableau de bord.
+  // Offre utilisée : on l'efface du navigateur et on l'ajoute au tableau de bord
   useEffect(() => {
-    const pending = takePendingJob(params.get('title') || '', params.get('company') || '')
     if (!pending) return
-    if (pending.description) setJobDescription(d => d || pending.description)
-    if (pending.applyUrl) setApplyUrl(u => u || pending.applyUrl)
+    clearPendingJob()
     if (pending.job_id) {
       fetch('/api/applications', {
         method: 'POST',
@@ -148,8 +148,12 @@ function CVPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function loadProfile() {
+  function retryProfile() {
     setProfileState('loading')
+    fetchProfile()
+  }
+
+  function fetchProfile() {
     fetch('/api/profile')
       .then(async r => {
         if (!r.ok) throw new Error(String(r.status))
@@ -161,7 +165,7 @@ function CVPageInner() {
   }
 
   useEffect(() => {
-    loadProfile()
+    fetchProfile()
 
     fetch('/api/me')
       .then(r => r.json())
@@ -432,7 +436,7 @@ function CVPageInner() {
               <Field label="Votre profil">
                 <div style={{ padding: '14px 16px', borderRadius: 10, border: '1px solid rgba(192,57,43,.2)', background: 'rgba(192,57,43,.04)', fontSize: 13, color: '#c0392b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <span>Impossible de charger votre profil.</span>
-                  <button onClick={loadProfile} style={{ padding: '6px 14px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>Réessayer</button>
+                  <button onClick={retryProfile} style={{ padding: '6px 14px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>Réessayer</button>
                 </div>
               </Field>
             )}

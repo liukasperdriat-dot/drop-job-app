@@ -53,20 +53,26 @@ export function openCvForJob(job: any, navigate: (url: string) => void = url => 
   navigate(`/cv?${params}`)
 }
 
-// Lit (et consomme) l'offre en attente, si elle correspond au poste affiché.
-export function takePendingJob(title: string, company: string): PendingJob | null {
+// Lit l'offre en attente (sans l'effacer), si elle correspond au poste affiché
+// et date de moins d'une heure.
+export function peekPendingJob(title: string, company: string): PendingJob | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const pending = JSON.parse(raw) as PendingJob
-    if (!pending.savedAt || Date.now() - pending.savedAt > MAX_AGE_MS) {
-      localStorage.removeItem(STORAGE_KEY)
-      return null
-    }
+    if (!pending.savedAt || Date.now() - pending.savedAt > MAX_AGE_MS) return null
     if (pending.title !== title || pending.company !== company) return null
-    localStorage.removeItem(STORAGE_KEY)
     return pending
   } catch {
     return null
+  }
+}
+
+// Efface l'offre en attente (une fois utilisée par la page /cv)
+export function clearPendingJob() {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // stockage indisponible : rien à effacer
   }
 }

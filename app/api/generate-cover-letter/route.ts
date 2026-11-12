@@ -66,7 +66,8 @@ Retourne UNIQUEMENT le texte de la lettre, sans objet ni en-tête formel, prêt 
     const letter = completion.choices[0].message.content || ''
     return NextResponse.json({ letter })
 
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? 'Erreur inconnue' }, { status: 500 })
+  } catch (err) {
+    console.error('[generate-cover-letter]', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: 'La génération de la lettre a échoué. Réessayez dans un instant.' }, { status: 500 })
   }
 }

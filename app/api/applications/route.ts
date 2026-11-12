@@ -32,8 +32,8 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    console.error('[applications] insert error:', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[applications] insert error:', error.code, error.message)
+    return NextResponse.json({ error: 'Une erreur est survenue. Réessayez dans un instant.' }, { status: 500 })
   }
 
   return NextResponse.json({ id: data.id })
@@ -54,7 +54,8 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[applications] select error:', error.code, error.message)
+    return NextResponse.json({ error: 'Une erreur est survenue. Réessayez dans un instant.' }, { status: 500 })
   }
 
   return NextResponse.json({ applications: data })

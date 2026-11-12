@@ -5,7 +5,7 @@ import { safeNext } from '@/lib/safe-next'
 const PROTECTED = ['/dashboard', '/cv', '/settings', '/profile']
 const AUTH_ONLY = ['/auth/login', '/auth/register']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(

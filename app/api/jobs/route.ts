@@ -14,7 +14,6 @@ async function fetchNewToken(): Promise<string> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 5000)
   const rawBody = `grant_type=client_credentials&client_id=${process.env.FRANCE_TRAVAIL_CLIENT_ID}&client_secret=${process.env.FRANCE_TRAVAIL_CLIENT_SECRET}&scope=api_offresdemploiv2+o2dsoffre`
-  console.log('[FT] token request body:', rawBody.replace(process.env.FRANCE_TRAVAIL_CLIENT_SECRET || 'SECRET', '***'))
   let res: Response
   try {
     res = await fetch(

@@ -73,10 +73,12 @@ const DEPARTEMENTS = [
 ]
 
 function JobsPageContent() {
+  const searchParams = useSearchParams()
   const [jobs, setJobs]         = useState<any[]>([])
-  const [loading, setLoading]   = useState(false)
-  const [keyword, setKeyword]   = useState('')
-  const [location, setLocation] = useState('')
+  const [loading, setLoading]   = useState(true)
+  // Valeurs de départ venues de l'accueil (?q=…&location=…&salaireMin=…)
+  const [keyword, setKeyword]   = useState(() => searchParams.get('q') || '')
+  const [location, setLocation] = useState(() => searchParams.get('location') || '')
   const [activeFilter, setActiveFilter] = useState('')
   const [selectedJob, setSelectedJob]   = useState<any>(null)
   const [departement, setDepartement]   = useState('')
@@ -85,10 +87,13 @@ function JobsPageContent() {
   const [typeContrat, setTypeContrat]   = useState('')
   const [error, setError]               = useState('')
   const [warning, setWarning]           = useState('')
-  const [salaryFilter, setSalaryFilter] = useState<{ min: string; max: string } | null>(null)
+  const [salaryFilter, setSalaryFilter] = useState<{ min: string; max: string } | null>(() => {
+    const min = searchParams.get('salaireMin') || ''
+    const max = searchParams.get('salaireMax') || ''
+    return min || max ? { min, max } : null
+  })
   const requestId = useRef(0)
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -122,21 +127,10 @@ function JobsPageContent() {
     return () => { fab.remove() }
   }, [])
 
-  async function searchJobs(
-    kw      = keyword,
-    loc     = location,
-    dept    = departement,
-    dist    = distance,
-    src     = source,
-    contrat = typeContrat,
-    salary  = salaryFilter,
+  function buildSearchParams(
+    kw: string, loc: string, dept: string, dist: number, src: string, contrat: string,
+    salary: { min: string; max: string } | null,
   ) {
-    // Seule la dernière recherche lancée a le droit d'afficher ses résultats
-    const id = ++requestId.current
-    setLoading(true)
-    setJobs([])
-    setError('')
-    setWarning('')
     const params = new URLSearchParams({ keyword: kw, location: loc, source: src })
     if (contrat) params.append('typeContrat', contrat)
     if (src !== 'adzuna') {
@@ -145,6 +139,11 @@ function JobsPageContent() {
     }
     if (salary?.min) params.append('salMin', salary.min)
     if (salary?.max) params.append('salMax', salary.max)
+    return params
+  }
+
+  // Appel à l'API ; seule la dernière recherche lancée a le droit d'afficher ses résultats
+  async function fetchJobs(params: URLSearchParams, id: number) {
     try {
       const res  = await fetch(`/api/jobs?${params}`)
       const data = await res.json().catch(() => ({}))
@@ -159,17 +158,27 @@ function JobsPageContent() {
     }
   }
 
-  // Première recherche, à partir des paramètres venus de l'accueil
+  function searchJobs(
+    kw      = keyword,
+    loc     = location,
+    dept    = departement,
+    dist    = distance,
+    src     = source,
+    contrat = typeContrat,
+    salary  = salaryFilter,
+  ) {
+    const id = ++requestId.current
+    setLoading(true)
+    setJobs([])
+    setError('')
+    setWarning('')
+    fetchJobs(buildSearchParams(kw, loc, dept, dist, src, contrat, salary), id)
+  }
+
+  // Première recherche au chargement, avec les valeurs de départ
+  // (l'état « chargement » est déjà actif dès l'affichage de la page)
   useEffect(() => {
-    const q   = searchParams.get('q') || ''
-    const loc = searchParams.get('location') || ''
-    const min = searchParams.get('salaireMin') || ''
-    const max = searchParams.get('salaireMax') || ''
-    const salary = min || max ? { min, max } : null
-    if (q)      setKeyword(q)
-    if (loc)    setLocation(loc)
-    if (salary) setSalaryFilter(salary)
-    searchJobs(q, loc, departement, distance, source, typeContrat, salary)
+    fetchJobs(buildSearchParams(keyword, location, departement, distance, source, typeContrat, salaryFilter), ++requestId.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
