@@ -102,7 +102,7 @@ export default function LoginPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f5f5f7', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Inter', -apple-system, sans-serif" },
+  page: { minHeight: '100vh', background: '#f5f5f7', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "var(--font-inter), -apple-system, sans-serif" },
   card: { background: '#fff', borderRadius: 18, border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)', padding: '36px 32px', width: '100%', maxWidth: 420 },
   logo: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 },
   logoText: { fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em', color: '#1d1d1f' },

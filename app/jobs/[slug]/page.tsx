@@ -68,7 +68,7 @@ export default function JobsSlugPage({ params }: { params: { slug: string } }) {
 
   return (
     <>
-      <div style={{ background: '#f5f5f7', color: '#1d1d1f', fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif", minHeight: '100vh', WebkitFontSmoothing: 'antialiased' }}>
+      <div style={{ background: '#f5f5f7', color: '#1d1d1f', fontFamily: "var(--font-inter),-apple-system,BlinkMacSystemFont,sans-serif", minHeight: '100vh', WebkitFontSmoothing: 'antialiased' }}>
         <nav style={{ position: 'sticky', top: 0, zIndex: 200, height: 52, background: 'rgba(245,245,247,0.92)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto', height: '100%', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none', color: '#1d1d1f', fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em' }}>

@@ -41,7 +41,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: v.bg, fontFamily: "'Inter',-apple-system,sans-serif", WebkitFontSmoothing: 'antialiased' }}>
+    <div style={{ minHeight: '100vh', background: v.bg, fontFamily: "var(--font-inter),-apple-system,sans-serif", WebkitFontSmoothing: 'antialiased' }}>
 
       {/* NAV */}
       <nav style={{ position: 'sticky', top: 0, zIndex: 200, height: 52, background: 'rgba(245,245,247,0.92)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: `1px solid ${v.line}` }}>

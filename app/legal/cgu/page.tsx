@@ -50,7 +50,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export default function CGUPage() {
   return (
-    <div style={{ background: s.bg, minHeight: '100vh', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", color: s.text, WebkitFontSmoothing: 'antialiased' }}>
+    <div style={{ background: s.bg, minHeight: '100vh', fontFamily: "var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif", color: s.text, WebkitFontSmoothing: 'antialiased' }}>
       <style>{`
         @media (max-width: 600px) {
           .legal-card { padding: 28px 20px !important; }
@@ -78,7 +78,7 @@ export default function CGUPage() {
             Conditions Générales d'Utilisation
           </h1>
           <p style={{ fontSize: 14, color: s.text2, marginBottom: 40 }}>
-            Dernière mise à jour : 10 mai 2026
+            Dernière mise à jour : 12 novembre 2026
           </p>
 
           <Section title="Éditeur / Vendeur">
@@ -105,7 +105,7 @@ export default function CGUPage() {
 
           <Section title="Article 2 — Définitions">
             <Ul>
-              <Li>« Service » : la plateforme Drop-Job et l'ensemble de ses fonctionnalités (agrégation d'offres, génération de CV, suivi de candidatures).</Li>
+              <Li>« Service » : la plateforme Drop-Job et l'ensemble de ses fonctionnalités (agrégation d'offres, génération de CV et de lettres de motivation, suivi de candidatures).</Li>
               <Li>« Utilisateur » : toute personne physique accédant et utilisant le Service.</Li>
               <Li>« Compte » : espace personnel créé par l'Utilisateur lors de son inscription.</Li>
               <Li>« Contenu » : toute donnée saisie par l'Utilisateur (profil, expériences, formations, compétences, etc.).</Li>
@@ -129,24 +129,25 @@ export default function CGUPage() {
           <Section title="Article 4 — Offres et tarifs">
             <P style={{ fontWeight: 600, color: s.text }}>4.1. Offre Gratuite (« Free »)</P>
             <Ul>
-              <Li>Génération d'1 (un) CV par mois calendaire.</Li>
-              <Li>Le CV généré comporte un filigrane (watermark) visible indiquant son origine.</Li>
-              <Li>Accès aux fonctionnalités de recherche et de consultation des offres d'emploi.</Li>
-              <Li>Sans engagement de durée, résiliable à tout moment.</Li>
+              <Li>Génération d'1 (un) CV par mois calendaire, avec le modèle Classique.</Li>
+              <Li>Le CV généré comporte une mention « drop-job.fr » indiquant son origine.</Li>
+              <Li>Accès aux fonctionnalités de recherche et de consultation des offres d'emploi, et au suivi des candidatures.</Li>
+              <Li>Sans engagement de durée, sans moyen de paiement.</Li>
             </Ul>
 
             <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>4.2. Offre Premium</P>
             <Ul>
-              <Li>Tarif : <strong>9,90 € TTC par mois</strong>.</Li>
-              <Li>Génération de CV illimitée, sans filigrane.</Li>
-              <Li>Accès à l'ensemble des fonctionnalités avancées du Service.</Li>
-              <Li>Facturation mensuelle, par prélèvement automatique via Stripe, renouvelable tacitement.</Li>
-              <Li>L'Utilisateur peut résilier à tout moment depuis son espace personnel ; la résiliation prend effet à la fin de la période mensuelle en cours.</Li>
+              <Li>Deux formules au choix : <strong>9,90 € TTC par mois</strong> ou <strong>3,49 € TTC par semaine</strong> (TVA non applicable, art. 293 B du CGI).</Li>
+              <Li>Génération de CV illimitée, sans mention « drop-job.fr ».</Li>
+              <Li>Génération illimitée de lettres de motivation par intelligence artificielle.</Li>
+              <Li>Accès aux modèles de CV Moderne et Minimaliste.</Li>
+              <Li>Paiement par carte bancaire via Stripe, à chaque début de période (mois ou semaine selon la formule) ; l'abonnement est renouvelé automatiquement jusqu'à sa résiliation.</Li>
+              <Li>L'Utilisateur peut résilier à tout moment depuis son tableau de bord (bouton « Gérer mon abonnement ») ; la résiliation prend effet à la fin de la période en cours, déjà payée, et aucun nouveau prélèvement n'a lieu.</Li>
             </Ul>
 
             <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>4.3. Droit de rétractation</P>
             <P>
-              Conformément à l'article L.221-28 12° du Code de la consommation, le droit de rétractation de 14 jours ne s'applique pas aux contenus numériques dont l'exécution a commencé avec l'accord exprès de l'Utilisateur et renonciation expresse à son droit de rétractation avant le début de l'exécution du contrat.
+              Conformément à l'article L.221-28 13° du Code de la consommation, le droit de rétractation de 14 jours ne s'applique pas à la fourniture d'un contenu numérique non fourni sur un support matériel dont l'exécution a commencé après accord préalable exprès de l'Utilisateur et renoncement exprès à son droit de rétractation. En souscrivant à l'offre Premium, l'Utilisateur demande l'accès immédiat aux fonctionnalités Premium et reconnaît perdre ainsi son droit de rétractation.
             </P>
 
             <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>4.4. Modification des tarifs</P>
@@ -209,7 +210,7 @@ export default function CGUPage() {
 
           <Section title="Article 9 — Résiliation et suspension">
             <P>
-              L'Utilisateur peut clôturer son Compte à tout moment depuis son espace personnel ou en contactant l'Éditeur à dropjob.contact@gmail.com. En cas d'abonnement Premium actif, la résiliation prend effet à la fin de la période mensuelle en cours, sans remboursement prorata temporis.
+              L'Utilisateur peut demander la clôture de son Compte et la suppression de ses données à tout moment en écrivant à dropjob.contact@gmail.com. La demande est traitée dans un délai d'un mois au plus. En cas d'abonnement Premium actif, l'Utilisateur le résilie au préalable depuis son tableau de bord ; la résiliation prend effet à la fin de la période en cours, sans remboursement prorata temporis.
             </P>
             <P>
               L'Éditeur se réserve le droit de suspendre ou supprimer, sans préavis ni indemnité, tout Compte en cas de violation manifeste des présentes CGU, d'activité frauduleuse ou de comportement nuisible au Service ou à d'autres utilisateurs.
@@ -230,7 +231,7 @@ export default function CGUPage() {
               En cas de litige, l'Utilisateur est invité à contacter en premier lieu l'Éditeur à dropjob.contact@gmail.com pour tenter une résolution amiable.
             </P>
             <P>
-              Conformément à l'article L.612-1 du Code de la consommation, l'Utilisateur consommateur peut recourir gratuitement à un médiateur de la consommation. La Commission européenne met à disposition une plateforme de règlement en ligne des litiges accessible à l'adresse ec.europa.eu/consumers/odr.
+              Conformément à l'article L.612-1 du Code de la consommation, l'Utilisateur consommateur peut recourir gratuitement à un médiateur de la consommation, après une réclamation écrite restée sans réponse satisfaisante auprès de l'Éditeur.
             </P>
           </Section>
 

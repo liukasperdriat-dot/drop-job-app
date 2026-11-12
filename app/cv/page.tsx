@@ -283,7 +283,7 @@ function CVPageInner() {
     profileState === 'loaded'
 
   return (
-    <div style={{ minHeight: '100vh', background: v.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", WebkitFontSmoothing: 'antialiased' as any }}>
+    <div style={{ minHeight: '100vh', background: v.bg, fontFamily: "var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif", WebkitFontSmoothing: 'antialiased' as any }}>
 
       {/* NAV */}
       <nav style={{ position: 'sticky', top: 0, zIndex: 200, height: 52, background: 'rgba(245,245,247,0.92)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: `1px solid ${v.line}` }}>

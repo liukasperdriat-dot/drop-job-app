@@ -71,7 +71,7 @@ export default function HomePage() {
 
   return (
     <>
-    <div style={{ background: v.bg, color: v.text, fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,sans-serif", minHeight:'100vh', WebkitFontSmoothing:'antialiased' }}>
+    <div style={{ background: v.bg, color: v.text, fontFamily:"var(--font-inter),-apple-system,BlinkMacSystemFont,sans-serif", minHeight:'100vh', WebkitFontSmoothing:'antialiased' }}>
 
       {/* NAV */}
       <nav style={{ position:'sticky', top:0, zIndex:200, height:52, background:'rgba(245,245,247,0.92)', backdropFilter:'blur(24px) saturate(180%)', borderBottom:`1px solid ${v.line}` }}>
@@ -290,7 +290,7 @@ export default function HomePage() {
             ['C\'est vraiment gratuit ?', 'Oui, 1 CV par mois est gratuit, sans carte bancaire. Le Premium à 3,49 €/semaine ou 9,90 €/mois donne accès aux CV illimités, à la lettre de motivation IA et aux templates Moderne et Minimaliste.'],
             ['Est-ce que l\'IA invente des informations ?', 'Non. L\'IA reformule uniquement ce que tu as renseigné dans ton profil. Elle n\'invente jamais de compétences ou d\'expériences que tu n\'as pas.'],
             ['Quelles sources d\'offres sont disponibles ?', 'Drop-Job agrège les offres de France Travail et Adzuna, soit plusieurs centaines de milliers d\'offres en France.'],
-            ['Mes données sont-elles sécurisées ?', 'Oui. Tes données sont stockées sur Supabase (hébergé en Europe) et ne sont jamais vendues à des tiers.'],
+            ['Mes données sont-elles sécurisées ?', 'Oui. Tes données sont stockées chez Supabase, sur des serveurs situés en Irlande (Union européenne), et ne sont jamais vendues à des tiers.'],
             ['Puis-je annuler mon abonnement Premium ?', 'Oui, à tout moment depuis ton dashboard, sans engagement.'],
           ] as [string, string][]).map(([q, a], i) => {
             const open = faqOpen === i;

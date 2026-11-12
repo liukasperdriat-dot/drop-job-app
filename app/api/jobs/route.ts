@@ -154,8 +154,12 @@ const COMMUNES_ARRONDISSEMENTS: Record<string, string> = {
   '75056': '75101', // Paris → Paris 1er
 }
 
+// Majuscule au début de chaque mot, lettres accentuées comprises
+// (« prêt-à-porter » → « Prêt-À-Porter », et non « PrêT-à-Porter »)
+const WORD_START = new RegExp('(^|[^\\p{L}\\p{N}])(\\p{L})', 'gu')
+
 function toTitleCase(str: string): string {
-  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+  return str.toLowerCase().replace(WORD_START, (_, sep: string, c: string) => sep + c.toUpperCase())
 }
 
 const HEURES_PAR_AN = 1607 // temps plein légal (35 h)

@@ -42,7 +42,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export default function MentionsLegalesPage() {
   return (
-    <div style={{ background: s.bg, minHeight: '100vh', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", color: s.text, WebkitFontSmoothing: 'antialiased' }}>
+    <div style={{ background: s.bg, minHeight: '100vh', fontFamily: "var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif", color: s.text, WebkitFontSmoothing: 'antialiased' }}>
       <style>{`
         @media (max-width: 600px) {
           .legal-card { padding: 28px 20px !important; }
@@ -94,8 +94,9 @@ export default function MentionsLegalesPage() {
 
           <Section title="3. Hébergeur">
             <InfoRow label="Société" value="Vercel Inc." />
-            <InfoRow label="Adresse" value="340 Pine Street, Suite 701, San Francisco, CA 94104, États-Unis" />
+            <InfoRow label="Adresse" value="440 N Barranca Avenue #4133, Covina, CA 91723, États-Unis" />
             <InfoRow label="Site web" value="vercel.com" />
+            <InfoRow label="Base de données" value="Supabase Inc. — serveurs situés en Irlande (Union européenne)" />
             <P style={{ marginTop: 8 }}>
               Vercel Inc. est le prestataire d'hébergement du Service. En cas d'urgence (contenu illicite, sécurité), vous pouvez contacter l'Éditeur à dropjob.contact@gmail.com.
             </P>

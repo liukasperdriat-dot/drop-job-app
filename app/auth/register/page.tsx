@@ -138,7 +138,7 @@ export default function RegisterPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f5f5f7', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Inter', -apple-system, sans-serif" },
+  page: { minHeight: '100vh', background: '#f5f5f7', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "var(--font-inter), -apple-system, sans-serif" },
   card: { background: '#fff', borderRadius: 18, border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 6px rgba(0,0,0,.07), 0 8px 28px rgba(0,0,0,.07)', padding: '36px 32px', width: '100%', maxWidth: 420 },
   successIcon: { fontSize: 40, marginBottom: 16, textAlign: 'center' as const },
   logo: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 },

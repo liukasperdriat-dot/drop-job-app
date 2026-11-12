@@ -55,7 +55,7 @@ function Right({ article, title, desc }: { article: string; title: string; desc:
 
 export default function ConfidentialitePage() {
   return (
-    <div style={{ background: s.bg, minHeight: '100vh', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", color: s.text, WebkitFontSmoothing: 'antialiased' }}>
+    <div style={{ background: s.bg, minHeight: '100vh', fontFamily: "var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif", color: s.text, WebkitFontSmoothing: 'antialiased' }}>
       <style>{`
         @media (max-width: 600px) {
           .legal-card { padding: 28px 20px !important; }
@@ -85,7 +85,7 @@ export default function ConfidentialitePage() {
             Politique de Confidentialité
           </h1>
           <p style={{ fontSize: 14, color: s.text2, marginBottom: 12 }}>
-            Dernière mise à jour : 10 mai 2026
+            Dernière mise à jour : 12 novembre 2026
           </p>
           <p style={{ fontSize: 14, color: s.text2, marginBottom: 40 }}>
             Conforme au Règlement (UE) 2016/679 (RGPD) et à la loi n°78-17 du 6 janvier 1978 modifiée (loi Informatique et Libertés).
@@ -114,34 +114,33 @@ export default function ConfidentialitePage() {
               <Li>Adresse email (identifiant unique)</Li>
               <Li>Mot de passe (stocké sous forme hachée, jamais en clair)</Li>
               <Li>Date d'inscription et de dernière connexion</Li>
+              <Li>Prénom et nom transmis par Google si vous vous connectez avec votre compte Google</Li>
             </Ul>
 
             <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>2.2. Données de profil professionnel</P>
             <Ul>
-              <Li>Nom et prénom</Li>
-              <Li>Expériences professionnelles et formations</Li>
-              <Li>Compétences et langues</Li>
-              <Li>Poste recherché et localisation souhaitée</Li>
-              <Li>Résumé professionnel et informations de contact</Li>
+              <Li>Nom et prénom, titre professionnel et résumé</Li>
+              <Li>Coordonnées indiquées sur le CV : e-mail, téléphone, ville, profil LinkedIn</Li>
+              <Li>Expériences professionnelles, formations, compétences et langues</Li>
+              <Li>Photo de profil, si vous choisissez d'en ajouter une (stockée chez Supabase et accessible uniquement par un lien difficile à deviner)</Li>
             </Ul>
 
             <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>2.3. Données de paiement</P>
             <P>
-              Les données de carte bancaire sont gérées exclusivement par Stripe Inc. Drop-Job n'accède jamais aux numéros de carte, date d'expiration ou CVV. Nous conservons uniquement l'identifiant d'abonnement Stripe et le statut de l'abonnement.
+              Les données de carte bancaire sont gérées exclusivement par Stripe. Drop-Job n'accède jamais aux numéros de carte, date d'expiration ou cryptogramme. Nous conservons uniquement les identifiants client et d'abonnement Stripe et le statut de l'abonnement (Premium ou non).
             </P>
 
             <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>2.4. Données d'utilisation</P>
             <Ul>
-              <Li>Historique des CV générés (date, contenu)</Li>
-              <Li>Offres d'emploi consultées ou sauvegardées</Li>
-              <Li>Candidatures suivies dans le tableau de bord</Li>
+              <Li>Nombre de CV générés dans le mois en cours (pour appliquer la limite de l'offre gratuite)</Li>
+              <Li>Candidatures suivies dans le tableau de bord : intitulé du poste, entreprise, lieu, contrat, salaire, statut et date</Li>
+              <Li>Le contenu des CV et des lettres de motivation générés n'est pas conservé sur nos serveurs : il est créé à la demande puis affiché et téléchargé dans votre navigateur.</Li>
             </Ul>
 
             <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>2.5. Données techniques</P>
             <Ul>
-              <Li>Adresse IP (anonymisée après 30 jours)</Li>
-              <Li>Type de navigateur et système d'exploitation</Li>
-              <Li>Logs d'accès et d'erreurs du Service</Li>
+              <Li>Adresse IP, type de navigateur et pages appelées, enregistrés uniquement dans les journaux techniques de nos hébergeurs (Vercel, Supabase)</Li>
+              <Li>Journaux d'erreurs du Service</Li>
             </Ul>
           </Section>
 
@@ -156,13 +155,11 @@ export default function ConfidentialitePage() {
                 </thead>
                 <tbody>
                   {[
-                    ['Fourniture du Service (génération de CV, recherche d\'offres)', 'Exécution du contrat (art. 6.1.b RGPD)'],
+                    ['Fourniture du Service (recherche d\'offres, génération de CV et de lettres, suivi des candidatures)', 'Exécution du contrat (art. 6.1.b RGPD)'],
                     ['Gestion des abonnements et paiements', 'Exécution du contrat (art. 6.1.b RGPD)'],
-                    ['Amélioration et personnalisation du Service', 'Intérêt légitime (art. 6.1.f RGPD)'],
-                    ['Envoi d\'emails transactionnels (confirmation, factures)', 'Exécution du contrat (art. 6.1.b RGPD)'],
-                    ['Envoi de communications marketing', 'Consentement (art. 6.1.a RGPD)'],
+                    ['E-mails liés au compte (confirmation d\'inscription, bienvenue)', 'Exécution du contrat (art. 6.1.b RGPD)'],
                     ['Respect des obligations légales (comptabilité, fiscalité)', 'Obligation légale (art. 6.1.c RGPD)'],
-                    ['Sécurité et prévention des fraudes', 'Intérêt légitime (art. 6.1.f RGPD)'],
+                    ['Sécurité du Service et prévention des fraudes', 'Intérêt légitime (art. 6.1.f RGPD)'],
                   ].map(([fin, base], i) => (
                     <tr key={i} style={{ borderBottom: `1px solid ${s.line}` }}>
                       <td style={{ padding: '11px 14px', color: s.text2, verticalAlign: 'top' }}>{fin}</td>
@@ -189,10 +186,11 @@ export default function ConfidentialitePage() {
                 </thead>
                 <tbody>
                   {[
-                    ['Supabase Inc.', 'Base de données, authentification, stockage', 'États-Unis', 'Clauses contractuelles types UE (art. 46 RGPD)'],
-                    ['Stripe Inc.', 'Paiement, gestion des abonnements', 'États-Unis', 'Décision d\'adéquation + clauses contractuelles types'],
-                    ['OpenAI LLC', 'Génération de CV par intelligence artificielle', 'États-Unis', 'Clauses contractuelles types UE (art. 46 RGPD)'],
-                    ['France Travail (ex Pôle Emploi)', 'Agrégation d\'offres d\'emploi (API publique)', 'France (UE)', 'Encadrement RGPD – données non nominatives'],
+                    ['Supabase Inc.', 'Base de données, authentification, stockage des photos', 'Irlande (UE) — société américaine', 'Clauses contractuelles types (art. 46 RGPD)'],
+                    ['Vercel Inc.', 'Hébergement du site, journaux techniques', 'États-Unis / UE', 'Data Privacy Framework UE–États-Unis et/ou clauses contractuelles types'],
+                    ['Stripe', 'Paiement, gestion des abonnements, factures', 'Irlande (UE) / États-Unis', 'Data Privacy Framework UE–États-Unis et/ou clauses contractuelles types'],
+                    ['OpenAI', 'Génération des CV et lettres de motivation (votre profil et l\'offre visée sont transmis à chaque génération)', 'États-Unis', 'Data Privacy Framework UE–États-Unis et/ou clauses contractuelles types'],
+                    ['Resend Inc.', 'Envoi des e-mails (adresse e-mail, prénom)', 'États-Unis', 'Data Privacy Framework UE–États-Unis et/ou clauses contractuelles types'],
                   ].map(([st, fin, loc, gar], i) => (
                     <tr key={i} style={{ borderBottom: `1px solid ${s.line}` }}>
                       <td style={{ padding: '11px 14px', color: s.text, fontWeight: 500, verticalAlign: 'top', whiteSpace: 'nowrap' }}>{st}</td>
@@ -207,22 +205,25 @@ export default function ConfidentialitePage() {
             <P style={{ marginTop: 12 }}>
               Aucune donnée n'est vendue à des tiers ni utilisée à des fins publicitaires.
             </P>
+            <P>
+              Les recherches d'offres sont transmises à France Travail et Adzuna (mots-clés, ville, filtres) sans aucune donnée vous concernant. Les logos des entreprises sont affichés depuis le service Logo.dev : comme pour toute image chargée depuis un autre site, votre navigateur lui transmet techniquement votre adresse IP.
+            </P>
           </Section>
 
           <Section title="5. Transferts hors Union européenne">
             <P>
-              Supabase, Stripe et OpenAI sont établis aux États-Unis. Ces transferts sont encadrés par des clauses contractuelles types approuvées par la Commission européenne (décision d'exécution 2021/914), conformément à l'article 46 du RGPD. Vous pouvez obtenir une copie de ces garanties en contactant dropjob.contact@gmail.com.
+              Votre base de données est hébergée en Irlande (Union européenne). Certains prestataires (Vercel, Stripe, OpenAI, Resend, ainsi que la maison mère de Supabase) sont établis aux États-Unis et peuvent y traiter des données. Ces transferts sont encadrés par le Data Privacy Framework UE–États-Unis (décision d'adéquation du 10 juillet 2023) pour les sociétés certifiées, et/ou par des clauses contractuelles types approuvées par la Commission européenne (décision d'exécution 2021/914), conformément aux articles 45 et 46 du RGPD. Vous pouvez obtenir une copie de ces garanties en contactant dropjob.contact@gmail.com.
             </P>
           </Section>
 
           <Section title="6. Durée de conservation">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
-                ['Données de compte et de profil', 'Jusqu\'à la suppression du compte, puis 3 ans (obligations légales)'],
-                ['CV générés', 'Jusqu\'à la suppression du compte ou demande d\'effacement'],
-                ['Données de paiement (logs Stripe)', '5 ans à compter de la transaction (obligations comptables et fiscales)'],
-                ['Logs techniques (IP, accès)', '12 mois glissants, puis anonymisation'],
-                ['Données de candidatures', 'Jusqu\'à la suppression du compte'],
+                ['Données de compte, de profil et photo', 'Jusqu\'à la suppression du compte (effacement dans un délai d\'un mois après la demande)'],
+                ['Candidatures et compteur de CV', 'Jusqu\'à la suppression du compte'],
+                ['CV et lettres générés', 'Non conservés sur nos serveurs'],
+                ['Factures et pièces comptables (Stripe)', '10 ans (obligation comptable, art. L.123-22 du Code de commerce)'],
+                ['Journaux techniques (IP, accès)', '30 jours au plus, selon les durées appliquées par nos hébergeurs'],
               ].map(([cat, dur], i) => (
                 <div key={i} style={{ display: 'flex', gap: 16, padding: '10px 0', borderBottom: `1px solid ${s.line}`, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 500, color: s.text, minWidth: 240, flexShrink: 0, fontSize: 14 }}>{cat}</span>
@@ -263,7 +264,14 @@ export default function ConfidentialitePage() {
           <Section title="8. Cookies et traceurs">
             <P style={{ fontWeight: 600, color: s.text }}>8.1. Cookies strictement nécessaires</P>
             <P>
-              Ces cookies sont indispensables au fonctionnement du Service (gestion de session, authentification). Ils ne nécessitent pas votre consentement. Ils sont supprimés à la fermeture de votre navigateur ou à l'expiration de la session.
+              Ces cookies sont indispensables au fonctionnement du Service et ne nécessitent pas votre consentement :
+            </P>
+            <Ul>
+              <Li>Cookies de connexion (Supabase) : ils vous gardent connecté et sont supprimés lors de la déconnexion, ou au plus tard après 400 jours.</Li>
+              <Li>Cookie « dropjob_next » : retient la page à rouvrir après une connexion ou une inscription ; il expire au bout d'une heure.</Li>
+            </Ul>
+            <P>
+              Le site enregistre aussi dans votre navigateur, sans les transmettre à des tiers : l'offre que vous avez choisie pour générer un CV (effacée à l'ouverture de la page CV ou au bout d'une heure) et une copie des pages consultées, afin que le site reste utilisable hors connexion.
             </P>
 
             <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>8.2. Cookies tiers</P>
@@ -285,11 +293,11 @@ export default function ConfidentialitePage() {
               <Li>Chiffrement des communications via TLS/HTTPS</Li>
               <Li>Hachage des mots de passe (bcrypt)</Li>
               <Li>Accès aux données restreint aux seuls traitements nécessaires (principe du moindre privilège)</Li>
-              <Li>Hébergement chez des prestataires certifiés ISO 27001 (Vercel, Supabase)</Li>
-              <Li>Surveillance des accès et des anomalies</Li>
+              <Li>Hébergement chez des prestataires spécialisés appliquant des standards de sécurité reconnus (Vercel, Supabase)</Li>
+              <Li>Règles d'accès en base de données : chaque utilisateur n'accède qu'à ses propres données</Li>
             </Ul>
             <P>
-              En cas de violation de données susceptible d'engendrer un risque pour vos droits et libertés, vous en serez notifié dans les 72 heures conformément à l'article 34 du RGPD.
+              En cas de violation de données, la CNIL sera notifiée dans les 72 heures (article 33 du RGPD) et, si la violation présente un risque élevé pour vos droits et libertés, vous en serez informé dans les meilleurs délais (article 34 du RGPD).
             </P>
           </Section>
 

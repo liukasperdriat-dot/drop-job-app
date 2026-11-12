@@ -114,7 +114,7 @@ function JobsPageContent() {
       fontSize: '15px', fontWeight: '600',
       boxShadow: '0 4px 24px rgba(0,113,227,.35)',
       letterSpacing: '-0.01em', whiteSpace: 'nowrap',
-      fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif",
+      fontFamily: "var(--font-inter),-apple-system,BlinkMacSystemFont,sans-serif",
     })
     link.textContent = 'Créer mon CV'
     fab.appendChild(link)
@@ -215,7 +215,7 @@ function JobsPageContent() {
 
   return (
     <>
-    <div style={{ background: v.bg, color: v.text, fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif", minHeight: '100vh', WebkitFontSmoothing: 'antialiased' }}>
+    <div style={{ background: v.bg, color: v.text, fontFamily: "var(--font-inter),-apple-system,BlinkMacSystemFont,sans-serif", minHeight: '100vh', WebkitFontSmoothing: 'antialiased' }}>
 
       {/* NAV */}
       <nav style={{ position: 'sticky', top: 0, zIndex: 200, height: 52, background: 'rgba(245,245,247,0.92)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: `1px solid ${v.line}` }}>
