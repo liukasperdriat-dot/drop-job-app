@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeNext } from '@/lib/safe-next'
 
 const PROTECTED = ['/dashboard', '/cv', '/settings', '/profile']
 const AUTH_ONLY = ['/auth/login', '/auth/register']
@@ -32,11 +33,15 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   if (PROTECTED.some(r => path.startsWith(r)) && !user) {
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+    // On garde la page demandée pour y revenir après la connexion
+    const login = new URL('/auth/login', request.url)
+    login.searchParams.set('next', path + request.nextUrl.search)
+    return NextResponse.redirect(login)
   }
 
   if (AUTH_ONLY.some(r => path.startsWith(r)) && user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    const next = safeNext(request.nextUrl.searchParams.get('next'))
+    return NextResponse.redirect(new URL(next, request.url))
   }
 
   return supabaseResponse

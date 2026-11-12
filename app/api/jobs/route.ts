@@ -72,21 +72,41 @@ const CACHE_TTL    = 300_000
 const CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' }
 const jobsCache    = new Map<string, { jobs: any[]; expiresAt: number }>()
 
-function buildCacheKey(source: string, keyword: string, location: string, typeContrat: string, departement: string) {
-  return `${source}|${keyword}|${location}|${typeContrat}|${departement}`
+// Tous les paramètres qui changent les résultats doivent faire partie de la clé
+function buildCacheKey(...parts: (string | number | null)[]) {
+  return parts.map(p => p ?? '').join('|')
+}
+
+// Salaire annuel en euros passé dans l'URL (ex. "40000") → nombre, ou null
+function parseSalary(v: string): number | null {
+  const n = parseInt(v, 10)
+  return Number.isFinite(n) && n > 0 && n < 1_000_000 ? n : null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Codes INSEE des grandes villes : évite tout appel réseau pour les recherches
+// les plus fréquentes (et pour les pages /jobs/[métier]-[ville]).
+const INSEE_CONNUS: Record<string, string> = {
+  paris: '75056', marseille: '13055', lyon: '69123', toulouse: '31555', nice: '06088',
+  nantes: '44109', montpellier: '34172', strasbourg: '67482', bordeaux: '33063', lille: '59350',
+  rennes: '35238', reims: '51454', toulon: '83137', 'saint-etienne': '42218', 'le havre': '76351',
+  grenoble: '38185', dijon: '21231', angers: '49007', nimes: '30189', villeurbanne: '69266',
+  'clermont-ferrand': '63113', 'aix-en-provence': '13001', brest: '29019', tours: '37261',
+  amiens: '80021', limoges: '87085', perpignan: '66136', metz: '57463', besancon: '25056',
+  orleans: '45234', rouen: '76540', mulhouse: '68224', caen: '14118', nancy: '54395',
+}
+
+function normalizeCity(name: string): string {
+  return name.toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ')
+}
+
 // Warm in-memory cache: avoids hitting geo API on repeated city lookups within the same worker
 const inseeCache = new Map<string, string>()
 
-async function resolveInseeCode(cityName: string): Promise<string | null> {
-  const key = cityName.toLowerCase().trim()
-  if (inseeCache.has(key)) return inseeCache.get(key)!
-
+async function fetchInsee(cityName: string, timeoutMs: number): Promise<string | null> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 2000)
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await fetch(
       `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(cityName)}&limit=1&fields=code,nom,departement&boost=population`,
@@ -97,17 +117,30 @@ async function resolveInseeCode(cityName: string): Promise<string | null> {
       return null
     }
     const data = await res.json()
-    const code: string | null = data[0]?.code ?? null
-    if (code) inseeCache.set(key, code)
-    else console.warn('[geo] no INSEE result for city:', cityName)
-    console.log('[geo]', cityName, '→', code)
-    return code
-  } catch (err: any) {
-    console.warn('[geo] resolve error:', err.name === 'AbortError' ? 'timeout 2s' : err.message, '— city:', cityName)
-    return null
+    return data[0]?.code ?? null
   } finally {
     clearTimeout(timeout)
   }
+}
+
+async function resolveInseeCode(cityName: string): Promise<string | null> {
+  const key = normalizeCity(cityName)
+  if (INSEE_CONNUS[key]) return INSEE_CONNUS[key]
+  if (inseeCache.has(key)) return inseeCache.get(key)!
+
+  // Deux tentatives : le service de l'État est parfois lent.
+  for (const timeoutMs of [4000, 4000]) {
+    try {
+      const code = await fetchInsee(cityName, timeoutMs)
+      if (code) inseeCache.set(key, code)
+      else console.warn('[geo] no INSEE result for city:', cityName)
+      return code
+    } catch (err) {
+      const e = err as Error
+      console.warn('[geo] resolve error:', e.name === 'AbortError' ? `timeout ${timeoutMs}ms` : e.message, '— city:', cityName)
+    }
+  }
+  return null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -125,29 +158,46 @@ function toTitleCase(str: string): string {
   return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
-function formatSalaire(libelle: string): string {
-  if (!libelle) return 'Salaire NC'
+const HEURES_PAR_AN = 1607 // temps plein légal (35 h)
+
+// Convertit le libellé France Travail en salaire annuel brut (euros).
+// Ex. « Mensuel de 2000.0 Euros à 2500.0 Euros sur 12 mois » → { min: 24000, max: 30000 }
+function parseSalaireFT(libelle: string): { min: number; max: number | null } | null {
+  if (!libelle) return null
   const match = libelle.match(/(\d+(?:[.,]\d+)?)\s*Euros?\s*(?:à\s*(\d+(?:[.,]\d+)?)\s*Euros?)?/i)
-  if (!match) return 'Salaire NC'
-  const min = Math.round(parseFloat(match[1].replace(',', '.')))
-  const max = match[2] ? Math.round(parseFloat(match[2].replace(',', '.'))) : null
-  const isAnnuel = libelle.toLowerCase().includes('annuel')
-  if (isAnnuel) {
-    const a = Math.round(min / 1000), b = max ? Math.round(max / 1000) : null
-    return a === 0 ? 'Salaire NC' : b ? `${a}k€ — ${b}k€ / an` : `${a}k€ / an`
+  if (!match) return null
+  const lower = libelle.toLowerCase()
+  const toAnnual = (v: number) => {
+    if (lower.includes('horaire')) return v * HEURES_PAR_AN
+    if (lower.includes('annuel')) return v
+    // « Mensuel » : un montant supérieur à 10 000 € est en réalité un salaire annuel mal saisi
+    return v > 10_000 ? v : v * 12
   }
-  const a = Math.round((min * 12) / 1000), b = max ? Math.round((max * 12) / 1000) : null
-  return a === 0 ? 'Salaire NC' : b ? `${a}k€ — ${b}k€ / an` : `${a}k€ / an`
+  const min = toAnnual(parseFloat(match[1].replace(',', '.')))
+  const max = match[2] ? toAnnual(parseFloat(match[2].replace(',', '.'))) : null
+  return min > 0 ? { min, max } : null
+}
+
+function formatSalaryRange(min: number | null, max: number | null): string {
+  const a = min ? Math.round(min / 1000) : null
+  const b = max ? Math.round(max / 1000) : null
+  if (a && b && a !== b) return `${a}k€ — ${b}k€ / an`
+  if (a) return `${a}k€ / an`
+  if (b) return `${b}k€ / an`
+  return 'Salaire NC'
 }
 
 function mapJob(j: any) {
+  const sal = parseSalaireFT(j.salaire?.libelle || '')
   return {
     id:          j.id,
     title:       toTitleCase(j.intitule),
     company:     j.entreprise?.nom || 'Entreprise non précisée',
     location:    j.lieuTravail?.libelle || '',
     contract:    j.typeContratLibelle || 'CDI',
-    salary:      formatSalaire(j.salaire?.libelle || ''),
+    salary:      formatSalaryRange(sal?.min ?? null, sal?.max ?? null),
+    salaryMin:   sal?.min ?? null,
+    salaryMax:   sal?.max ?? null,
     description: j.description || '',
     url:         j.origineOffre?.urlOrigine || '',
     source:      'France Travail',
@@ -162,14 +212,7 @@ const ADZUNA_CONTRACT: Record<string, string> = {
 }
 
 function mapAdzunaJob(j: any) {
-  let salary = 'Salaire NC'
-  if (j.salary_min || j.salary_max) {
-    const min = j.salary_min ? Math.round(j.salary_min / 1000) : null
-    const max = j.salary_max ? Math.round(j.salary_max / 1000) : null
-    if (min && max && min !== max) salary = `${min}k€ — ${max}k€ / an`
-    else if (min) salary = `${min}k€ / an`
-    else if (max) salary = `${max}k€ / an`
-  }
+  const salary = formatSalaryRange(j.salary_min || null, j.salary_max || null)
   return {
     id:          `adzuna-${j.id}`,
     title:       toTitleCase(j.title || ''),
@@ -177,6 +220,8 @@ function mapAdzunaJob(j: any) {
     location:    j.location?.display_name || '',
     contract:    ADZUNA_CONTRACT[j.contract_type?.toLowerCase()] || 'CDI',
     salary,
+    salaryMin:   j.salary_min || null,
+    salaryMax:   j.salary_max || null,
     description: j.description || '',
     url:         j.redirect_url || '',
     source:      'Adzuna',
@@ -184,7 +229,7 @@ function mapAdzunaJob(j: any) {
   }
 }
 
-async function fetchAdzunaJobs(keyword: string, location: string, limit = 20, contractLabel?: string): Promise<any[]> {
+async function fetchAdzunaJobs(keyword: string, location: string, limit = 20, contractLabel?: string, salMin?: number | null, salMax?: number | null): Promise<any[]> {
   const appId  = process.env.ADZUNA_APP_ID
   const appKey = process.env.ADZUNA_APP_KEY
   if (!appId || !appKey) throw new Error('Adzuna credentials manquants (ADZUNA_APP_ID / ADZUNA_APP_KEY)')
@@ -196,6 +241,8 @@ async function fetchAdzunaJobs(keyword: string, location: string, limit = 20, co
   })
   if (keyword)  params.append('what', keyword)
   if (location) params.append('where', location)
+  if (salMin)   params.append('salary_min', String(salMin))
+  if (salMax)   params.append('salary_max', String(salMax))
 
   const url = `https://api.adzuna.com/v1/api/jobs/fr/search/1?${params}`
   console.log('[Adzuna] search url:', url.replace(appKey, '***'))
@@ -224,135 +271,134 @@ async function searchJobs(token: string, params: URLSearchParams) {
   })
 }
 
+// Recherche France Travail avec reprise automatique :
+// jeton expiré (401) → nouveau jeton ; erreur serveur (5xx) → 2 nouvelles tentatives.
+async function searchFT(params: URLSearchParams): Promise<Response> {
+  let token = await getToken()
+  let res = await searchJobs(token, params)
+
+  if (res.status === 401) {
+    console.log('[FT] 401 on search — refreshing token and retrying')
+    invalidateToken()
+    token = await getToken()
+    res = await searchJobs(token, params)
+  }
+
+  for (let attempt = 1; attempt <= 2 && res.status >= 500; attempt++) {
+    console.log(`[FT] ${res.status} — retry ${attempt}/2 in 500ms`)
+    await new Promise(r => setTimeout(r, 500))
+    res = await searchJobs(token, params)
+  }
+  return res
+}
+
+function buildFTParams(opts: {
+  range: string; motsCles: string; codeInsee: string | null; distance: string
+  departement: string; typeContrat: string; salMin: number | null
+}) {
+  const params = new URLSearchParams({ range: opts.range })
+  const commune = opts.codeInsee ? (COMMUNES_ARRONDISSEMENTS[opts.codeInsee] ?? opts.codeInsee) : null
+  if (opts.motsCles)              params.append('motsCles', opts.motsCles)
+  if (commune)                    params.append('commune', commune)
+  if (commune && opts.distance)   params.append('distance', opts.distance)
+  if (opts.departement)           params.append('departement', opts.departement)
+  // L'alternance n'est pas un typeContrat chez France Travail : elle passe par les mots-clés
+  if (opts.typeContrat && opts.typeContrat !== 'ALTERNANCE') params.append('typeContrat', opts.typeContrat)
+  // France Travail exige la période avec le salaire minimum (A = annuel, en euros)
+  if (opts.salMin) {
+    params.append('salaireMin', String(opts.salMin))
+    params.append('periodeSalaire', 'A')
+  }
+  return params
+}
+
+const NO_STORE = { 'Cache-Control': 'no-store' }
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const source       = searchParams.get('source') || 'francetravail'
-    const keyword      = searchParams.get('keyword') || searchParams.get('q') || ''
-    const location     = searchParams.get('location') || ''
-    const salMin       = searchParams.get('salMin') || ''
-    const salMax       = searchParams.get('salMax') || ''
+    const keyword      = (searchParams.get('keyword') || searchParams.get('q') || '').trim()
+    const location     = (searchParams.get('location') || '').trim()
+    const salMin       = parseSalary(searchParams.get('salMin') || '')
+    const salMax       = parseSalary(searchParams.get('salMax') || '')
     const departement  = searchParams.get('departement') || ''
     const distance     = searchParams.get('distance') || ''
     const typeContrat  = searchParams.get('typeContrat') || ''
 
-    const cacheKey = buildCacheKey(source, keyword, location, typeContrat, departement)
+    const isAlternance  = typeContrat === 'ALTERNANCE'
+    const motsCles      = isAlternance ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
+    const contractLabel = isAlternance ? 'Alternance' : undefined
+
+    const cacheKey = buildCacheKey(source, keyword, location, typeContrat, departement, distance, salMin, salMax)
     const cached = jobsCache.get(cacheKey)
     if (cached && Date.now() < cached.expiresAt) {
       console.log('[cache] HIT', cacheKey)
       return NextResponse.json({ jobs: cached.jobs }, { headers: CACHE_HEADERS })
     }
 
-    // ── Adzuna only ───────────────────────────────────────────────────────
-    if (source === 'adzuna') {
-      const azKeyword = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
-      const azContractLabel = typeContrat === 'ALTERNANCE' ? 'Alternance' : undefined
-      const jobs = await fetchAdzunaJobs(azKeyword, location, 20, azContractLabel)
+    // Réponse finale : contrôle du salaire sur les montants réels (France Travail ne gère
+    // pas le maximum et se trompe sur les salaires annuels saisis comme mensuels)
+    // et mise en cache, sauf si la recherche est incomplète (avertissement).
+    const respond = (rawJobs: any[], warning?: string) => {
+      const jobs = rawJobs.filter(j => {
+        // Offres sans salaire indiqué : conservées
+        if (j.salaryMin == null) return true
+        const top = j.salaryMax ?? j.salaryMin
+        if (salMin && top < salMin) return false        // payée moins que le minimum demandé
+        if (salMax && j.salaryMin > salMax) return false // payée plus que le maximum demandé
+        return true
+      })
+      if (warning) return NextResponse.json({ jobs, warning }, { headers: NO_STORE })
       jobsCache.set(cacheKey, { jobs, expiresAt: Date.now() + CACHE_TTL })
       return NextResponse.json({ jobs }, { headers: CACHE_HEADERS })
     }
 
+    // ── Adzuna seul ───────────────────────────────────────────────────────
+    if (source === 'adzuna') {
+      return respond(await fetchAdzunaJobs(motsCles, location, 20, contractLabel, salMin, salMax))
+    }
+
+    const codeInsee = location ? await resolveInseeCode(location) : null
+    console.log('[FT] location:', location || '(none)', '→ INSEE:', codeInsee ?? '(none)')
+    const villeWarning = location && !codeInsee
+      ? `La ville « ${location} » n’a pas été reconnue : les offres France Travail ne sont pas filtrées par ville.`
+      : undefined
+
     // ── Tout : FT (10) + Adzuna (10) en parallèle, tolérant aux pannes ───
     if (source === 'tout') {
-      const [codeInsee, token] = await Promise.all([
-        location ? resolveInseeCode(location) : Promise.resolve(null),
-        getToken(),
-      ])
-
-      const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
-
-      const ftParams = new URLSearchParams({ range: '0-9' })
-      const ftMotsCles = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
-      const azKeyword = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
-      const azContractLabel = typeContrat === 'ALTERNANCE' ? 'Alternance' : undefined
-
-      if (ftMotsCles)   ftParams.append('motsCles', ftMotsCles)
-      if (codePourFT)   ftParams.append('commune', codePourFT)
-      if (codePourFT && distance) ftParams.append('distance', distance)
-      if (departement)  ftParams.append('departement', departement)
-      if (typeContrat === 'ALTERNANCE') {
-        console.log('[FT ALTERNANCE] params envoyés:', ftParams.toString())
-      } else if (typeContrat) {
-        ftParams.append('typeContrat', typeContrat)
-      }
-      if (salMin)        ftParams.append('salaireMin', salMin)
-      if (salMax)        ftParams.append('salaireMax', salMax)
-
+      const ftParams = buildFTParams({ range: '0-9', motsCles, codeInsee, distance, departement, typeContrat, salMin })
       const [ftResult, azResult] = await Promise.allSettled([
         (async () => {
-          let tok = token
-          let r = await searchJobs(tok, ftParams)
-          if (r.status === 401) { invalidateToken(); tok = await getToken(); r = await searchJobs(tok, ftParams) }
+          const r = await searchFT(ftParams)
           if (!r.ok) {
             const body = await r.text()
             console.error('[FT tout] error', r.status, body.slice(0, 400))
             throw new Error(`FT ${r.status}`)
           }
-          const d = await r.json()
-          console.log('[FT tout] resultats:', d.resultats?.length ?? 0, '| totalCount:', d.totalCount)
+          const d = r.status === 204 ? {} : await r.json()
           return (d.resultats || []).map(mapJob)
         })(),
-        fetchAdzunaJobs(azKeyword, location, 10, azContractLabel),
+        fetchAdzunaJobs(motsCles, location, 10, contractLabel, salMin, salMax),
       ])
 
       const ftJobs = ftResult.status === 'fulfilled' ? ftResult.value : []
       const azJobs = azResult.status === 'fulfilled' ? azResult.value : []
-      if (ftResult.status === 'rejected') console.warn('[tout] FT failed:', (ftResult as PromiseRejectedResult).reason?.message)
-      if (azResult.status === 'rejected') console.warn('[tout] Adzuna failed:', (azResult as PromiseRejectedResult).reason?.message)
-
-      const jobs = [...ftJobs, ...azJobs]
-      jobsCache.set(cacheKey, { jobs, expiresAt: Date.now() + CACHE_TTL })
-      return NextResponse.json({ jobs }, { headers: CACHE_HEADERS })
-    }
-    // ─────────────────────────────────────────────────────────────────────
-
-    // Resolve INSEE code and fetch token in parallel to cut latency
-    const [codeInsee, token] = await Promise.all([
-      location ? resolveInseeCode(location) : Promise.resolve(null),
-      getToken(),
-    ])
-    console.log('[FT] location:', location || '(none)', '→ INSEE:', codeInsee ?? '(none)')
-
-    const codePourFT = codeInsee ? (COMMUNES_ARRONDISSEMENTS[codeInsee] ?? codeInsee) : null
-
-    const params = new URLSearchParams({ range: '0-19' })
-    const ftMotsCles = typeContrat === 'ALTERNANCE' ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
-
-    if (ftMotsCles)    params.append('motsCles', ftMotsCles)
-    if (codePourFT)    params.append('commune', codePourFT)
-    if (codePourFT && distance) params.append('distance', distance)
-    if (departement)   params.append('departement', departement)
-    if (typeContrat === 'ALTERNANCE') {
-      console.log('[FT ALTERNANCE] params envoyés:', params.toString())
-    } else if (typeContrat) {
-      params.append('typeContrat', typeContrat)
-    }
-    if (salMin)        params.append('salaireMin', salMin)
-    if (salMax)        params.append('salaireMax', salMax)
-
-    let currentToken = token
-    let res = await searchJobs(currentToken, params)
-    console.log('[FT] search status:', res.status)
-
-    // If 401, the cached token was externally invalidated — refresh once and retry
-    if (res.status === 401) {
-      console.log('[FT] 401 on search — refreshing token and retrying')
-      invalidateToken()
-      currentToken = await getToken()
-      res = await searchJobs(currentToken, params)
-      console.log('[FT] retry (401) status:', res.status)
-    }
-
-    // If 5XX, retry up to 2 times with 500ms delay before giving up
-    if (res.status >= 500) {
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        console.log(`[FT] ${res.status} — retry ${attempt}/2 in 500ms`)
-        await new Promise(r => setTimeout(r, 500))
-        res = await searchJobs(currentToken, params)
-        console.log(`[FT] retry ${attempt}/2 status:`, res.status)
-        if (res.status < 500) break
+      if (ftResult.status === 'rejected') console.warn('[tout] FT failed:', ftResult.reason?.message)
+      if (azResult.status === 'rejected') console.warn('[tout] Adzuna failed:', azResult.reason?.message)
+      if (ftResult.status === 'rejected' && azResult.status === 'rejected') {
+        return NextResponse.json({ error: 'Les services d’offres sont indisponibles. Réessayez dans un instant.' }, { status: 502 })
       }
+      // Une source en panne : on affiche l'autre, sans mettre ce résultat partiel en cache
+      const partial = ftResult.status === 'rejected' || azResult.status === 'rejected'
+      const warning = villeWarning ?? (partial ? 'Une des sources d’offres ne répond pas : résultats partiels.' : undefined)
+      return respond([...ftJobs, ...azJobs], warning)
     }
+
+    // ── France Travail seul ───────────────────────────────────────────────
+    const params = buildFTParams({ range: '0-19', motsCles, codeInsee, distance, departement, typeContrat, salMin })
+    const res = await searchFT(params)
+    console.log('[FT] search status:', res.status)
 
     if (!res.ok) {
       const body = await res.text()
@@ -361,26 +407,26 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Trop de requêtes — réessayez dans quelques secondes.' }, { status: 429 })
       }
       if (res.status === 400) {
-        return NextResponse.json({ error: 'Paramètres invalides.', detail: body.slice(0, 200) }, { status: 400 })
+        return NextResponse.json({ error: 'Paramètres de recherche invalides.' }, { status: 400 })
       }
-      return NextResponse.json({ error: `Search error ${res.status}` }, { status: 502 })
+      return NextResponse.json({ error: 'Le service France Travail ne répond pas. Réessayez dans un instant.' }, { status: 502 })
     }
 
     let data: any
     try {
-      data = await res.json()
+      data = res.status === 204 ? {} : await res.json()
     } catch {
       console.error('[FT] response JSON parse failed, status was', res.status)
-      return NextResponse.json({ error: 'Réponse API invalide.' }, { status: 502 })
+      return NextResponse.json({ error: 'Réponse invalide de France Travail.' }, { status: 502 })
     }
 
     const jobs = (data.resultats || []).map(mapJob)
     console.log('[FT] jobs returned:', jobs.length)
-    jobsCache.set(cacheKey, { jobs, expiresAt: Date.now() + CACHE_TTL })
-    return NextResponse.json({ jobs }, { headers: CACHE_HEADERS })
+    return respond(jobs, villeWarning)
 
-  } catch (err: any) {
-    console.error('[FT] FATAL:', err.message, err.stack?.split('\n')[1])
-    return NextResponse.json({ error: err.message ?? 'Erreur inconnue' }, { status: 500 })
+  } catch (err) {
+    const e = err as Error
+    console.error('[jobs] FATAL:', e.message, e.stack?.split('\n')[1])
+    return NextResponse.json({ error: 'Impossible de charger les offres. Réessayez dans un instant.' }, { status: 500 })
   }
 }

@@ -3,14 +3,21 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { sendWelcomeEmail } from '@/lib/email/welcome'
+import { safeNext, NEXT_COOKIE } from '@/lib/safe-next'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code  = searchParams.get('code')
-  const next  = searchParams.get('next') ?? '/dashboard'
+  const cookieStore = await cookies()
+
+  // Page de retour : ?next= ou cookie posé avant la connexion Google / l'inscription.
+  // Uniquement un chemin interne (empêche une redirection vers un autre site).
+  const rememberedNext = cookieStore.get(NEXT_COOKIE)?.value
+  let decoded: string | null = null
+  try { decoded = rememberedNext ? decodeURIComponent(rememberedNext) : null } catch { decoded = null }
+  const next = safeNext(searchParams.get('next') ?? decoded)
 
   if (code) {
-    const cookieStore = await cookies()
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,7 +50,9 @@ export async function GET(request: NextRequest) {
         // Email failure is non-blocking — inscription continues
       }
 
-      return NextResponse.redirect(`${origin}${next}`)
+      const response = NextResponse.redirect(`${origin}${next}`)
+      if (rememberedNext) response.cookies.delete(NEXT_COOKIE)
+      return response
     }
   }
 

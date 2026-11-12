@@ -2,16 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Le site est conçu uniquement en clair : on ne bascule pas les couleurs
+   quand le téléphone ou l'ordinateur est en mode sombre (sinon certains
+   textes deviennent blancs sur fond blanc). */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  color-scheme: light;
 }
 
 body {

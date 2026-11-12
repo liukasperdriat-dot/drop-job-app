@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { goToPremium } from '@/lib/premium-link'
+import { takePendingJob } from '@/lib/cv-link'
 
 type Template = 'classique' | 'moderne' | 'minimaliste'
 
@@ -86,14 +87,13 @@ function CVPageInner() {
   const router = useRouter()
   const params = useSearchParams()
 
-  const applyUrl = params.get('applyUrl') || ''
+  const [applyUrl, setApplyUrl] = useState(params.get('applyUrl') || '')
 
   const [jobTitle, setJobTitle]         = useState(params.get('title') || '')
   const [company, setCompany]           = useState(params.get('company') || '')
   const [jobDescription, setJobDescription] = useState(params.get('description') || '')
 
   const [profileData, setProfileData]   = useState<any>(null)
-  const [userProfile, setUserProfile]   = useState('')
 
   const [cv, setCv]             = useState<any>(null)
   const [loading, setLoading]   = useState(false)
@@ -128,14 +128,40 @@ function CVPageInner() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  // Offre choisie sur la liste : description et lien de candidature conservés
+  // dans le navigateur, puis candidature ajoutée au tableau de bord.
   useEffect(() => {
+    const pending = takePendingJob(params.get('title') || '', params.get('company') || '')
+    if (!pending) return
+    if (pending.description) setJobDescription(d => d || pending.description)
+    if (pending.applyUrl) setApplyUrl(u => u || pending.applyUrl)
+    if (pending.job_id) {
+      fetch('/api/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_id: pending.job_id, job_title: pending.title, company: pending.company,
+          location: pending.location, contract: pending.contract, salary: pending.salary,
+        }),
+      }).catch(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function loadProfile() {
+    setProfileState('loading')
     fetch('/api/profile')
-      .then(r => r.json())
-      .then(({ profile }) => {
+      .then(async r => {
+        if (!r.ok) throw new Error(String(r.status))
+        const { profile } = await r.json()
         if (profile) { setProfileData(profile); setPhotoUrl(profile.photo_url || null); setProfileState('loaded') }
         else setProfileState('empty')
       })
       .catch(() => setProfileState('error'))
+  }
+
+  useEffect(() => {
+    loadProfile()
 
     fetch('/api/me')
       .then(r => r.json())
@@ -148,17 +174,22 @@ function CVPageInner() {
 
   async function handleGenerate() {
     setLoading(true); setError(''); setCv(null); setLetter(null); setActiveTab('cv')
-    const res = await fetch('/api/generate-cv', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobTitle, company, jobDescription }),
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (data.error === 'QUOTA_EXCEEDED') { setShowUpsell(true); return }
-    if (data.error) { setError(data.error); return }
-    setCv(data.cv)
-    setCvCount(c => c + 1)
+    try {
+      const res = await fetch('/api/generate-cv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobTitle, company, jobDescription }),
+      })
+      const data = await res.json().catch(() => ({ error: 'La génération a pris trop de temps ou a échoué. Réessayez.' }))
+      if (data.error === 'QUOTA_EXCEEDED') { setShowUpsell(true); return }
+      if (data.error || !data.cv) { setError(data.error || 'La génération a échoué. Réessayez.'); return }
+      setCv(data.cv)
+      setCvCount(c => c + 1)
+    } catch {
+      setError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleDownloadPDF() {
@@ -182,33 +213,50 @@ function CVPageInner() {
     setPhotoUploading(true)
     const form = new FormData()
     form.append('photo', file)
-    const res = await fetch('/api/profile/photo', { method: 'POST', body: form })
-    const data = await res.json()
-    setPhotoUploading(false)
-    if (data.error) { setPhotoError(data.error); return }
-    setPhotoUrl(data.photo_url)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    try {
+      const res = await fetch('/api/profile/photo', { method: 'POST', body: form })
+      const data = await res.json().catch(() => ({ error: 'L’envoi de la photo a échoué.' }))
+      if (data.error) { setPhotoError(data.error); return }
+      setPhotoUrl(data.photo_url)
+    } catch {
+      setPhotoError('Connexion impossible. Réessayez.')
+    } finally {
+      setPhotoUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   async function handlePhotoDelete() {
     setPhotoUploading(true)
-    await fetch('/api/profile/photo', { method: 'DELETE' })
-    setPhotoUploading(false)
-    setPhotoUrl(null)
+    setPhotoError('')
+    try {
+      const res = await fetch('/api/profile/photo', { method: 'DELETE' })
+      if (!res.ok) { setPhotoError('La suppression a échoué. Réessayez.'); return }
+      setPhotoUrl(null)
+    } catch {
+      setPhotoError('Connexion impossible. Réessayez.')
+    } finally {
+      setPhotoUploading(false)
+    }
   }
 
   async function handleGenerateLetter() {
     setLetterLoading(true); setLetterError('')
-    const res = await fetch('/api/generate-cover-letter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobTitle, company, jobDescription }),
-    })
-    const data = await res.json()
-    setLetterLoading(false)
-    if (data.error) { setLetterError(data.message || data.error); return }
-    setLetter(data.letter)
-    setActiveTab('letter')
+    try {
+      const res = await fetch('/api/generate-cover-letter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobTitle, company, jobDescription }),
+      })
+      const data = await res.json().catch(() => ({ error: 'La génération a pris trop de temps ou a échoué. Réessayez.' }))
+      if (data.error || !data.letter) { setLetterError(data.message || data.error || 'La génération a échoué. Réessayez.'); return }
+      setLetter(data.letter)
+      setActiveTab('letter')
+    } catch {
+      setLetterError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
+    } finally {
+      setLetterLoading(false)
+    }
   }
 
   async function handleCopyLetter() {
@@ -232,8 +280,7 @@ function CVPageInner() {
   const canGenerate =
     !loading &&
     !!jobTitle && !!company && !!jobDescription &&
-    profileState !== 'empty' && profileState !== 'loading' &&
-    (profileState === 'loaded' || !!userProfile)
+    profileState === 'loaded'
 
   return (
     <div style={{ minHeight: '100vh', background: v.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", WebkitFontSmoothing: 'antialiased' as any }}>
@@ -383,7 +430,10 @@ function CVPageInner() {
 
             {profileState === 'error' && (
               <Field label="Votre profil">
-                <textarea value={userProfile} onChange={e => setUserProfile(e.target.value)} placeholder="Décrivez votre expérience, compétences, formation…" rows={5} style={textareaStyle} />
+                <div style={{ padding: '14px 16px', borderRadius: 10, border: '1px solid rgba(192,57,43,.2)', background: 'rgba(192,57,43,.04)', fontSize: 13, color: '#c0392b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <span>Impossible de charger votre profil.</span>
+                  <button onClick={loadProfile} style={{ padding: '6px 14px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>Réessayer</button>
+                </div>
               </Field>
             )}
 

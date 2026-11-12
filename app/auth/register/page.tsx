@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { nextFromLocation, rememberNext } from '@/lib/safe-next'
 
 export default function RegisterPage() {
   const [email, setEmail]       = useState('')
@@ -11,6 +12,8 @@ export default function RegisterPage() {
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
   const [cgAccepted, setCgAccepted] = useState(false)
+  const [next, setNext]         = useState('/dashboard')
+  useEffect(() => { setNext(nextFromLocation()) }, [])
 
   const supabase = createClient()
 
@@ -18,6 +21,7 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
+    rememberNext(next)
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -41,6 +45,7 @@ export default function RegisterPage() {
       setError('Veuillez accepter les CGU et la Politique de confidentialité pour continuer.')
       return
     }
+    rememberNext(next)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${location.origin}/auth/callback` },
@@ -125,7 +130,7 @@ export default function RegisterPage() {
 
         <p style={styles.footer}>
           Déjà un compte ?{' '}
-          <Link href="/auth/login" style={styles.link}>Se connecter</Link>
+          <Link href={next === '/dashboard' ? '/auth/login' : `/auth/login?next=${encodeURIComponent(next)}`} style={styles.link}>Se connecter</Link>
         </p>
       </div>
     </div>

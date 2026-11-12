@@ -5,6 +5,7 @@ import Link from 'next/link';
 import CompanyLogo from '@/components/CompanyLogo';
 import { createClient } from '@/lib/supabase/client';
 import { goToPremium } from '@/lib/premium-link';
+import { openCvForJob } from '@/lib/cv-link';
 
 const v = {
   bg: '#f5f5f7', bg2: '#e8e8ed', white: '#fff',
@@ -56,9 +57,7 @@ export default function HomePage() {
 
   // Envoie vers la vraie génération de CV pour cette offre
   // (un visiteur non connecté sera redirigé vers la connexion).
-  const goToCV = (job: any) => {
-    window.location.href = `/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description||'')}`;
-  };
+  const goToCV = (job: any) => openCvForJob(job);
 
   const pct = (val: number) => ((val - 20) / 100) * 100;
 

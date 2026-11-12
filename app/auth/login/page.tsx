@@ -1,15 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { nextFromLocation, rememberNext } from '@/lib/safe-next'
 
 export default function LoginPage() {
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+  // Page à rouvrir après la connexion (ex. la génération de CV d'une offre)
+  const [next, setNext]         = useState('/dashboard')
+  useEffect(() => { setNext(nextFromLocation()) }, [])
 
   const router   = useRouter()
   const supabase = createClient()
@@ -27,12 +31,13 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
+    router.push(next)
     router.refresh()
   }
 
   async function handleGoogle() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || location.origin
+    rememberNext(next)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${appUrl}/auth/callback` },
@@ -89,7 +94,7 @@ export default function LoginPage() {
 
         <p style={styles.footer}>
           Pas encore de compte ?{' '}
-          <Link href="/auth/register" style={styles.link}>Créer un compte</Link>
+          <Link href={next === '/dashboard' ? '/auth/register' : `/auth/register?next=${encodeURIComponent(next)}`} style={styles.link}>Créer un compte</Link>
         </p>
       </div>
     </div>

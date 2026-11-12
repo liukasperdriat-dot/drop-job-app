@@ -3,45 +3,44 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import CompanyLogo from '@/components/CompanyLogo'
+import { openCvForJob } from '@/lib/cv-link'
 
 export default function JobsSlugContent({ metier, ville }: { metier: string; ville: string }) {
   const [jobs, setJobs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
   const [selectedJob, setSelectedJob] = useState<any>(null)
   const router = useRouter()
 
   useEffect(() => {
     const params = new URLSearchParams({ keyword: metier, location: ville, source: 'tout' })
     fetch(`/api/jobs?${params}`)
-      .then(r => r.json())
-      .then(data => { setJobs(data.jobs || []); setLoading(false) })
-      .catch(() => setLoading(false))
+      .then(async r => {
+        const data = await r.json().catch(() => ({}))
+        if (!r.ok) setError(data.error || 'Impossible de charger les offres. Réessayez dans un instant.')
+        setJobs(data.jobs || [])
+        if (data.warning) setWarning(data.warning)
+      })
+      .catch(() => setError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.'))
+      .finally(() => setLoading(false))
   }, [metier, ville])
 
-  function getApplyUrl(job: any) {
-    const src = (job.source || '').toLowerCase()
-    if (src.includes('adzuna')) return job.redirect_url || job.url || ''
-    if (src.includes('francetravail') || src.includes('france travail'))
-      return `https://candidat.francetravail.fr/offres/recherche/detail/${job.id}`
-    return ''
-  }
-
-  async function handleCV(job: any) {
-    try {
-      await fetch('/api/applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: job.id, job_title: job.title, company: job.company, location: job.location, contract: job.contract, salary: job.salary }),
-      })
-    } catch {}
-    const applyUrl = getApplyUrl(job)
-    router.push(`/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description || '')}${applyUrl ? `&applyUrl=${encodeURIComponent(applyUrl)}` : ''}`)
+  function handleCV(job: any) {
+    openCvForJob(job, url => router.push(url))
   }
 
   if (loading) return (
     <div style={{ textAlign: 'center', padding: '80px 0', color: '#6e6e73' }}>
       <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid #e8e8ed', borderTopColor: '#0071e3', animation: 'spin .7s linear infinite', margin: '0 auto 16px' }} />
       <div style={{ fontSize: 14 }}>Recherche en cours…</div>
+    </div>
+  )
+
+  if (error) return (
+    <div style={{ textAlign: 'center', padding: '80px 0' }}>
+      <div style={{ fontSize: 15, fontWeight: 500, color: '#c0392b', marginBottom: 14 }}>{error}</div>
+      <button onClick={() => window.location.reload()} style={{ padding: '10px 24px', borderRadius: 100, background: '#0071e3', color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Réessayer</button>
     </div>
   )
 
@@ -55,6 +54,11 @@ export default function JobsSlugContent({ metier, ville }: { metier: string; vil
 
   return (
     <>
+      {warning && (
+        <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(180,83,9,.06)', border: '1px solid rgba(180,83,9,.18)', fontSize: 13, color: '#b45309' }}>
+          {warning}
+        </div>
+      )}
       <div style={{ textAlign: 'right', fontSize: 13, color: '#aeaeb2', marginBottom: 16 }}>
         {jobs.length} offre{jobs.length > 1 ? 's' : ''}
       </div>

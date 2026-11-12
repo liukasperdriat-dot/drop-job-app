@@ -1,10 +1,11 @@
 'use client'
 
 import { Suspense } from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import CompanyLogo from '@/components/CompanyLogo'
+import { openCvForJob } from '@/lib/cv-link'
 
 const v = {
   bg: '#f5f5f7', bg2: '#e8e8ed', white: '#fff',
@@ -82,6 +83,10 @@ function JobsPageContent() {
   const [distance, setDistance]         = useState(50)
   const [source, setSource]             = useState<'tout' | 'francetravail' | 'adzuna'>('tout')
   const [typeContrat, setTypeContrat]   = useState('')
+  const [error, setError]               = useState('')
+  const [warning, setWarning]           = useState('')
+  const [salaryFilter, setSalaryFilter] = useState<{ min: string; max: string } | null>(null)
+  const requestId = useRef(0)
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -124,36 +129,54 @@ function JobsPageContent() {
     dist    = distance,
     src     = source,
     contrat = typeContrat,
+    salary  = salaryFilter,
   ) {
+    // Seule la dernière recherche lancée a le droit d'afficher ses résultats
+    const id = ++requestId.current
     setLoading(true)
     setJobs([])
+    setError('')
+    setWarning('')
     const params = new URLSearchParams({ keyword: kw, location: loc, source: src })
     if (contrat) params.append('typeContrat', contrat)
     if (src !== 'adzuna') {
       params.append('distance', String(dist))
       if (dept) params.append('departement', dept)
-      const salMin = searchParams.get('salaireMin')
-      const salMax = searchParams.get('salaireMax')
-      if (salMin) params.append('salMin', salMin)
-      if (salMax) params.append('salMax', salMax)
     }
-    const res  = await fetch(`/api/jobs?${params}`)
-    const data = await res.json()
-    setJobs(data.jobs || [])
-    setLoading(false)
+    if (salary?.min) params.append('salMin', salary.min)
+    if (salary?.max) params.append('salMax', salary.max)
+    try {
+      const res  = await fetch(`/api/jobs?${params}`)
+      const data = await res.json().catch(() => ({}))
+      if (id !== requestId.current) return
+      if (!res.ok) setError(data.error || 'Impossible de charger les offres. Réessayez dans un instant.')
+      setJobs(data.jobs || [])
+      if (data.warning) setWarning(data.warning)
+    } catch {
+      if (id === requestId.current) setError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
+    } finally {
+      if (id === requestId.current) setLoading(false)
+    }
   }
 
+  // Première recherche, à partir des paramètres venus de l'accueil
   useEffect(() => {
     const q   = searchParams.get('q') || ''
     const loc = searchParams.get('location') || ''
-    if (q || loc) {
-      if (q)   setKeyword(q)
-      if (loc) setLocation(loc)
-      searchJobs(q, loc, departement, distance, source, typeContrat)
-    } else {
-      searchJobs()
-    }
+    const min = searchParams.get('salaireMin') || ''
+    const max = searchParams.get('salaireMax') || ''
+    const salary = min || max ? { min, max } : null
+    if (q)      setKeyword(q)
+    if (loc)    setLocation(loc)
+    if (salary) setSalaryFilter(salary)
+    searchJobs(q, loc, departement, distance, source, typeContrat, salary)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function clearSalaryFilter() {
+    setSalaryFilter(null)
+    searchJobs(keyword, location, departement, distance, source, typeContrat, null)
+  }
 
   function handleSourceChange(src: 'tout' | 'francetravail' | 'adzuna') {
     setSource(src)
@@ -186,34 +209,8 @@ function JobsPageContent() {
     searchJobs(keyword, location, departement, distance, source, val)
   }
 
-  function getApplyUrl(job: any): string {
-    const src = (job.source || '').toLowerCase()
-    if (src.includes('adzuna')) return job.redirect_url || job.url || ''
-    if (src.includes('francetravail') || src.includes('france travail')) {
-      return `https://candidat.francetravail.fr/offres/recherche/detail/${job.id}`
-    }
-    return ''
-  }
-
-  async function handleCVWithSave(job: any) {
-    try {
-      await fetch('/api/applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          job_id: job.id,
-          job_title: job.title,
-          company: job.company,
-          location: job.location,
-          contract: job.contract,
-          salary: job.salary,
-        }),
-      })
-    } catch {
-      // Ne pas bloquer la navigation si la sauvegarde échoue
-    }
-    const applyUrl = getApplyUrl(job)
-    router.push(`/cv?title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&description=${encodeURIComponent(job.description || '')}${applyUrl ? `&applyUrl=${encodeURIComponent(applyUrl)}` : ''}`)
+  function handleCVWithSave(job: any) {
+    openCvForJob(job, url => router.push(url))
   }
 
   return (
@@ -495,6 +492,31 @@ function JobsPageContent() {
         )}
 
 
+        {/* Filtre salaire venu de l'accueil */}
+        {salaryFilter && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 8px 6px 14px', borderRadius: 100, background: 'rgba(0,113,227,.07)', border: '1px solid rgba(0,113,227,.18)', fontSize: 13, color: v.blue, fontWeight: 500 }}>
+              Salaire{salaryFilter.min ? ` dès ${Math.round(+salaryFilter.min / 1000)} k€` : ''}{salaryFilter.max ? ` jusqu’à ${Math.round(+salaryFilter.max / 1000)} k€` : ''} / an
+              <button onClick={clearSalaryFilter} aria-label="Retirer le filtre salaire" style={{ width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,113,227,.12)', color: v.blue, cursor: 'pointer', fontSize: 12, lineHeight: 1, fontFamily: 'inherit' }}>✕</button>
+            </span>
+          </div>
+        )}
+
+        {/* Avertissement (ville non reconnue, source en panne) */}
+        {!loading && warning && (
+          <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(180,83,9,.06)', border: '1px solid rgba(180,83,9,.18)', fontSize: 13, color: '#b45309' }}>
+            {warning}
+          </div>
+        )}
+
+        {/* Erreur */}
+        {!loading && error && (
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: '#c0392b', marginBottom: 14 }}>{error}</div>
+            <button onClick={handleSearch} style={{ padding: '10px 24px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Réessayer</button>
+          </div>
+        )}
+
         {/* Loading */}
         {loading && (
           <div style={{ textAlign: 'center', padding: '80px 0', color: v.text2 }}>
@@ -504,7 +526,7 @@ function JobsPageContent() {
         )}
 
         {/* Empty */}
-        {!loading && jobs.length === 0 && (
+        {!loading && !error && jobs.length === 0 && (
           <div style={{ textAlign: 'center', padding: '80px 0' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
             <div style={{ fontSize: 16, fontWeight: 500, color: v.text, marginBottom: 6 }}>Aucune offre trouvée</div>
