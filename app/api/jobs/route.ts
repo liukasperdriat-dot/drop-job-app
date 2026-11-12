@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { NIVEAUX } from '@/lib/niveaux'
+import { DEPARTEMENTS } from '@/lib/departements'
 
 export const dynamic = 'force-dynamic'
 
@@ -246,7 +247,13 @@ function mapJob(j: any) {
 // ── Adzuna ────────────────────────────────────────────────────────────────
 
 const ADZUNA_CONTRACT: Record<string, string> = {
-  permanent: 'CDI', contract: 'CDD', part_time: 'Temps partiel', temporary: 'Intérim',
+  permanent: 'CDI', contract: 'CDD', temporary: 'Intérim',
+}
+
+// Comparaison de noms sans accents ni majuscules (« Hérault » = « herault »)
+function sameName(a: string, b: string): boolean {
+  const n = (x: string) => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+  return n(a) === n(b)
 }
 
 function mapAdzunaJob(j: any) {
@@ -256,7 +263,9 @@ function mapAdzunaJob(j: any) {
     title:       toTitleCase(j.title || ''),
     company:     j.company?.display_name || 'Entreprise non précisée',
     location:    j.location?.display_name || '',
-    contract:    ADZUNA_CONTRACT[j.contract_type?.toLowerCase()] || 'CDI',
+    departementName: j.location?.area?.[2] ?? null,
+    // Contrat inconnu : rien n'est affiché (et surtout pas « CDI » par défaut)
+    contract:    ADZUNA_CONTRACT[j.contract_type?.toLowerCase()] || (j.contract_time === 'part_time' ? 'Temps partiel' : ''),
     salary,
     salaryMin:   j.salary_min || null,
     salaryMax:   j.salary_max || null,
@@ -271,7 +280,19 @@ function mapAdzunaJob(j: any) {
   }
 }
 
-async function fetchAdzunaJobs(keyword: string, location: string, limit = 20, contractLabel?: string, salMin?: number | null, salMax?: number | null): Promise<any[]> {
+type AdzunaOptions = {
+  keyword: string
+  location: string
+  limit: number
+  contractLabel?: string            // « Alternance » : étiquette imposée
+  salMin?: number | null
+  salMax?: number | null
+  departementName?: string | null   // ex. « Gironde » : seules les offres de ce département
+  contrat?: 'CDI' | 'CDD' | null    // seuls types de contrat filtrables chez Adzuna
+  distance?: string
+}
+
+async function fetchAdzunaJobs(o: AdzunaOptions): Promise<any[]> {
   const appId  = process.env.ADZUNA_APP_ID
   const appKey = process.env.ADZUNA_APP_KEY
   if (!appId || !appKey) throw new Error('Adzuna credentials manquants (ADZUNA_APP_ID / ADZUNA_APP_KEY)')
@@ -279,12 +300,17 @@ async function fetchAdzunaJobs(keyword: string, location: string, limit = 20, co
   const params = new URLSearchParams({
     app_id:           appId,
     app_key:          appKey,
-    results_per_page: String(limit),
+    // Avec un département, on en demande plus pour garder assez d'offres après le tri
+    results_per_page: String(o.departementName ? 50 : o.limit),
   })
-  if (keyword)  params.append('what', keyword)
-  if (location) params.append('where', location)
-  if (salMin)   params.append('salary_min', String(salMin))
-  if (salMax)   params.append('salary_max', String(salMax))
+  const where = o.location || o.departementName || ''
+  if (o.keyword) params.append('what', o.keyword)
+  if (where)     params.append('where', where)
+  if (o.location && o.distance) params.append('distance', o.distance)
+  if (o.salMin)  params.append('salary_min', String(o.salMin))
+  if (o.salMax)  params.append('salary_max', String(o.salMax))
+  if (o.contrat === 'CDI') params.append('permanent', '1')
+  if (o.contrat === 'CDD') params.append('contract', '1')
 
   const url = `https://api.adzuna.com/v1/api/jobs/fr/search/1?${params}`
   console.log('[Adzuna] search url:', url.replace(appKey, '***'))
@@ -296,8 +322,16 @@ async function fetchAdzunaJobs(keyword: string, location: string, limit = 20, co
     throw new Error(`Adzuna HTTP ${res.status}: ${body.slice(0, 200)}`)
   }
   const data = await res.json()
-  let jobs = (data.results || []).map(mapAdzunaJob)
-  if (contractLabel) jobs = jobs.map((j: any) => ({ ...j, contract: contractLabel }))
+  let results: any[] = data.results || []
+  // Département : Adzuna situe chaque offre (France › Région › Département › …)
+  if (o.departementName) {
+    results = results.filter(r => {
+      const area: string[] = r.location?.area || []
+      return area.length > 2 && sameName(area[2], o.departementName!)
+    })
+  }
+  let jobs = results.slice(0, o.limit).map(mapAdzunaJob)
+  if (o.contractLabel) jobs = jobs.map((j: any) => ({ ...j, contract: o.contractLabel }))
   console.log('[Adzuna] jobs returned:', jobs.length)
   return jobs
 }
@@ -343,7 +377,9 @@ function buildFTParams(opts: {
   if (opts.motsCles)              params.append('motsCles', opts.motsCles)
   if (commune)                    params.append('commune', commune)
   if (commune && opts.distance)   params.append('distance', opts.distance)
-  if (opts.departement)           params.append('departement', opts.departement)
+  // France Travail n'accepte qu'un seul critère géographique : avec une ville, le
+  // département est appliqué ensuite sur les résultats (voir inDepartement)
+  if (opts.departement && !commune) params.append('departement', opts.departement)
   // L'alternance n'est pas un typeContrat chez France Travail : elle passe par les mots-clés
   if (opts.typeContrat && opts.typeContrat !== 'ALTERNANCE') params.append('typeContrat', opts.typeContrat)
   // France Travail exige la période avec le salaire minimum (A = annuel, en euros)
@@ -381,9 +417,25 @@ export async function GET(request: Request) {
     // « Jusqu'à mon niveau » : on retire les offres qui EXIGENT un diplôme plus élevé.
     // Les offres sans diplôme indiqué ou avec un diplôme seulement souhaité restent.
     const fitsLevel = (j: any) => niveau === null || j.diplomaRequiredRank == null || j.diplomaRequiredRank <= niveau
+    // Département (offres France Travail, lieu au format « 33 - BORDEAUX »)
+    const inDepartement = (j: any) => !departement || String(j.location || '').startsWith(`${departement} `)
     // Avec ce filtre, on demande plus d'offres à France Travail pour en garder assez
     const ftRange = (n: number) => `0-${(niveau === null ? n : n * 2) - 1}`
-    const DEBUTANT_NOTE = 'Filtre « Débutant accepté » : seules les offres France Travail sont affichées, Adzuna n’indiquant pas l’expérience demandée.'
+    const departementName = DEPARTEMENTS.find(d => d.code === departement)?.name ?? null
+    // Adzuna ne sait filtrer que CDI et CDD ; l'alternance passe par les mots-clés
+    const adzunaContrat = typeContrat === 'CDI' || typeContrat === 'CDD' ? typeContrat : null
+    const adzunaContratImpossible = !!typeContrat && typeContrat !== 'ALTERNANCE' && !adzunaContrat
+    // Adzuna est écarté quand il ne peut pas respecter un filtre demandé
+    const skipAdzuna = debutant || adzunaContratImpossible
+    const adzunaNote = debutant
+      ? 'Filtre « Débutant accepté » : seules les offres France Travail sont affichées, Adzuna n’indiquant pas l’expérience demandée.'
+      : adzunaContratImpossible
+        ? 'Ce type de contrat n’existe pas chez Adzuna : seules les offres France Travail sont affichées.'
+        : undefined
+    const adzunaOptions = (limit: number): AdzunaOptions => ({
+      keyword: motsCles, location, limit, contractLabel, salMin, salMax,
+      departementName, contrat: adzunaContrat, distance,
+    })
     const cached = jobsCache.get(cacheKey)
     if (cached && Date.now() < cached.expiresAt) {
       console.log('[cache] HIT', cacheKey)
@@ -409,8 +461,8 @@ export async function GET(request: Request) {
 
     // ── Adzuna seul ───────────────────────────────────────────────────────
     if (source === 'adzuna') {
-      if (debutant) return respond([], undefined, DEBUTANT_NOTE)
-      return respond(await fetchAdzunaJobs(motsCles, location, 20, contractLabel, salMin, salMax))
+      if (skipAdzuna) return respond([], undefined, adzunaNote)
+      return respond(await fetchAdzunaJobs(adzunaOptions(20)))
     }
 
     const codeInsee = location ? await resolveInseeCode(location) : null
@@ -421,8 +473,8 @@ export async function GET(request: Request) {
 
     // ── Tout : FT (10) + Adzuna (10) en parallèle, tolérant aux pannes ───
     if (source === 'tout') {
-      // Débutant accepté : Adzuna n'a pas l'information, France Travail fournit les 20 offres
-      const ftCount = debutant ? 20 : 10
+      // Adzuna écarté (débutant, contrat non géré) : France Travail fournit les 20 offres
+      const ftCount = skipAdzuna ? 20 : 10
       const ftParams = buildFTParams({ range: ftRange(ftCount), motsCles, codeInsee, distance, departement, typeContrat, salMin, debutant })
       const [ftResult, azResult] = await Promise.allSettled([
         (async () => {
@@ -433,9 +485,9 @@ export async function GET(request: Request) {
             throw new Error(`FT ${r.status}`)
           }
           const d = r.status === 204 ? {} : await r.json()
-          return (d.resultats || []).map(mapJob).filter(fitsLevel).slice(0, ftCount)
+          return (d.resultats || []).map(mapJob).filter(fitsLevel).filter(inDepartement).slice(0, ftCount)
         })(),
-        debutant ? Promise.resolve([]) : fetchAdzunaJobs(motsCles, location, 10, contractLabel, salMin, salMax),
+        skipAdzuna ? Promise.resolve([]) : fetchAdzunaJobs(adzunaOptions(10)),
       ])
 
       const ftJobs = ftResult.status === 'fulfilled' ? ftResult.value : []
@@ -448,7 +500,7 @@ export async function GET(request: Request) {
       // Une source en panne : on affiche l'autre, sans mettre ce résultat partiel en cache
       const partial = ftResult.status === 'rejected' || azResult.status === 'rejected'
       const warning = villeWarning ?? (partial ? 'Une des sources d’offres ne répond pas : résultats partiels.' : undefined)
-      return respond([...ftJobs, ...azJobs], warning, debutant ? DEBUTANT_NOTE : undefined)
+      return respond([...ftJobs, ...azJobs], warning, adzunaNote)
     }
 
     // ── France Travail seul ───────────────────────────────────────────────
@@ -476,7 +528,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Réponse invalide de France Travail.' }, { status: 502 })
     }
 
-    const jobs = (data.resultats || []).map(mapJob).filter(fitsLevel).slice(0, 20)
+    const jobs = (data.resultats || []).map(mapJob).filter(fitsLevel).filter(inDepartement).slice(0, 20)
     console.log('[FT] jobs returned:', jobs.length)
     return respond(jobs, villeWarning)
 
