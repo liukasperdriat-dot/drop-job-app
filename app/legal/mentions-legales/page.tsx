@@ -3,6 +3,7 @@ import Link from 'next/link';
 export const metadata = {
   title: 'Mentions Légales — Drop-Job',
   description: 'Mentions légales de la plateforme Drop-Job, conformément à la loi LCEN du 21 juin 2004.',
+  alternates: { canonical: '/legal/mentions-legales' },
 };
 
 const s = {

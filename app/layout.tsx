@@ -11,10 +11,10 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  // Pas de canonical ici : il serait hérité par toutes les pages et les
+  // désignerait toutes comme des copies de l'accueil. Chaque page publique
+  // déclare le sien (offres, pages légales).
   metadataBase: new URL('https://www.drop-job.fr'),
-  alternates: {
-    canonical: '/',
-  },
   title: "Drop-Job — Postulez. C'est fait.",
   description:
     "Trouvez votre emploi idéal avec Drop-Job. Offres France Travail et Adzuna réunies. L'IA génère votre CV adapté pour chaque offre en un clic.",

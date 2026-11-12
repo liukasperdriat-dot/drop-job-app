@@ -440,8 +440,7 @@ export default function HomePage() {
             <a href="/legal/mentions-legales" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>Mentions légales</a>
             <a href="/legal/confidentialite" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>Confidentialité</a>
             <a href="/legal/cgu" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>CGU</a>
-            <a href="#" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>Blog</a>
-            <a href="#" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>API</a>
+            <a href="/jobs" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>Offres d&apos;emploi</a>
           </div>
           <div style={{ fontSize:12, color:v.text3 }}>© 2026 Drop-Job</div>
         </div>

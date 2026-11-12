@@ -3,6 +3,7 @@ import Link from 'next/link';
 export const metadata = {
   title: 'Politique de Confidentialité — Drop-Job',
   description: 'Politique de confidentialité et traitement des données personnelles de Drop-Job, conforme au RGPD.',
+  alternates: { canonical: '/legal/confidentialite' },
 };
 
 const s = {

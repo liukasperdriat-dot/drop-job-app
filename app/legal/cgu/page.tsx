@@ -3,6 +3,7 @@ import Link from 'next/link';
 export const metadata = {
   title: 'Conditions Générales d\'Utilisation — Drop-Job',
   description: 'Conditions générales d\'utilisation de la plateforme Drop-Job.',
+  alternates: { canonical: '/legal/cgu' },
 };
 
 const s = {

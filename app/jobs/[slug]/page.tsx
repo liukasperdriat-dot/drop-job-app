@@ -57,6 +57,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return {
     title: `Offres d'emploi ${metierLabel} à ${villeLabel} | Drop-Job`,
     description: `Trouvez les meilleures offres d'emploi ${metierLabel} à ${villeLabel}. Postulez aux offres France Travail et Adzuna. Générez votre CV adapté gratuitement avec Drop-Job.`,
+    alternates: { canonical: `/jobs/${params.slug}` },
   }
 }
 

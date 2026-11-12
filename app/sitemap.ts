@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next'
 
-const BASE = 'https://drop-job.fr'
+// Même domaine que le site (drop-job.fr redirige vers www)
+const BASE = 'https://www.drop-job.fr'
 
 const METIERS = ['developpeur', 'commercial', 'marketing', 'comptable', 'infirmier', 'chauffeur', 'vendeur', 'assistant', 'ingenieur', 'alternance']
 const VILLES  = ['paris', 'lyon', 'marseille', 'toulouse', 'bordeaux', 'nantes', 'strasbourg', 'lille', 'rennes', 'montpellier']

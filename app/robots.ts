@@ -5,7 +5,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
+      // Pages privées (compte connecté) et API : rien à indexer
+      disallow: ['/api/', '/auth/', '/dashboard', '/profile', '/cv', '/offline'],
     },
-    sitemap: 'https://drop-job.fr/sitemap.xml',
+    sitemap: 'https://www.drop-job.fr/sitemap.xml',
   }
 }
