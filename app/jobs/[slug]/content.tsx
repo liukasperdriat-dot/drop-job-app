@@ -93,7 +93,7 @@ export default function JobsSlugContent({ metier, ville }: { metier: string; vil
             </div>
 
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 20 }}>
-              {[selectedJob.contract, selectedJob.remote, selectedJob.source].filter(Boolean).map((t: string) => (
+              {[selectedJob.contract, selectedJob.remote, selectedJob.debutant ? 'Débutant accepté' : '', selectedJob.diploma || 'Diplôme non précisé', selectedJob.source].filter(Boolean).map((t: string) => (
                 <span key={t} style={{ padding: '3px 9px', borderRadius: 100, fontSize: 11, background: '#f5f5f7', border: '1px solid rgba(0,0,0,.08)', color: '#6e6e73' }}>{t}</span>
               ))}
             </div>
@@ -141,7 +141,7 @@ function JobCard({ job, onOpen, onCV }: { job: any; onOpen: () => void; onCV: ()
       <div style={{ fontSize: 13, color: '#6e6e73', marginBottom: 12 }}>{job.company} · {job.location}</div>
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 14 }}>
-        {[job.contract, job.remote].filter(Boolean).map((t: string) => (
+        {[job.contract, job.remote, job.debutant ? 'Débutant accepté' : '', job.diploma].filter(Boolean).map((t: string) => (
           <span key={t} style={{ padding: '3px 9px', borderRadius: 100, fontSize: 11, background: '#f5f5f7', border: '1px solid rgba(0,0,0,.08)', color: '#6e6e73' }}>{t}</span>
         ))}
       </div>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { NIVEAUX } from '@/lib/niveaux'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,7 +70,7 @@ function invalidateToken() {
 // ── Jobs results cache (5 min TTL) ───────────────────────────────────────
 const CACHE_TTL    = 300_000
 const CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' }
-const jobsCache    = new Map<string, { jobs: any[]; expiresAt: number }>()
+const jobsCache    = new Map<string, { jobs: any[]; note?: string; expiresAt: number }>()
 
 // Tous les paramètres qui changent les résultats doivent faire partie de la clé
 function buildCacheKey(...parts: (string | number | null)[]) {
@@ -190,9 +191,43 @@ function formatSalaryRange(min: number | null, max: number | null): string {
   return 'Salaire NC'
 }
 
+// ── Niveau de diplôme ──────────────────────────────────────────────────────
+// Échelle commune au filtre et aux badges : 0 sans diplôme … 5 Bac+5 et plus (lib/niveaux.ts)
+
+function niveauRank(libelle: string | undefined): number | null {
+  const l = (libelle || '').toLowerCase()
+  if (!l) return null
+  if (l.includes('bac+5')) return 5
+  if (l.includes('bac+3') || l.includes('bac+4')) return 4
+  if (l.includes('bac+2')) return 3
+  if (l.includes('cap') || l.includes('bep')) return 1
+  if (l.includes('aucune')) return 0
+  if (l.includes('bac')) return 2
+  return null
+}
+
+// Résume les formations d'une offre France Travail :
+// - niveau exigé le plus élevé (sert au filtre « jusqu'à mon niveau »)
+// - libellé court pour le badge (« Bac+2 exigé », « CAP / BEP souhaité »)
+function summarizeDiploma(formations: any[] | undefined) {
+  const list = (formations || [])
+    .map(f => ({ rank: niveauRank(f.niveauLibelle), required: f.exigence === 'E' }))
+    .filter((f): f is { rank: number; required: boolean } => f.rank !== null)
+  if (!list.length) return { diplomaRequiredRank: null, diploma: null }
+  const required = list.filter(f => f.required)
+  if (required.length) {
+    const rank = Math.max(...required.map(f => f.rank))
+    return { diplomaRequiredRank: rank, diploma: `${NIVEAUX[rank]} exigé` }
+  }
+  const rank = Math.min(...list.map(f => f.rank))
+  return { diplomaRequiredRank: null, diploma: `${NIVEAUX[rank]} souhaité` }
+}
+
 function mapJob(j: any) {
   const sal = parseSalaireFT(j.salaire?.libelle || '')
   return {
+    ...summarizeDiploma(j.formations),
+    debutant:    j.experienceExige === 'D',
     id:          j.id,
     title:       toTitleCase(j.intitule),
     company:     j.entreprise?.nom || 'Entreprise non précisée',
@@ -225,6 +260,10 @@ function mapAdzunaJob(j: any) {
     salary,
     salaryMin:   j.salary_min || null,
     salaryMax:   j.salary_max || null,
+    // Adzuna ne fournit ni le diplôme ni l'expérience demandés
+    diploma:     null,
+    diplomaRequiredRank: null,
+    debutant:    null,
     description: j.description || '',
     url:         j.redirect_url || '',
     source:      'Adzuna',
@@ -297,7 +336,7 @@ async function searchFT(params: URLSearchParams): Promise<Response> {
 
 function buildFTParams(opts: {
   range: string; motsCles: string; codeInsee: string | null; distance: string
-  departement: string; typeContrat: string; salMin: number | null
+  departement: string; typeContrat: string; salMin: number | null; debutant: boolean
 }) {
   const params = new URLSearchParams({ range: opts.range })
   const commune = opts.codeInsee ? (COMMUNES_ARRONDISSEMENTS[opts.codeInsee] ?? opts.codeInsee) : null
@@ -312,6 +351,7 @@ function buildFTParams(opts: {
     params.append('salaireMin', String(opts.salMin))
     params.append('periodeSalaire', 'A')
   }
+  if (opts.debutant) params.append('experienceExigence', 'D') // « Débutant accepté »
   return params
 }
 
@@ -328,22 +368,32 @@ export async function GET(request: Request) {
     const departement  = searchParams.get('departement') || ''
     const distance     = searchParams.get('distance') || ''
     const typeContrat  = searchParams.get('typeContrat') || ''
+    const niveauParam  = parseInt(searchParams.get('niveau') || '', 10)
+    const niveau       = niveauParam >= 0 && niveauParam <= 5 ? niveauParam : null
+    const debutant     = searchParams.get('debutant') === '1'
 
     const isAlternance  = typeContrat === 'ALTERNANCE'
     const motsCles      = isAlternance ? [keyword, 'alternance'].filter(Boolean).join(' ') : keyword
     const contractLabel = isAlternance ? 'Alternance' : undefined
 
-    const cacheKey = buildCacheKey(source, keyword, location, typeContrat, departement, distance, salMin, salMax)
+    const cacheKey = buildCacheKey(source, keyword, location, typeContrat, departement, distance, salMin, salMax, niveau, debutant ? 1 : 0)
+
+    // « Jusqu'à mon niveau » : on retire les offres qui EXIGENT un diplôme plus élevé.
+    // Les offres sans diplôme indiqué ou avec un diplôme seulement souhaité restent.
+    const fitsLevel = (j: any) => niveau === null || j.diplomaRequiredRank == null || j.diplomaRequiredRank <= niveau
+    // Avec ce filtre, on demande plus d'offres à France Travail pour en garder assez
+    const ftRange = (n: number) => `0-${(niveau === null ? n : n * 2) - 1}`
+    const DEBUTANT_NOTE = 'Filtre « Débutant accepté » : seules les offres France Travail sont affichées, Adzuna n’indiquant pas l’expérience demandée.'
     const cached = jobsCache.get(cacheKey)
     if (cached && Date.now() < cached.expiresAt) {
       console.log('[cache] HIT', cacheKey)
-      return NextResponse.json({ jobs: cached.jobs }, { headers: CACHE_HEADERS })
+      return NextResponse.json(cached.note ? { jobs: cached.jobs, note: cached.note } : { jobs: cached.jobs }, { headers: CACHE_HEADERS })
     }
 
     // Réponse finale : contrôle du salaire sur les montants réels (France Travail ne gère
     // pas le maximum et se trompe sur les salaires annuels saisis comme mensuels)
     // et mise en cache, sauf si la recherche est incomplète (avertissement).
-    const respond = (rawJobs: any[], warning?: string) => {
+    const respond = (rawJobs: any[], warning?: string, note?: string) => {
       const jobs = rawJobs.filter(j => {
         // Offres sans salaire indiqué : retirées seulement si un filtre salaire est demandé
         if (j.salaryMin == null) return !salMin && !salMax
@@ -352,13 +402,14 @@ export async function GET(request: Request) {
         if (salMax && j.salaryMin > salMax) return false // payée plus que le maximum demandé
         return true
       })
-      if (warning) return NextResponse.json({ jobs, warning }, { headers: NO_STORE })
-      jobsCache.set(cacheKey, { jobs, expiresAt: Date.now() + CACHE_TTL })
-      return NextResponse.json({ jobs }, { headers: CACHE_HEADERS })
+      if (warning) return NextResponse.json(note ? { jobs, warning, note } : { jobs, warning }, { headers: NO_STORE })
+      jobsCache.set(cacheKey, { jobs, note, expiresAt: Date.now() + CACHE_TTL })
+      return NextResponse.json(note ? { jobs, note } : { jobs }, { headers: CACHE_HEADERS })
     }
 
     // ── Adzuna seul ───────────────────────────────────────────────────────
     if (source === 'adzuna') {
+      if (debutant) return respond([], undefined, DEBUTANT_NOTE)
       return respond(await fetchAdzunaJobs(motsCles, location, 20, contractLabel, salMin, salMax))
     }
 
@@ -370,7 +421,9 @@ export async function GET(request: Request) {
 
     // ── Tout : FT (10) + Adzuna (10) en parallèle, tolérant aux pannes ───
     if (source === 'tout') {
-      const ftParams = buildFTParams({ range: '0-9', motsCles, codeInsee, distance, departement, typeContrat, salMin })
+      // Débutant accepté : Adzuna n'a pas l'information, France Travail fournit les 20 offres
+      const ftCount = debutant ? 20 : 10
+      const ftParams = buildFTParams({ range: ftRange(ftCount), motsCles, codeInsee, distance, departement, typeContrat, salMin, debutant })
       const [ftResult, azResult] = await Promise.allSettled([
         (async () => {
           const r = await searchFT(ftParams)
@@ -380,9 +433,9 @@ export async function GET(request: Request) {
             throw new Error(`FT ${r.status}`)
           }
           const d = r.status === 204 ? {} : await r.json()
-          return (d.resultats || []).map(mapJob)
+          return (d.resultats || []).map(mapJob).filter(fitsLevel).slice(0, ftCount)
         })(),
-        fetchAdzunaJobs(motsCles, location, 10, contractLabel, salMin, salMax),
+        debutant ? Promise.resolve([]) : fetchAdzunaJobs(motsCles, location, 10, contractLabel, salMin, salMax),
       ])
 
       const ftJobs = ftResult.status === 'fulfilled' ? ftResult.value : []
@@ -395,11 +448,11 @@ export async function GET(request: Request) {
       // Une source en panne : on affiche l'autre, sans mettre ce résultat partiel en cache
       const partial = ftResult.status === 'rejected' || azResult.status === 'rejected'
       const warning = villeWarning ?? (partial ? 'Une des sources d’offres ne répond pas : résultats partiels.' : undefined)
-      return respond([...ftJobs, ...azJobs], warning)
+      return respond([...ftJobs, ...azJobs], warning, debutant ? DEBUTANT_NOTE : undefined)
     }
 
     // ── France Travail seul ───────────────────────────────────────────────
-    const params = buildFTParams({ range: '0-19', motsCles, codeInsee, distance, departement, typeContrat, salMin })
+    const params = buildFTParams({ range: ftRange(20), motsCles, codeInsee, distance, departement, typeContrat, salMin, debutant })
     const res = await searchFT(params)
     console.log('[FT] search status:', res.status)
 
@@ -423,7 +476,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Réponse invalide de France Travail.' }, { status: 502 })
     }
 
-    const jobs = (data.resultats || []).map(mapJob)
+    const jobs = (data.resultats || []).map(mapJob).filter(fitsLevel).slice(0, 20)
     console.log('[FT] jobs returned:', jobs.length)
     return respond(jobs, villeWarning)
 

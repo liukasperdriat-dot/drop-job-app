@@ -6,6 +6,19 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import CompanyLogo from '@/components/CompanyLogo'
 import { openCvForJob } from '@/lib/cv-link'
+import { NIVEAUX } from '@/lib/niveaux'
+
+const NIVEAU_KEY = 'dropjob:niveau-etudes'
+
+// Niveau d'études mémorisé sur l'appareil (page rendue uniquement côté navigateur)
+function readSavedNiveau(): string {
+  try {
+    const v = localStorage.getItem(NIVEAU_KEY) || ''
+    return /^[0-5]$/.test(v) ? v : ''
+  } catch {
+    return ''
+  }
+}
 
 const v = {
   bg: '#f5f5f7', bg2: '#e8e8ed', white: '#fff',
@@ -87,6 +100,9 @@ function JobsPageContent() {
   const [typeContrat, setTypeContrat]   = useState('')
   const [error, setError]               = useState('')
   const [warning, setWarning]           = useState('')
+  const [note, setNote]                 = useState('')
+  const [niveau, setNiveau]             = useState(readSavedNiveau)
+  const [debutant, setDebutant]         = useState(false)
   const [salaryFilter, setSalaryFilter] = useState<{ min: string; max: string } | null>(() => {
     const min = searchParams.get('salaireMin') || ''
     const max = searchParams.get('salaireMax') || ''
@@ -127,18 +143,29 @@ function JobsPageContent() {
     return () => { fab.remove() }
   }, [])
 
-  function buildSearchParams(
-    kw: string, loc: string, dept: string, dist: number, src: string, contrat: string,
-    salary: { min: string; max: string } | null,
-  ) {
-    const params = new URLSearchParams({ keyword: kw, location: loc, source: src })
-    if (contrat) params.append('typeContrat', contrat)
-    if (src !== 'adzuna') {
-      params.append('distance', String(dist))
-      if (dept) params.append('departement', dept)
+  type Filters = {
+    kw: string; loc: string; dept: string; dist: number
+    src: 'tout' | 'francetravail' | 'adzuna'; contrat: string
+    salary: { min: string; max: string } | null
+    niveau: string; debutant: boolean
+  }
+
+  // Filtres actuellement affichés (les gestionnaires remplacent ceux qui changent)
+  function currentFilters(): Filters {
+    return { kw: keyword, loc: location, dept: departement, dist: distance, src: source, contrat: typeContrat, salary: salaryFilter, niveau, debutant }
+  }
+
+  function buildSearchParams(f: Filters) {
+    const params = new URLSearchParams({ keyword: f.kw, location: f.loc, source: f.src })
+    if (f.contrat) params.append('typeContrat', f.contrat)
+    if (f.src !== 'adzuna') {
+      params.append('distance', String(f.dist))
+      if (f.dept) params.append('departement', f.dept)
     }
-    if (salary?.min) params.append('salMin', salary.min)
-    if (salary?.max) params.append('salMax', salary.max)
+    if (f.salary?.min) params.append('salMin', f.salary.min)
+    if (f.salary?.max) params.append('salMax', f.salary.max)
+    if (f.niveau !== '') params.append('niveau', f.niveau)
+    if (f.debutant) params.append('debutant', '1')
     return params
   }
 
@@ -151,6 +178,7 @@ function JobsPageContent() {
       if (!res.ok) setError(data.error || 'Impossible de charger les offres. Réessayez dans un instant.')
       setJobs(data.jobs || [])
       if (data.warning) setWarning(data.warning)
+      if (data.note) setNote(data.note)
     } catch {
       if (id === requestId.current) setError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
     } finally {
@@ -158,64 +186,69 @@ function JobsPageContent() {
     }
   }
 
-  function searchJobs(
-    kw      = keyword,
-    loc     = location,
-    dept    = departement,
-    dist    = distance,
-    src     = source,
-    contrat = typeContrat,
-    salary  = salaryFilter,
-  ) {
+  function searchJobs(changes: Partial<Filters> = {}) {
     const id = ++requestId.current
     setLoading(true)
     setJobs([])
     setError('')
     setWarning('')
-    fetchJobs(buildSearchParams(kw, loc, dept, dist, src, contrat, salary), id)
+    setNote('')
+    fetchJobs(buildSearchParams({ ...currentFilters(), ...changes }), id)
   }
 
   // Première recherche au chargement, avec les valeurs de départ
   // (l'état « chargement » est déjà actif dès l'affichage de la page)
   useEffect(() => {
-    fetchJobs(buildSearchParams(keyword, location, departement, distance, source, typeContrat, salaryFilter), ++requestId.current)
+    fetchJobs(buildSearchParams(currentFilters()), ++requestId.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function clearSalaryFilter() {
     setSalaryFilter(null)
-    searchJobs(keyword, location, departement, distance, source, typeContrat, null)
+    searchJobs({ salary: null })
   }
 
   function handleSourceChange(src: 'tout' | 'francetravail' | 'adzuna') {
     setSource(src)
     setActiveFilter('')
-    searchJobs(keyword, location, departement, distance, src, typeContrat)
+    searchJobs({ src })
   }
 
   function handleFilter(val: string) {
     setActiveFilter(val)
     setKeyword(val)
-    searchJobs(val, location, departement, distance, source, typeContrat)
+    searchJobs({ kw: val })
   }
 
   function handleSearch() {
     setActiveFilter('')
-    searchJobs(keyword, location, departement, distance, source, typeContrat)
+    searchJobs()
   }
 
   function handleDeptChange(dept: string) {
     setDepartement(dept)
-    searchJobs(keyword, location, dept, distance, source, typeContrat)
+    searchJobs({ dept })
   }
 
   function handleDistanceCommit(dist: number) {
-    searchJobs(keyword, location, departement, dist, source, typeContrat)
+    searchJobs({ dist })
   }
 
   function handleContratChange(val: string) {
     setTypeContrat(val)
-    searchJobs(keyword, location, departement, distance, source, val)
+    searchJobs({ contrat: val })
+  }
+
+  function handleNiveauChange(val: string) {
+    setNiveau(val)
+    // Mémorisé sur cet appareil pour les prochaines recherches
+    try { if (val === '') localStorage.removeItem(NIVEAU_KEY); else localStorage.setItem(NIVEAU_KEY, val) } catch { /* stockage indisponible */ }
+    searchJobs({ niveau: val })
+  }
+
+  function handleDebutantChange(val: boolean) {
+    setDebutant(val)
+    searchJobs({ debutant: val })
   }
 
   function handleCVWithSave(job: any) {
@@ -350,6 +383,25 @@ function JobsPageContent() {
               </div>
             </div>
 
+            {/* Niveau d'études + débutant */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <div style={{ flex: 1, background: v.white, borderRadius: 10, border: `1px solid ${niveau !== '' ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow }}>
+                <select
+                  aria-label="Mon niveau d'études"
+                  value={niveau}
+                  onChange={e => handleNiveauChange(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 14, color: niveau !== '' ? v.blue : v.text2, fontWeight: niveau !== '' ? 500 : 400, cursor: 'pointer' }}
+                >
+                  <option value="">Tous niveaux d&apos;études</option>
+                  {NIVEAUX.map((n, i) => <option key={n} value={String(i)}>Mon niveau : {n}</option>)}
+                </select>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px', background: debutant ? 'rgba(0,113,227,.07)' : v.white, borderRadius: 10, border: `1px solid ${debutant ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, fontSize: 13, color: debutant ? v.blue : v.text2, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <input type="checkbox" checked={debutant} onChange={e => handleDebutantChange(e.target.checked)} style={{ accentColor: v.blue, width: 16, height: 16 }} />
+                Débutant accepté
+              </label>
+            </div>
+
             {/* Filtres FT uniquement */}
             {source !== 'adzuna' && (
               <>
@@ -460,6 +512,29 @@ function JobsPageContent() {
                 </div>
               </div>
 
+              {/* Niveau d'études */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: v.text3, marginBottom: 6 }}>Niveau d&apos;études</div>
+                <div style={{ display: 'flex', alignItems: 'center', background: v.white, borderRadius: 10, border: `1px solid ${niveau !== '' ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, overflow: 'hidden' }}>
+                  <select
+                    aria-label="Mon niveau d'études"
+                    title="Masque les offres qui exigent un diplôme supérieur au vôtre"
+                    value={niveau}
+                    onChange={e => handleNiveauChange(e.target.value)}
+                    style={{ padding: '8px 10px 8px 12px', border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13, color: niveau !== '' ? v.blue : v.text2, fontWeight: niveau !== '' ? 500 : 400, cursor: 'pointer' }}
+                  >
+                    <option value="">Tous niveaux</option>
+                    {NIVEAUX.map((n, i) => <option key={n} value={String(i)}>Jusqu&apos;à {n}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Débutant accepté */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 12px', background: debutant ? 'rgba(0,113,227,.07)' : v.white, borderRadius: 10, border: `1px solid ${debutant ? 'rgba(0,113,227,.28)' : v.line2}`, boxShadow: v.shadow, fontSize: 13, color: debutant ? v.blue : v.text2, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <input type="checkbox" checked={debutant} onChange={e => handleDebutantChange(e.target.checked)} style={{ accentColor: v.blue, width: 15, height: 15 }} />
+                Débutant accepté
+              </label>
+
               {/* Département + Distance - FT uniquement */}
               {source !== 'adzuna' && (
                 <>
@@ -508,6 +583,13 @@ function JobsPageContent() {
               Salaire{salaryFilter.min ? ` dès ${Math.round(+salaryFilter.min / 1000)} k€` : ''}{salaryFilter.max ? ` jusqu’à ${Math.round(+salaryFilter.max / 1000)} k€` : ''} / an
               <button onClick={clearSalaryFilter} aria-label="Retirer le filtre salaire" style={{ width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,113,227,.12)', color: v.blue, cursor: 'pointer', fontSize: 12, lineHeight: 1, fontFamily: 'inherit' }}>✕</button>
             </span>
+          </div>
+        )}
+
+        {/* Information (ex. filtre limité à France Travail) */}
+        {!loading && note && (
+          <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(0,113,227,.05)', border: '1px solid rgba(0,113,227,.15)', fontSize: 13, color: v.blue }}>
+            {note}
           </div>
         )}
 
@@ -571,7 +653,7 @@ function JobsPageContent() {
           </div>
 
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 20 }}>
-            {[selectedJob.contract, selectedJob.remote, selectedJob.source].filter(Boolean).map((t: string) => (
+            {[selectedJob.contract, selectedJob.remote, selectedJob.debutant ? 'Débutant accepté' : '', selectedJob.diploma || 'Diplôme non précisé', selectedJob.source].filter(Boolean).map((t: string) => (
               <span key={t} style={{ padding: '3px 9px', borderRadius: 100, fontSize: 11, background: '#f5f5f7', border: '1px solid rgba(0,0,0,.08)', color: v.text2 }}>{t}</span>
             ))}
           </div>
@@ -636,7 +718,7 @@ function JobCard({ job, onOpen, onCV }: { job: any; onOpen: () => void; onCV: ()
       <div style={{ fontSize: 13, color: '#6e6e73', marginBottom: 12 }}>{job.company} · {job.location}</div>
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 14 }}>
-        {[job.contract, job.remote].filter(Boolean).map((t: string) => (
+        {[job.contract, job.remote, job.debutant ? 'Débutant accepté' : '', job.diploma].filter(Boolean).map((t: string) => (
           <span key={t} style={{ padding: '3px 9px', borderRadius: 100, fontSize: 11, background: '#f5f5f7', border: '1px solid rgba(0,0,0,.08)', color: '#6e6e73' }}>{t}</span>
         ))}
       </div>
