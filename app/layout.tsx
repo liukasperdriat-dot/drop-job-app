@@ -34,7 +34,8 @@ export const metadata: Metadata = {
       { url: '/favicon.ico', sizes: 'any' },
       { url: '/favicon.png', type: 'image/png', sizes: '32x32' },
     ],
-    apple: '/icons/icon-192.png',
+    // Icône d'écran d'accueil iPhone/iPad (180×180, fond opaque comme l'exige iOS)
+    apple: { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
   },
   appleWebApp: {
     capable: true,
