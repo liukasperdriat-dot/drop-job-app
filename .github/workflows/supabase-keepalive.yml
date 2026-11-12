@@ -1,0 +1,28 @@
+# Empêche la mise en pause automatique du projet Supabase (offre gratuite :
+# pause après ~7 jours sans activité). Complète le cron Vercel de vercel.json
+# avec un second déclencheur indépendant de Vercel.
+name: Supabase keepalive
+
+on:
+  schedule:
+    # Tous les jours à 06:17 UTC (décalé du cron Vercel de 08:00)
+    - cron: '17 6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/keepalive
+        run: |
+          for i in 1 2 3; do
+            body=$(curl -sS --max-time 30 https://www.drop-job.fr/api/keepalive) && echo "$body"
+            if echo "$body" | grep -q '"ok":true'; then
+              exit 0
+            fi
+            echo "Tentative $i échouée, nouvel essai dans 30 s..."
+            sleep 30
+          done
+          echo "Le ping Supabase a échoué 3 fois."
+          exit 1
