@@ -315,11 +315,30 @@ async function fetchAdzunaJobs(o: AdzunaOptions): Promise<any[]> {
   const url = `https://api.adzuna.com/v1/api/jobs/fr/search/1?${params}`
   console.log('[Adzuna] search url:', url.replace(appKey, '***'))
 
-  const res = await fetch(url, { cache: 'no-store' })
-  console.log('[Adzuna] status:', res.status)
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Adzuna HTTP ${res.status}: ${body.slice(0, 200)}`)
+  // Adzuna renvoie parfois des erreurs passagères (503) : jusqu'à 3 essais,
+  // chacun limité à 8 secondes, avant d'abandonner
+  let res: Response | null = null
+  let lastError = ''
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
+    try {
+      res = await fetch(url, { cache: 'no-store', signal: controller.signal })
+      console.log('[Adzuna] status:', res.status, attempt > 1 ? `(essai ${attempt})` : '')
+      if (res.ok || res.status < 500) break
+      lastError = `HTTP ${res.status}`
+    } catch (err) {
+      res = null
+      lastError = (err as Error).name === 'AbortError' ? 'délai dépassé (8 s)' : (err as Error).message
+      console.warn('[Adzuna] essai', attempt, 'échoué :', lastError)
+    } finally {
+      clearTimeout(timeout)
+    }
+    if (attempt < 3) await new Promise(r => setTimeout(r, 400 * attempt))
+  }
+  if (!res || !res.ok) {
+    const body = res ? (await res.text()).slice(0, 200) : ''
+    throw new Error(`Adzuna indisponible : ${res ? `HTTP ${res.status} ${body}` : lastError}`)
   }
   const data = await res.json()
   let results: any[] = data.results || []
@@ -462,7 +481,15 @@ export async function GET(request: Request) {
     // ── Adzuna seul ───────────────────────────────────────────────────────
     if (source === 'adzuna') {
       if (skipAdzuna) return respond([], undefined, adzunaNote)
-      return respond(await fetchAdzunaJobs(adzunaOptions(20)))
+      try {
+        return respond(await fetchAdzunaJobs(adzunaOptions(20)))
+      } catch (err) {
+        console.error('[Adzuna seul]', (err as Error).message)
+        return NextResponse.json(
+          { error: 'Le service Adzuna ne répond pas pour le moment. Réessayez dans un instant, ou choisissez la source « Tout » ou « France Travail ».' },
+          { status: 502 }
+        )
+      }
     }
 
     const codeInsee = location ? await resolveInseeCode(location) : null
@@ -477,9 +504,9 @@ export async function GET(request: Request) {
 
     // ── Tout : FT (10) + Adzuna (10) en parallèle, tolérant aux pannes ───
     if (source === 'tout') {
-      // Adzuna écarté (débutant, contrat non géré) : France Travail fournit les 20 offres
-      const ftCount = skipAdzuna ? 20 : 10
-      const ftParams = buildFTParams({ range: ftRange(ftCount), motsCles, codeInsee, distance, departement, typeContrat, salMin, debutant })
+      // Chaque source est interrogée pour 20 offres : on en garde 10 + 10 quand les deux
+      // répondent, et 20 de celle qui fonctionne si l'autre est écartée ou en panne
+      const ftParams = buildFTParams({ range: ftRange(20), motsCles, codeInsee, distance, departement, typeContrat, salMin, debutant })
       const [ftResult, azResult] = await Promise.allSettled([
         (async () => {
           const r = await searchFT(ftParams)
@@ -489,21 +516,29 @@ export async function GET(request: Request) {
             throw new Error(`FT ${r.status}`)
           }
           const d = r.status === 204 ? {} : await r.json()
-          return (d.resultats || []).map(mapJob).filter(fitsLevel).filter(inDepartement).slice(0, ftCount)
+          return (d.resultats || []).map(mapJob).filter(fitsLevel).filter(inDepartement).slice(0, 20)
         })(),
-        skipAdzuna ? Promise.resolve([]) : fetchAdzunaJobs(adzunaOptions(10)),
+        skipAdzuna ? Promise.resolve([]) : fetchAdzunaJobs(adzunaOptions(20)),
       ])
 
-      const ftJobs = ftResult.status === 'fulfilled' ? ftResult.value : []
-      const azJobs = azResult.status === 'fulfilled' ? azResult.value : []
+      const ftOk = ftResult.status === 'fulfilled'
+      const azOk = azResult.status === 'fulfilled' && !skipAdzuna
+      const ftAll: any[] = ftResult.status === 'fulfilled' ? ftResult.value : []
+      const azAll: any[] = azResult.status === 'fulfilled' ? azResult.value : []
+      const ftJobs = azOk ? ftAll.slice(0, 10) : ftAll
+      const azJobs = ftOk ? azAll.slice(0, 10) : azAll
       if (ftResult.status === 'rejected') console.warn('[tout] FT failed:', ftResult.reason?.message)
       if (azResult.status === 'rejected') console.warn('[tout] Adzuna failed:', azResult.reason?.message)
       if (ftResult.status === 'rejected' && azResult.status === 'rejected') {
         return NextResponse.json({ error: 'Les services d’offres sont indisponibles. Réessayez dans un instant.' }, { status: 502 })
       }
       // Une source en panne : on affiche l'autre, sans mettre ce résultat partiel en cache
-      const partial = ftResult.status === 'rejected' || azResult.status === 'rejected'
-      const warning = villeWarning ?? (partial ? 'Une des sources d’offres ne répond pas : résultats partiels.' : undefined)
+      const panne = ftResult.status === 'rejected'
+        ? 'France Travail ne répond pas pour le moment : seules les offres Adzuna sont affichées.'
+        : azResult.status === 'rejected'
+          ? 'Adzuna ne répond pas pour le moment : seules les offres France Travail sont affichées.'
+          : undefined
+      const warning = villeWarning ?? panne
       return respond([...ftJobs, ...azJobs], warning, adzunaNote)
     }
 
