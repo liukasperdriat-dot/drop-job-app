@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { goToPremium } from '@/lib/premium-link'
+import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link'
 
 export default function CheckoutButton() {
   const [period, setPeriod] = useState<'monthly' | 'weekly'>('monthly')
@@ -25,6 +25,7 @@ export default function CheckoutButton() {
       <button onClick={() => goToPremium(period)} style={styles.btn}>
         Passer Premium →
       </button>
+      <p style={styles.reassure}>{PAYMENT_REASSURANCE}</p>
       <p style={styles.legal}>
         En souscrivant, vous acceptez nos{' '}
         <a href="/legal/cgu" target="_blank" rel="noopener noreferrer" style={styles.legalLink}>CGU</a>
@@ -57,6 +58,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14, fontWeight: 500, cursor: 'pointer',
     fontFamily: 'inherit', width: 'fit-content',
   },
+  reassure: { fontSize: 12, color: '#6e6e73', margin: 0 },
   legal: { fontSize: 12, color: '#aeaeb2', marginTop: 2, lineHeight: 1.5 },
   legalLink: { color: '#0071e3', textDecoration: 'none' },
 }

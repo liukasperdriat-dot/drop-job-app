@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { goToPremium } from '@/lib/premium-link'
-import { peekPendingJob, clearPendingJob } from '@/lib/cv-link'
+import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link'
+import { peekPendingJob, markPendingJobGenerated } from '@/lib/cv-link'
 
 type Template = 'classique' | 'moderne' | 'minimaliste'
 
@@ -89,7 +89,7 @@ function CVPageInner() {
 
   // Offre choisie sur la liste : description et lien de candidature gardés dans
   // le navigateur (cette page n'est rendue que côté navigateur, sous <Suspense>)
-  const [pending] = useState(() => peekPendingJob(params.get('title') || '', params.get('company') || ''))
+  const [pending] = useState(() => peekPendingJob(params.get('title') || '', params.get('company') || '', params.get('jobId')))
   const applyUrl = params.get('applyUrl') || pending?.applyUrl || ''
 
   const [jobTitle, setJobTitle]         = useState(params.get('title') || '')
@@ -131,10 +131,11 @@ function CVPageInner() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Offre utilisée : on l'efface du navigateur et on l'ajoute au tableau de bord
+  // Offre choisie : ajoutée au tableau de bord (l'API ignore les doublons).
+  // Elle reste gardée dans le navigateur jusqu'à la génération du CV, pour
+  // survivre à un détour par la création du profil.
   useEffect(() => {
     if (!pending) return
-    clearPendingJob()
     if (pending.job_id) {
       fetch('/api/applications', {
         method: 'POST',
@@ -147,6 +148,12 @@ function CVPageInner() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Vers le profil, avec retour automatique sur cette page (et cette offre) après l'enregistrement
+  function goToProfile() {
+    const here = window.location.pathname + window.location.search
+    router.push(`/profile?next=${encodeURIComponent(here)}`)
+  }
 
   function retryProfile() {
     setProfileState('loading')
@@ -189,6 +196,7 @@ function CVPageInner() {
       if (data.error || !data.cv) { setError(data.error || 'La génération a échoué. Réessayez.'); return }
       setCv(data.cv)
       setCvCount(c => c + 1)
+      markPendingJobGenerated()
     } catch {
       setError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
     } finally {
@@ -414,7 +422,7 @@ function CVPageInner() {
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}><polyline points="2,9 6,13 14,4"/></svg>
                     Profil chargé{profileData?.full_name ? ` · ${profileData.full_name}` : ''}
                   </span>
-                  <button onClick={() => router.push('/profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: v.blue, fontFamily: 'inherit', fontWeight: 500, textDecoration: 'underline', padding: 0 }}>
+                  <button onClick={goToProfile} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: v.blue, fontFamily: 'inherit', fontWeight: 500, textDecoration: 'underline', padding: 0 }}>
                     Modifier →
                   </button>
                 </div>
@@ -424,8 +432,9 @@ function CVPageInner() {
             {profileState === 'empty' && (
               <Field label="Votre profil">
                 <div style={{ padding: '16px 18px', borderRadius: 10, border: '1.5px dashed rgba(0,0,0,0.14)', background: 'rgba(0,0,0,0.01)', textAlign: 'center' as any }}>
-                  <div style={{ fontSize: 13, color: v.text2, fontWeight: 500, marginBottom: 10 }}>Crée d'abord ton profil pour générer un CV</div>
-                  <button onClick={() => router.push('/profile')} style={{ padding: '9px 20px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <div style={{ fontSize: 13, color: v.text2, fontWeight: 500, marginBottom: 4 }}>Crée d'abord ton profil pour générer un CV</div>
+                  <div style={{ fontSize: 12, color: v.text3, marginBottom: 10 }}>Colle ton CV actuel : l'IA remplit tout en quelques secondes. Ton offre t'attendra ici.</div>
+                  <button onClick={goToProfile} style={{ padding: '9px 20px', borderRadius: 100, background: v.blue, color: '#fff', border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                     Créer mon profil →
                   </button>
                 </div>
@@ -775,16 +784,20 @@ function CVPageInner() {
             <p style={{ fontSize: 14, color: '#6e6e73', lineHeight: 1.7, marginBottom: 20 }}>
               Avec Premium, générez autant de CV que vous voulez, obtenez votre lettre de motivation IA, et accédez aux templates Moderne et Minimaliste.
             </p>
-            <div style={{ fontSize: 15, fontWeight: 600, color: v.blue, marginBottom: 24 }}>
-              À partir de 3,49 €/semaine
-            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button
-                onClick={() => { setShowUpsell(false); goToPremium('monthly') }}
+                onClick={() => { setShowUpsell(false); goToPremium('weekly') }}
                 style={{ padding: '13px', borderRadius: 12, background: v.blue, color: '#fff', border: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
               >
-                Passer Premium
+                Premium — 3,49 € / semaine
               </button>
+              <button
+                onClick={() => { setShowUpsell(false); goToPremium('monthly') }}
+                style={{ padding: '13px', borderRadius: 12, background: 'rgba(0,113,227,.07)', color: v.blue, border: '1px solid rgba(0,113,227,.18)', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Premium — 9,90 € / mois
+              </button>
+              <div style={{ fontSize: 12, color: '#6e6e73', margin: '2px 0 4px' }}>{PAYMENT_REASSURANCE}</div>
               <button
                 onClick={() => setShowUpsell(false)}
                 style={{ padding: '13px', borderRadius: 12, background: '#f5f5f7', color: '#6e6e73', border: 'none', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}

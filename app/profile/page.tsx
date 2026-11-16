@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { goToPremium } from '@/lib/premium-link'
+import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link'
+import { peekAnyPendingJob, cvUrlFor } from '@/lib/cv-link'
+import { nextFromLocation } from '@/lib/safe-next'
 import ManageSubscriptionButton from '@/components/ManageSubscriptionButton'
 
 type Experience = {
@@ -43,6 +45,21 @@ function computeScore(
   return s
 }
 
+type ImportedProfile = {
+  full_name: string; email: string; phone: string; location: string; linkedin: string
+  title: string; summary: string
+  experiences: Experience[]; education: Education[]; skills: string[]; languages: Language[]
+}
+
+// Page /cv où revenir après l'enregistrement du profil : celle d'où l'on vient
+// (?next=/cv…), sinon l'offre choisie avant l'inscription et pas encore utilisée.
+function cvReturnTarget(): string | null {
+  const next = nextFromLocation('')
+  if (next.startsWith('/cv')) return next
+  const pending = peekAnyPendingJob()
+  return pending ? cvUrlFor(pending) : null
+}
+
 function scoreMessage(score: number): string {
   if (score < 40) return 'Complétez votre profil pour des CV plus précis'
   if (score < 70) return 'Bon début ! Encore quelques infos pour optimiser vos CV'
@@ -73,6 +90,17 @@ export default function ProfilePage() {
   const [skillInput, setSkillInput] = useState('')
   const skillInputRef = useRef<HTMLInputElement>(null)
 
+  // Retour vers le CV de l'offre choisie, après l'enregistrement
+  const [returnTo, setReturnTo] = useState<string | null>(null)
+  const [returnJobTitle, setReturnJobTitle] = useState('')
+
+  // Remplissage express par IA
+  const [importOpen, setImportOpen] = useState(false)
+  const [importText, setImportText] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState('')
+  const [importDone, setImportDone] = useState(false)
+
   const score = useMemo(
     () => computeScore(fullName, email, phone, location, title, summary, experiences, education, skills, languages),
     [fullName, email, phone, location, title, summary, experiences, education, skills, languages]
@@ -85,6 +113,11 @@ export default function ProfilePage() {
       fetch('/api/profile').then(r => r.json()),
       fetch('/api/me').then(r => r.json()),
     ]).then(([{ profile }, me]) => {
+      const target = cvReturnTarget()
+      setReturnTo(target)
+      if (target) setReturnJobTitle(new URLSearchParams(target.split('?')[1] || '').get('title') || '')
+      // Nouveau profil : le remplissage express est proposé d'emblée
+      if (!profile) setImportOpen(true)
       if (profile) {
         setFullName(profile.full_name || '')
         setEmail(profile.email || '')
@@ -106,20 +139,70 @@ export default function ProfilePage() {
     setSaving(true)
     setSaveError('')
     setSaved(false)
-    const res = await fetch('/api/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ full_name: fullName, email, phone, location, linkedin, title, summary, experiences, education, skills, languages }),
-    })
-    setSaving(false)
-    if (res.ok) {
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    } else {
-      const d = await res.json()
-      setSaveError(d.error || 'Erreur lors de la sauvegarde')
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: fullName, email, phone, location, linkedin, title, summary, experiences, education, skills, languages }),
+      })
+      if (res.ok) {
+        setSaved(true)
+        // Une offre attend : on enchaîne directement sur la génération du CV
+        if (returnTo) { router.push(returnTo); return }
+        setTimeout(() => setSaved(false), 3000)
+      } else {
+        const d = await res.json().catch(() => ({}))
+        setSaveError(d.error || 'Erreur lors de la sauvegarde')
+      }
+    } catch {
+      setSaveError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
+    } finally {
+      setSaving(false)
     }
   }
+
+  async function handleImport() {
+    if (importText.trim().length < 80) {
+      setImportError('Collez le texte complet de votre CV (au moins quelques lignes).')
+      return
+    }
+    const hasData = experiences.length > 0 || education.length > 0 || skills.length > 0
+    if (hasData && !window.confirm('Les informations trouvées remplaceront celles déjà saisies. Continuer ?')) return
+    setImporting(true)
+    setImportError('')
+    setImportDone(false)
+    try {
+      const res = await fetch('/api/profile/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: importText }),
+      })
+      const data = await res.json().catch(() => ({ error: 'La lecture du CV a échoué. Réessayez.' }))
+      if (!res.ok || !data.profile) { setImportError(data.error || 'La lecture du CV a échoué. Réessayez.'); return }
+      const p = data.profile as ImportedProfile
+      // Un champ trouvé remplace la saisie ; un champ absent du CV ne l'efface pas
+      if (p.full_name) setFullName(p.full_name)
+      if (p.email) setEmail(p.email)
+      if (p.phone) setPhone(p.phone)
+      if (p.location) setLocation(p.location)
+      if (p.linkedin) setLinkedin(p.linkedin)
+      if (p.title) setTitle(p.title)
+      if (p.summary) setSummary(p.summary)
+      if (p.experiences.length) setExperiences(p.experiences)
+      if (p.education.length) setEducation(p.education)
+      if (p.skills.length) setSkills(p.skills)
+      if (p.languages.length) setLanguages(p.languages)
+      setImportDone(true)
+      setImportOpen(false)
+      setImportText('')
+    } catch {
+      setImportError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const saveLabel = returnTo ? 'Enregistrer et générer mon CV →' : 'Enregistrer le profil'
 
   function updateExp(i: number, key: keyof Experience, val: any) {
     setExperiences(prev => prev.map((e, idx) => idx === i ? { ...e, [key]: val } : e))
@@ -196,7 +279,7 @@ export default function ProfilePage() {
                   : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
               }`}
             >
-              {saving ? 'Enregistrement…' : saved ? '✓ Enregistré' : 'Enregistrer'}
+              {saving ? 'Enregistrement…' : saved ? '✓ Enregistré' : returnTo ? 'Enregistrer et continuer →' : 'Enregistrer'}
             </button>
           </div>
         </div>
@@ -212,6 +295,58 @@ export default function ProfilePage() {
           <p className="text-gray-500 text-base">
             Un profil complet = un CV généré plus précis par l&apos;IA
           </p>
+        </div>
+
+        {/* OFFRE EN ATTENTE */}
+        {returnTo && (
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 text-sm text-blue-800">
+            <span className="font-semibold">Votre offre vous attend{returnJobTitle ? ` : « ${returnJobTitle} »` : ''}.</span>{' '}
+            Remplissez votre profil puis enregistrez-le : vous revenez directement à la génération de votre CV.
+          </div>
+        )}
+
+        {/* REMPLISSAGE EXPRESS PAR IA */}
+        <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-5 space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">⚡ Remplissage express par IA</h2>
+              <p className="text-sm text-gray-500">Collez le texte de votre CV actuel ou de votre profil LinkedIn : le formulaire se remplit en 10 secondes.</p>
+            </div>
+            {!importOpen && (
+              <button
+                type="button"
+                onClick={() => { setImportOpen(true); setImportDone(false) }}
+                className="shrink-0 px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer border-none"
+              >
+                Utiliser
+              </button>
+            )}
+          </div>
+          {importOpen && (
+            <>
+              <textarea
+                className={`${inp} resize-y`}
+                rows={7}
+                value={importText}
+                onChange={e => setImportText(e.target.value)}
+                maxLength={15000}
+                placeholder={'Ouvrez votre CV (Word, PDF…), sélectionnez tout le texte (Ctrl+A), copiez-le puis collez-le ici.\nSur LinkedIn : ouvrez votre profil, sélectionnez et copiez le texte.'}
+              />
+              {importError && <p className="text-sm text-red-600">{importError}</p>}
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={importing}
+                className={`w-full py-3 rounded-xl text-sm font-semibold transition-all border-none ${importing ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'}`}
+              >
+                {importing ? 'Lecture de votre CV…' : 'Pré-remplir mon profil'}
+              </button>
+              <p className="text-xs text-gray-400">Le texte est analysé par notre IA (OpenAI) pour remplir le formulaire, sans être conservé par Drop-Job. Rien n&apos;est enregistré tant que vous ne cliquez pas sur « Enregistrer ».</p>
+            </>
+          )}
+          {importDone && (
+            <p className="text-sm text-emerald-700 font-medium">✓ Profil pré-rempli. Vérifiez les informations ci-dessous, puis cliquez sur « {saveLabel} ».</p>
+          )}
         </div>
 
         {/* PROGRESS BAR */}
@@ -256,13 +391,16 @@ export default function ProfilePage() {
                 <p className="text-gray-500 text-sm">Passez Premium pour des CV illimités et des fonctionnalités avancées</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => goToPremium('monthly')}
-              className="shrink-0 inline-block px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
-            >
-              Passer Premium → 9,90€/mois
-            </button>
+            <div className="shrink-0 flex flex-col items-start sm:items-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => goToPremium('monthly')}
+                className="inline-block px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
+              >
+                Passer Premium → 9,90€/mois
+              </button>
+              <p className="text-[11px] text-gray-500">{PAYMENT_REASSURANCE}</p>
+            </div>
           </div>
         )}
 
@@ -477,7 +615,7 @@ export default function ProfilePage() {
                 : 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-md shadow-blue-200'
             }`}
           >
-            {saving ? 'Enregistrement…' : saved ? '✓ Profil enregistré !' : 'Enregistrer le profil'}
+            {saving ? 'Enregistrement…' : saved ? '✓ Profil enregistré !' : saveLabel}
           </button>
         </div>
       </div>

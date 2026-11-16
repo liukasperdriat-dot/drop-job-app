@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   // désignerait toutes comme des copies de l'accueil. Chaque page publique
   // déclare le sien (offres, pages légales).
   metadataBase: new URL('https://www.drop-job.fr'),
-  title: "Drop-Job — Postulez. C'est fait.",
+  title: 'Drop-Job — CV et lettre sur-mesure en 30 secondes',
   description:
     "Trouvez votre emploi idéal avec Drop-Job. Offres France Travail et Adzuna réunies. L'IA génère votre CV adapté pour chaque offre en un clic.",
   manifest: '/manifest.json',

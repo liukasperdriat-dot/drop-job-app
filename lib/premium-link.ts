@@ -10,6 +10,10 @@ export const STRIPE_LINKS = {
 
 export type BillingPeriod = keyof typeof STRIPE_LINKS
 
+// Mention affichée sous chaque bouton de paiement
+// (sans engagement : la résiliation prend effet en fin de période, depuis le portail Stripe)
+export const PAYMENT_REASSURANCE = 'Sans engagement · Résiliable en 1 clic · Paiement sécurisé Stripe'
+
 // Envoie l'utilisateur vers le paiement Stripe en y attachant l'identifiant
 // de son compte (client_reference_id). Le webhook retrouve ainsi le bon
 // compte même si l'e-mail saisi sur Stripe est différent.

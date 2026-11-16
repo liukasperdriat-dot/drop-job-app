@@ -189,7 +189,7 @@ export default function ConfidentialitePage() {
                     ['Supabase Inc.', 'Base de données, authentification, stockage des photos', 'Irlande (UE) — société américaine', 'Clauses contractuelles types (art. 46 RGPD)'],
                     ['Vercel Inc.', 'Hébergement du site, journaux techniques', 'États-Unis / UE', 'Data Privacy Framework UE–États-Unis et/ou clauses contractuelles types'],
                     ['Stripe', 'Paiement, gestion des abonnements, factures', 'Irlande (UE) / États-Unis', 'Data Privacy Framework UE–États-Unis et/ou clauses contractuelles types'],
-                    ['OpenAI', 'Génération des CV et lettres de motivation (votre profil et l\'offre visée sont transmis à chaque génération)', 'États-Unis', 'Data Privacy Framework UE–États-Unis et/ou clauses contractuelles types'],
+                    ['OpenAI', 'Génération des CV et lettres de motivation (votre profil et l\'offre visée sont transmis à chaque génération) ; remplissage express du profil (le texte de CV que vous collez est transmis pour en extraire les informations)', 'États-Unis', 'Data Privacy Framework UE–États-Unis et/ou clauses contractuelles types'],
                     ['Resend Inc.', 'Envoi des e-mails (adresse e-mail, prénom)', 'États-Unis', 'Data Privacy Framework UE–États-Unis et/ou clauses contractuelles types'],
                   ].map(([st, fin, loc, gar], i) => (
                     <tr key={i} style={{ borderBottom: `1px solid ${s.line}` }}>

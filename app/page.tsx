@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CompanyLogo from '@/components/CompanyLogo';
 import { createClient } from '@/lib/supabase/client';
-import { goToPremium } from '@/lib/premium-link';
+import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link';
 import { openCvForJob } from '@/lib/cv-link';
 
 const v = {
@@ -108,11 +108,11 @@ export default function HomePage() {
 
       {/* HERO */}
       <div style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '48px 16px 40px' : '88px 24px 56px', textAlign:'center' }}>
-        <h1 style={{ fontSize:'clamp(38px,7.5vw,80px)', fontWeight:600, letterSpacing:'-0.04em', lineHeight:1.06, marginBottom:18 }}>
-          Postulez.<br/>C'est fait.
+        <h1 style={{ fontSize:'clamp(32px,6vw,64px)', fontWeight:600, letterSpacing:'-0.04em', lineHeight:1.06, marginBottom:18 }}>
+          Votre CV et lettre sur-mesure prêts en 30 secondes.
         </h1>
-        <p style={{ fontSize:isMobile ? 16 : 19, fontWeight:300, color:v.text2, lineHeight:1.6, maxWidth:500, margin:'0 auto 44px' }}>
-          Offres France Travail et Adzuna réunies. L'IA adapte votre CV pour chaque offre en un clic.
+        <p style={{ fontSize:isMobile ? 16 : 19, fontWeight:300, color:v.text2, lineHeight:1.6, maxWidth:540, margin:'0 auto 44px' }}>
+          Postulez en un clic sur l'offre officielle. Offres France Travail et Adzuna réunies, CV adapté par l'IA à chaque annonce.
         </p>
 
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
@@ -219,7 +219,7 @@ export default function HomePage() {
           {([
             { num:'01', icon:'🔍', title:'Trouve une offre',        desc:'Recherche parmi des milliers d\'offres France Travail et Adzuna en France.' },
             { num:'02', icon:'⚡', title:'Génère ton CV en 1 clic', desc:'L\'IA analyse l\'offre et adapte ton CV et ta lettre de motivation en quelques secondes.' },
-            { num:'03', icon:'📩', title:'Postule directement',     desc:'Télécharge ton CV et postule directement depuis Drop-Job.' },
+            { num:'03', icon:'📩', title:'Postule en un clic',      desc:'Télécharge ton CV et postule en un clic sur l’offre officielle (France Travail ou site du recruteur).' },
           ] as {num:string;icon:string;title:string;desc:string}[]).map(step => (
             <div key={step.num} style={{ textAlign:'center', padding: isMobile ? '24px 20px' : '32px 24px', background:v.white, borderRadius:18, border:`1px solid ${v.line}`, boxShadow:v.shadow }}>
               <div style={{ fontSize:11, fontWeight:700, letterSpacing:'.1em', color:'#2563eb', marginBottom:14 }}>{step.num}</div>
@@ -425,7 +425,7 @@ export default function HomePage() {
             </div>
             <div style={{ fontSize:12, color:v.text2, marginTop:6, marginBottom:20 }}>{billing==='monthly'?'Sans engagement, annulez quand vous voulez.':'Idéal pour une recherche intensive et courte.'}</div>
             <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:10, marginBottom:24 }}>
-              {['Tout du plan Gratuit','CV illimités, sans filigrane','Lettre de motivation IA illimitée','Templates Moderne et Minimaliste','Photo de profil sur le CV','Téléchargement PDF CV + Lettre','Sans engagement, annulez quand vous voulez'].map(f=>(
+              {['Tout du plan Gratuit','CV illimités, sans filigrane','Lettre de motivation IA illimitée','Templates Moderne et Minimaliste','Téléchargement PDF CV + Lettre','Sans engagement, annulez quand vous voulez'].map(f=>(
                 <li key={f} style={{ display:'flex', alignItems:'flex-start', gap:9, fontSize:13, color:v.text2 }}>
                   <div style={{ flexShrink:0, marginTop:1 }}><svg viewBox="0 0 14 14" fill="none" stroke="#1d8348" strokeWidth="1.6" strokeLinecap="round" width={14} height={14}><polyline points="2,7 6,11 12,3"/></svg></div>
                   {f}
@@ -433,6 +433,7 @@ export default function HomePage() {
               ))}
             </ul>
             <button onClick={()=>setPaywall(true)} style={{ width:'100%', padding:11, borderRadius:8, fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', background:v.blue, color:'#fff', border:'none', boxShadow:'0 2px 8px rgba(0,113,227,.25)', minHeight:44 }}>Passer à Premium</button>
+            <div style={{ fontSize:11, color:v.text3, textAlign:'center', marginTop:10 }}>{PAYMENT_REASSURANCE}</div>
           </div>
         </div>
       </div>
@@ -496,6 +497,7 @@ export default function HomePage() {
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             <button onClick={() => goToPremium(billing)} style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:'pointer', minHeight:44 }}>Passer à Premium — {billing === 'weekly' ? '3,49€ / semaine' : '9,90€ / mois'}</button>
+            <div style={{ fontSize:12, color:'#6e6e73', textAlign:'center', margin:'2px 0 4px' }}>{PAYMENT_REASSURANCE}</div>
             <button onClick={()=>setPaywall(false)} style={{ width:'100%', padding:11, borderRadius:8, background:'transparent', color:'#6e6e73', border:'1px solid rgba(0,0,0,.14)', fontFamily:'inherit', fontSize:13, cursor:'pointer', minHeight:44 }}>Continuer avec le plan gratuit</button>
           </div>
         </div>
