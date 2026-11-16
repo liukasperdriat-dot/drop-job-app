@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { nextFromLocation, rememberNext, keepNext } from '@/lib/safe-next'
+import { nextFromLocation, rememberNext, forgetNext, keepNext } from '@/lib/safe-next'
 
 export default function RegisterPage() {
   const [email, setEmail]       = useState('')
@@ -19,23 +19,51 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    rememberNext(nextFromLocation())
+    // Sans page de retour demandée, un nouveau compte commence par son profil
+    const next = nextFromLocation('/profile')
+    rememberNext(next)
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${location.origin}/auth/callback`,
-      },
-    })
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${location.origin}/auth/callback`,
+        },
+      })
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+        return
+      }
+
+      // Adresse déjà inscrite : Supabase renvoie un utilisateur sans identité
+      if (data.user && data.user.identities?.length === 0) {
+        setError('Un compte existe déjà avec cet e-mail. Connectez-vous.')
+        setLoading(false)
+        return
+      }
+
+      // Confirmation d'e-mail désactivée dans Supabase : l'utilisateur est déjà
+      // connecté, on l'envoie directement à la suite (chargement complet pour
+      // que le serveur lise le nouveau cookie de session)
+      if (data.session) {
+        forgetNext()
+        // E-mail de bienvenue : on laisse au plus 3 s à l'envoi avant de continuer
+        await Promise.race([
+          fetch('/api/welcome', { method: 'POST', keepalive: true }).catch(() => {}),
+          new Promise(resolve => setTimeout(resolve, 3000)),
+        ])
+        window.location.assign(next)
+        return
+      }
+
+      setDone(true)
+    } catch {
+      setError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
     }
-
-    setDone(true)
+    setLoading(false)
   }
 
   async function handleGoogle() {

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { nextFromLocation, rememberNext, keepNext } from '@/lib/safe-next'
 
@@ -12,7 +11,6 @@ export default function LoginPage() {
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
 
-  const router   = useRouter()
   const supabase = createClient()
 
   async function handleLogin(e: React.FormEvent) {
@@ -20,17 +18,26 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setError('Email ou mot de passe incorrect.')
+      if (error) {
+        setError(error.message === 'Email not confirmed'
+          ? 'Adresse e-mail non confirmée : cliquez sur le lien reçu par e-mail.'
+          : 'Email ou mot de passe incorrect.')
+        setLoading(false)
+        return
+      }
+
+      // Page à rouvrir après la connexion (ex. la génération de CV d'une offre).
+      // Chargement complet : le serveur lit ainsi à coup sûr le nouveau cookie de
+      // session (une navigation interne pouvait renvoyer sur cette page et laisser
+      // le bouton bloqué sur « Connexion… »).
+      window.location.assign(nextFromLocation())
+    } catch {
+      setError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
       setLoading(false)
-      return
     }
-
-    // Page à rouvrir après la connexion (ex. la génération de CV d'une offre)
-    router.push(nextFromLocation())
-    router.refresh()
   }
 
   async function handleGoogle() {

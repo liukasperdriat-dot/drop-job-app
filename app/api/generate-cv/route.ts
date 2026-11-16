@@ -109,7 +109,8 @@ Le profil contient les champs : full_name, title, summary, experiences (tableau 
 6. Dans "education" (sortie) : reprends toutes les entrées de "education" (profil). Pour "period" : formate start_date/end_date en "YYYY – YYYY".
 7. Inclus toutes les langues (languages) du profil, sans modification.
 8. Calcule "matchScore" (0–100) basé sur la correspondance objective compétences/expérience requises vs profil réel.
-9. Liste 2–3 "matchReasons" courtes (max 8 mots chacune) expliquant le score (points forts ou manques).
+9. Liste 2–3 "matchStrengths" : points forts du profil pour cette offre (max 10 mots chacun, uniquement des faits du profil).
+10. Liste 1–3 "matchGaps" : exigences de l'offre absentes ou faibles dans le profil (max 10 mots chacun). Tableau vide si le profil couvre tout.
 
 Réponds avec cette structure JSON exacte :
 {
@@ -136,7 +137,8 @@ Réponds avec cette structure JSON exacte :
     { "name": "Langue", "level": "Niveau" }
   ],
   "matchScore": 85,
-  "matchReasons": ["Point fort ou manque 1", "Point fort ou manque 2"]
+  "matchStrengths": ["Point fort 1", "Point fort 2"],
+  "matchGaps": ["Point à renforcer 1"]
 }`
 
     const completion = await openai.chat.completions.create({
@@ -165,6 +167,15 @@ Réponds avec cette structure JSON exacte :
         : { cv_count_this_month: cvCount + 1 })
       .eq('id', user.id)
     if (countError) console.error('[generate-cv] quota update error:', countError.code, countError.message)
+
+    // Score de matching nettoyé (affiché à tous les utilisateurs)
+    const shortList = (value: unknown) => Array.isArray(value)
+      ? value.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map(x => x.trim().slice(0, 120)).slice(0, 3)
+      : []
+    const score = Number(cv.matchScore)
+    cv.matchScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null
+    cv.matchStrengths = shortList(cv.matchStrengths)
+    cv.matchGaps = shortList(cv.matchGaps)
 
     cv.watermark = !quota.is_premium
 

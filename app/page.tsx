@@ -88,7 +88,7 @@ export default function HomePage() {
           </a>
           {!isMobile && (
             <ul style={{ display:'flex', alignItems:'center', gap:0, listStyle:'none' }}>
-              {[['#jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
+              {[['/jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
                 <li key={h}><a href={h} style={{ padding:'5px 13px', fontSize:13, color:v.text2, textDecoration:'none', display:'block', borderRadius:100 }}>{l}</a></li>
               ))}
             </ul>
@@ -333,7 +333,7 @@ export default function HomePage() {
       <div id="jobs" style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '0 16px 48px' : '0 24px 72px' }}>
         <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:18 }}>
           <div style={{ fontSize:22, fontWeight:600, letterSpacing:'-0.03em' }}>Offres du moment</div>
-          {!jobsLoading && <div style={{ fontSize:13, color:v.text3 }}>{realJobs.length} offres</div>}
+          {!jobsLoading && realJobs.length > 0 && <div style={{ fontSize:13, color:v.text3 }}>{realJobs.length} offres</div>}
         </div>
 
         {jobsLoading && (
@@ -343,7 +343,17 @@ export default function HomePage() {
           </div>
         )}
 
-        {!jobsLoading && (
+        {/* Aucune offre chargée (source en panne, environnement local…) : jamais de zone vide */}
+        {!jobsLoading && realJobs.length === 0 && (
+          <div style={{ textAlign:'center', padding: isMobile ? '32px 20px' : '44px 24px', background:v.white, border:`1px solid ${v.line}`, borderRadius:18, boxShadow:v.shadow }}>
+            <div style={{ fontSize:15, color:v.text2, marginBottom:18, lineHeight:1.6 }}>Des milliers d&apos;offres vous attendent, filtrables par ville, contrat, salaire et niveau d&apos;études.</div>
+            <Link href="/jobs" style={{ display:'inline-block', padding:'12px 26px', borderRadius:100, background:v.blue, color:'#fff', fontSize:15, fontWeight:500, textDecoration:'none', minHeight:44, boxSizing:'border-box' }}>
+              Explorer toutes les offres France Travail et Adzuna →
+            </Link>
+          </div>
+        )}
+
+        {!jobsLoading && realJobs.length > 0 && (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:10 }}>
             {realJobs.slice(0, 6).map((job, i) => (
               <div key={job.id || i}
@@ -376,7 +386,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {!jobsLoading && realJobs.length > 6 && (
+        {!jobsLoading && realJobs.length > 0 && (
           <div style={{ textAlign:'center', marginTop:24 }}>
             <button onClick={() => window.location.href='/jobs'} style={{ padding:'10px 28px', borderRadius:100, background:v.white, color:v.text, border:`1px solid ${v.line2}`, fontFamily:'inherit', fontSize:14, fontWeight:500, cursor:'pointer', boxShadow:v.shadow, minHeight:44 }}>
               Voir toutes les offres →
@@ -467,7 +477,7 @@ export default function HomePage() {
           <button onClick={()=>setMenuOpen(false)} style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:`1px solid ${v.line2}`, borderRadius:'50%', cursor:'pointer', fontSize:18, color:v.text }}>✕</button>
         </div>
         <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'8px 24px' }}>
-          {[['#jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
+          {[['/jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
             <a key={h} href={h} onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>{l}</a>
           ))}
           {isLoggedIn

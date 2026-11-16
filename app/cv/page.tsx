@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link'
 import { peekPendingJob, markPendingJobGenerated } from '@/lib/cv-link'
+import type { LetterParts } from '@/lib/letter'
 
 type Template = 'classique' | 'moderne' | 'minimaliste'
 
@@ -116,6 +117,10 @@ function CVPageInner() {
   const [profileState, setProfileState] = useState<ProfileState>('loading')
 
   const [letter, setLetter]               = useState<string | null>(null)
+  const [letterParts, setLetterParts]     = useState<LetterParts | null>(null)
+  // Aperçu gratuit : seuls l'en-tête et le premier paragraphe sont reçus
+  const [letterLocked, setLetterLocked]   = useState(false)
+  const [hiddenParagraphs, setHiddenParagraphs] = useState(0)
   const [letterLoading, setLetterLoading] = useState(false)
   const [letterError, setLetterError]     = useState('')
   const [activeTab, setActiveTab]         = useState<'cv' | 'letter'>('cv')
@@ -184,7 +189,7 @@ function CVPageInner() {
   }, [])
 
   async function handleGenerate() {
-    setLoading(true); setError(''); setCv(null); setLetter(null); setActiveTab('cv')
+    setLoading(true); setError(''); setCv(null); setLetter(null); setLetterParts(null); setLetterLocked(false); setActiveTab('cv')
     try {
       const res = await fetch('/api/generate-cv', {
         method: 'POST',
@@ -261,8 +266,11 @@ function CVPageInner() {
         body: JSON.stringify({ jobTitle, company, jobDescription }),
       })
       const data = await res.json().catch(() => ({ error: 'La génération a pris trop de temps ou a échoué. Réessayez.' }))
-      if (data.error || !data.letter) { setLetterError(data.message || data.error || 'La génération a échoué. Réessayez.'); return }
-      setLetter(data.letter)
+      if (data.error || !data.parts) { setLetterError(data.message || data.error || 'La génération a échoué. Réessayez.'); return }
+      setLetterParts(data.parts)
+      setLetter(data.letter || null)
+      setLetterLocked(!!data.locked)
+      setHiddenParagraphs(data.hiddenParagraphs || 0)
       setActiveTab('letter')
     } catch {
       setLetterError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
@@ -279,11 +287,11 @@ function CVPageInner() {
   }
 
   async function handleDownloadLetter() {
-    if (!letter) return
+    if (!letterParts || letterLocked) return
     setLetterDownloading(true)
     try {
       const { downloadLetter } = await import('./pdf-templates')
-      await downloadLetter(letter, cv?.name || profileData?.full_name || '', company)
+      await downloadLetter(letterParts, company)
     } finally {
       setLetterDownloading(false)
     }
@@ -499,29 +507,30 @@ function CVPageInner() {
             )}
 
             {cv && (
-              !isPremium ? (
-                <>
-                  <button onClick={() => setShowUpsell(true)} style={{ padding: '13px', borderRadius: 10, background: 'rgba(0,113,227,.07)', color: v.blue, border: '1px solid rgba(0,113,227,.18)', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    Lettre de motivation
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: 'rgba(0,113,227,.12)', color: v.blue }}>Premium</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={handleGenerateLetter}
-                    disabled={letterLoading}
-                    style={{ padding: '13px', borderRadius: 10, background: letterLoading ? '#e8e8ed' : 'rgba(0,113,227,.07)', color: letterLoading ? v.text3 : v.blue, border: `1px solid ${letterLoading ? 'transparent' : 'rgba(0,113,227,.18)'}`, fontSize: 15, fontWeight: 500, cursor: letterLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background .2s' }}
-                  >
-                    {letterLoading ? 'Génération en cours…' : 'Générer la lettre de motivation'}
-                  </button>
-                  {letterError && (
-                    <div style={{ background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#c0392b' }}>
-                      {letterError}
-                    </div>
+              <>
+                <button
+                  onClick={handleGenerateLetter}
+                  disabled={letterLoading}
+                  style={{ padding: '13px', borderRadius: 10, background: letterLoading ? '#e8e8ed' : 'rgba(0,113,227,.07)', color: letterLoading ? v.text3 : v.blue, border: `1px solid ${letterLoading ? 'transparent' : 'rgba(0,113,227,.18)'}`, fontSize: 15, fontWeight: 500, cursor: letterLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background .2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                >
+                  {letterLoading
+                    ? 'Rédaction de la lettre…'
+                    : isPremium
+                      ? (letterParts ? 'Régénérer la lettre de motivation' : 'Générer la lettre de motivation')
+                      : 'Voir ma lettre de motivation'}
+                  {!isPremium && !letterLoading && (
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: 'rgba(29,131,72,.1)', color: '#1d8348' }}>Aperçu gratuit</span>
                   )}
-                </>
-              )
+                </button>
+                {letterError && (
+                  <div style={{ background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#c0392b' }}>
+                    {letterError}
+                    {!isPremium && (
+                      <button type="button" onClick={() => setShowUpsell(true)} style={{ display: 'block', marginTop: 6, color: v.blue, fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Voir les offres Premium →</button>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -534,7 +543,7 @@ function CVPageInner() {
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#e8e8ed' }} />
               </div>
-              {letter ? (
+              {letterParts ? (
                 <div style={{ display: 'flex', background: '#f5f5f7', borderRadius: 100, padding: 2 }}>
                   {(['cv', 'letter'] as const).map(tab => (
                     <button
@@ -554,9 +563,9 @@ function CVPageInner() {
               <div style={{ width: 54 }} />
             </div>
 
-            <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', alignItems: (cv || loading) || (activeTab === 'letter' && !!letter) ? 'flex-start' : 'center', justifyContent: 'center' }}>
+            <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', alignItems: (cv || loading) || (activeTab === 'letter' && !!letterParts) ? 'flex-start' : 'center', justifyContent: 'center' }}>
 
-              {(activeTab === 'cv' || !letter) && <>
+              {(activeTab === 'cv' || !letterParts) && <>
 
               {loading && (
                 <div style={{ textAlign: 'center' as any, width: '100%', paddingTop: 60 }}>
@@ -585,6 +594,8 @@ function CVPageInner() {
 
               {!loading && cv && (
                 <div style={{ width: '100%' }}>
+
+                  <MatchCard cv={cv} />
 
                   {/* Preview header — adapté au template sélectionné */}
                   {template === 'classique' && (
@@ -618,13 +629,6 @@ function CVPageInner() {
                         </div>
                         {photoUrl && <img src={photoUrl} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.3)', flexShrink: 0 }} />}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as any, marginTop: 10 }}>
-                        {cv.matchScore && (
-                          <span style={{ padding: '3px 12px', borderRadius: 100, background: `${scoreColor(cv.matchScore)}cc`, color: '#fff', fontSize: 11, fontWeight: 600 }}>
-                            Match : {cv.matchScore}%
-                          </span>
-                        )}
-                      </div>
                     </div>
                   )}
 
@@ -637,13 +641,6 @@ function CVPageInner() {
                           {(profileData?.email || profileData?.phone || profileData?.location) && (
                             <div style={{ fontSize: 10, color: v.text3 }}>
                               {[profileData?.email, profileData?.phone, profileData?.location].filter(Boolean).join('  ·  ')}
-                            </div>
-                          )}
-                          {cv.matchScore && (
-                            <div style={{ marginTop: 8 }}>
-                              <span style={{ padding: '3px 12px', borderRadius: 100, background: `${scoreColor(cv.matchScore)}18`, color: scoreColor(cv.matchScore), fontSize: 11, fontWeight: 600 }}>
-                                Match : {cv.matchScore}%
-                              </span>
                             </div>
                           )}
                         </div>
@@ -702,7 +699,7 @@ function CVPageInner() {
                   )}
 
                   {cv.watermark && (
-                    <div style={{ textAlign: 'right' as any, fontSize: 9, fontWeight: 600, color: 'rgba(0,113,227,0.18)', letterSpacing: '.04em', marginTop: 8 }}>DROP-JOB FREE</div>
+                    <div style={{ textAlign: 'center' as any, fontSize: 11, color: '#6b7280', marginTop: 12, paddingTop: 10, borderTop: `1px solid ${v.line}` }}>CV généré gratuitement sur drop-job.fr — Version sans filigrane sur drop-job.fr</div>
                   )}
 
                   <button
@@ -736,11 +733,35 @@ function CVPageInner() {
 
               </>}
 
-              {activeTab === 'letter' && letter && (
+              {activeTab === 'letter' && letterParts && (
                 <div style={{ width: '100%' }}>
-                  {letter.split('\n\n').filter(p => p.trim()).map((para, i) => (
-                    <p key={i} style={{ fontSize: 14, color: v.text2, lineHeight: 1.85, marginBottom: 16 }}>{para}</p>
-                  ))}
+                  <LetterPreview parts={letterParts} />
+
+                  {letterLocked && (
+                    <div style={{ position: 'relative', marginTop: 4 }}>
+                      {/* Suite de la lettre : texte d'illustration flouté (la vraie suite n'est pas envoyée) */}
+                      <div aria-hidden="true" className="blur-sm select-none" style={{ pointerEvents: 'none' }}>
+                        {LOCKED_FILLER.slice(0, Math.max(2, hiddenParagraphs)).map((para, i) => (
+                          <p key={i} style={{ fontSize: 14, color: v.text2, lineHeight: 1.85, marginBottom: 16 }}>{para}</p>
+                        ))}
+                        <p style={{ fontSize: 14, color: v.text2, lineHeight: 1.85 }}>Je vous prie d&apos;agréer, Madame, Monsieur, l&apos;expression de mes salutations distinguées.</p>
+                      </div>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
+                        <div style={{ background: 'rgba(255,255,255,.94)', borderRadius: 14, boxShadow: '0 4px 24px rgba(0,0,0,.12)', padding: '18px 20px', textAlign: 'center' as const, maxWidth: 360 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: v.text, marginBottom: 4 }}>Votre lettre est prête</div>
+                          <div style={{ fontSize: 12, color: v.text2, marginBottom: 12 }}>{hiddenParagraphs > 0 ? `Encore ${hiddenParagraphs} paragraphes, la formule de politesse et la signature.` : 'La suite, la formule de politesse et la signature.'}</div>
+                          <button
+                            onClick={() => setShowUpsell(true)}
+                            style={{ padding: '11px 16px', borderRadius: 10, background: v.blue, color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.35 }}
+                          >
+                            Débloquer la lettre complète et les modèles Moderne &amp; Minimaliste
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!letterLocked && letter && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <button
                       onClick={handleCopyLetter}
@@ -760,6 +781,7 @@ function CVPageInner() {
                       {letterDownloading ? 'Génération…' : 'Télécharger la lettre'}
                     </button>
                   </div>
+                  )}
                 </div>
               )}
             </div>
@@ -815,6 +837,69 @@ function CVPageInner() {
         input:focus, textarea:focus { outline: none; border-color: rgba(0,113,227,0.45) !important; box-shadow: 0 0 0 3px rgba(0,113,227,0.08) !important; }
         @media (max-width: 768px) { input, textarea { font-size: 16px !important; } }
       `}</style>
+    </div>
+  )
+}
+
+// Texte d'illustration flouté sous l'aperçu gratuit de la lettre
+const LOCKED_FILLER = [
+  "Au cours de mes expériences, j'ai développé des compétences directement liées aux missions de ce poste, en particulier dans l'organisation, le suivi et la relation avec les clients et les équipes.",
+  "Rejoindre votre entreprise représente pour moi l'occasion de mettre ces compétences au service d'un projet qui me motive, tout en continuant à progresser à vos côtés.",
+  "Disponible rapidement, je serais heureux de vous présenter ma motivation lors d'un entretien, à votre convenance.",
+]
+
+// Score de matching et explications, visibles par tous les utilisateurs
+function MatchCard({ cv }: { cv: any }) {
+  if (typeof cv?.matchScore !== 'number') return null
+  const score: number = cv.matchScore
+  const color = scoreColor(score)
+  const strengths: string[] = Array.isArray(cv.matchStrengths) ? cv.matchStrengths : []
+  const gaps: string[] = Array.isArray(cv.matchGaps) ? cv.matchGaps : []
+  // CV générés avant l'ajout des points forts / à renforcer
+  const reasons: string[] = !strengths.length && !gaps.length && Array.isArray(cv.matchReasons) ? cv.matchReasons : []
+  return (
+    <div style={{ border: `1px solid ${color}33`, background: `${color}0d`, borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#1d1d1f' }}>Votre profil correspond à {score} % à cette offre</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color, letterSpacing: '-0.03em', flexShrink: 0 }}>{score} %</div>
+      </div>
+      <div style={{ height: 6, background: 'rgba(0,0,0,.06)', borderRadius: 100, overflow: 'hidden', marginBottom: strengths.length || gaps.length || reasons.length ? 12 : 0 }}>
+        <div style={{ width: `${score}%`, height: '100%', background: color, borderRadius: 100 }} />
+      </div>
+      {strengths.length > 0 && (
+        <div style={{ marginBottom: gaps.length ? 8 : 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#1d8348', marginBottom: 4 }}>Points forts</div>
+          {strengths.map((t, i) => <div key={i} style={{ fontSize: 12, color: '#3a3a3c', lineHeight: 1.55 }}>✓ {t}</div>)}
+        </div>
+      )}
+      {gaps.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#b45309', marginBottom: 4 }}>À renforcer</div>
+          {gaps.map((t, i) => <div key={i} style={{ fontSize: 12, color: '#3a3a3c', lineHeight: 1.55 }}>• {t}</div>)}
+        </div>
+      )}
+      {reasons.map((t, i) => <div key={i} style={{ fontSize: 12, color: '#3a3a3c', lineHeight: 1.55 }}>• {t}</div>)}
+    </div>
+  )
+}
+
+// Lettre au format professionnel : expéditeur, destinataire, lieu et date, objet, corps
+function LetterPreview({ parts }: { parts: LetterParts }) {
+  const body = { fontSize: 14, color: '#3a3a3c', lineHeight: 1.85, marginBottom: 16 }
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: '#3a3a3c', lineHeight: 1.6, marginBottom: 16 }}>
+        {parts.sender.map((line, i) => <div key={i} style={i === 0 ? { fontWeight: 600, color: '#1d1d1f' } : undefined}>{line}</div>)}
+      </div>
+      <div style={{ fontSize: 12, color: '#3a3a3c', lineHeight: 1.6, marginBottom: 12, marginLeft: 'auto', width: 'fit-content', minWidth: '45%' }}>
+        {parts.recipient.map((line, i) => <div key={i} style={i === 0 ? { fontWeight: 600, color: '#1d1d1f' } : undefined}>{line}</div>)}
+      </div>
+      <div style={{ fontSize: 12, color: '#3a3a3c', textAlign: 'right' as const, marginBottom: 18 }}>{parts.placeDate}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: '#1d1d1f', marginBottom: 16 }}>{parts.subject}</div>
+      <p style={body}>{parts.salutation}</p>
+      {parts.paragraphs.map((para, i) => <p key={i} style={body}>{para}</p>)}
+      {parts.closing && <p style={body}>{parts.closing}</p>}
+      {parts.signature && <p style={{ ...body, fontWeight: 600, color: '#1d1d1f', textAlign: 'right' as const }}>{parts.signature}</p>}
     </div>
   )
 }

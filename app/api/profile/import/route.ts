@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { consumeAiUsage } from '@/lib/ai-usage'
 
 // Remplissage express du profil : l'utilisateur colle le texte de son CV
 // (ou de son profil LinkedIn), l'IA en extrait les informations structurées.
@@ -9,6 +10,7 @@ import OpenAI from 'openai'
 
 const MIN_CHARS = 80
 const MAX_CHARS = 15000
+const IMPORTS_PER_HOUR = 5
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'Natif']
 
 const SYSTEM_PROMPT = `Tu extrais les informations d'un CV (ou d'un profil LinkedIn) collé en texte brut, pour pré-remplir un formulaire.
@@ -102,6 +104,14 @@ export async function POST(request: Request) {
     }
     if (text.length > MAX_CHARS) {
       return NextResponse.json({ error: `Texte trop long (${MAX_CHARS.toLocaleString('fr-FR')} caractères maximum).` }, { status: 400 })
+    }
+
+    // Anti-abus : 5 imports par heure et par utilisateur
+    if (!(await consumeAiUsage(user.id, 'profile_import', IMPORTS_PER_HOUR, 60 * 60 * 1000))) {
+      return NextResponse.json(
+        { error: `Limite atteinte : ${IMPORTS_PER_HOUR} remplissages express par heure. Réessayez un peu plus tard ou complétez le formulaire à la main.` },
+        { status: 429 }
+      )
     }
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })

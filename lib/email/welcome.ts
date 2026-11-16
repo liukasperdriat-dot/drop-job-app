@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 
 // Client créé au moment de l'envoi (et non au chargement du fichier) :
 // une clé manquante n'empêche plus la connexion, seul l'e-mail n'est pas envoyé.
@@ -14,20 +15,43 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
 }
 
-export async function sendWelcomeEmail(email: string, firstName?: string) {
+// Renvoie true si l'e-mail est bien parti
+export async function sendWelcomeEmail(email: string, firstName?: string): Promise<boolean> {
   const client = getResend()
   if (!client) {
     console.warn('[welcome-email] RESEND_API_KEY manquante : e-mail non envoyé')
-    return
+    return false
   }
   const name = escapeHtml((firstName || email.split('@')[0]).slice(0, 60))
 
-  await client.emails.send({
+  const { error } = await client.emails.send({
     from: 'Drop-Job <noreply@drop-job.fr>',
     to: email,
     subject: 'Bienvenue sur Drop-Job 👋',
     html: buildHtml(name),
   })
+  if (error) {
+    console.error('[welcome-email] envoi refusé :', error.message)
+    return false
+  }
+  return true
+}
+
+// Envoie l'e-mail de bienvenue une seule fois par compte (Google ou e-mail).
+// Le compte est marqué (welcome_email_sent) seulement si l'envoi a réussi.
+export async function sendWelcomeEmailOnce(supabase: SupabaseClient, user: User): Promise<void> {
+  if (!user.email || user.user_metadata?.welcome_email_sent) return
+  try {
+    const meta = user.user_metadata ?? {}
+    const fullName: string = meta.full_name || meta.name || ''
+    const firstName = fullName.split(' ')[0] || undefined
+    if (await sendWelcomeEmail(user.email, firstName)) {
+      await supabase.auth.updateUser({ data: { welcome_email_sent: true } })
+    }
+  } catch (err) {
+    // Un échec d'envoi ne bloque jamais l'inscription
+    console.error('[welcome-email] erreur :', err instanceof Error ? err.message : err)
+  }
 }
 
 function buildHtml(firstName: string): string {

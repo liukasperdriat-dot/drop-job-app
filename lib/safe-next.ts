@@ -19,6 +19,12 @@ export function rememberNext(next: string) {
   document.cookie = `${NEXT_COOKIE}=${encodeURIComponent(safeNext(next))}; path=/; max-age=3600; samesite=lax`
 }
 
+// Connexion terminée sans passer par /auth/callback : le cookie ne sert plus
+export function forgetNext() {
+  if (typeof document === 'undefined') return
+  document.cookie = `${NEXT_COOKIE}=; path=/; max-age=0; samesite=lax`
+}
+
 // Lien entre connexion et inscription : on transmet ?next= s'il existe
 export function keepNext(e: { preventDefault: () => void }, path: string) {
   const next = nextFromLocation()

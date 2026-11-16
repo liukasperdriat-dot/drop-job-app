@@ -3,6 +3,7 @@
 import React from 'react'
 import { Document, Page, View, Text, StyleSheet, pdf, Image } from '@react-pdf/renderer'
 import type { DocumentProps } from '@react-pdf/renderer'
+import type { LetterParts } from '@/lib/letter'
 
 async function toBase64(url: string): Promise<string | null> {
   try {
@@ -17,6 +18,28 @@ async function toBase64(url: string): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+// Pied de page de la version gratuite : discret mais lisible, centré, sur chaque page
+const footer = StyleSheet.create({
+  free: {
+    position: 'absolute',
+    bottom: 24,
+    left: 40,
+    right: 40,
+    textAlign: 'center',
+    fontFamily: 'Helvetica',
+    fontSize: 8.5,
+    color: '#6b7280',
+  },
+})
+
+function FreeFooter() {
+  return (
+    <Text style={footer.free} fixed>
+      CV généré gratuitement sur drop-job.fr — Version sans filigrane sur drop-job.fr
+    </Text>
+  )
 }
 
 // ── CLASSIQUE ──────────────────────────────────────────────────────────────
@@ -83,14 +106,6 @@ const cl = StyleSheet.create({
     fontSize: 9.5,
     color: '#505050',
     marginBottom: 3,
-  },
-  watermark: {
-    position: 'absolute',
-    bottom: 28,
-    right: 57,
-    fontSize: 6.5,
-    color: '#c8c8cd',
-    fontFamily: 'Times-Roman',
   },
 })
 
@@ -162,7 +177,7 @@ export function ClassiquePDF({ cv, profile, photoBase64 }: { cv: any; profile: a
           </View>
         ) : null}
 
-        {cv.watermark ? <Text style={cl.watermark}>drop-job.fr</Text> : null}
+        {cv.watermark ? <FreeFooter /> : null}
       </Page>
     </Document>
   )
@@ -243,14 +258,6 @@ const md = StyleSheet.create({
     color: '#2563EB',
     marginBottom: 3,
   },
-  watermark: {
-    position: 'absolute',
-    bottom: 28,
-    right: 57,
-    fontSize: 6.5,
-    color: '#c8c8cd',
-    fontFamily: 'Helvetica',
-  },
 })
 
 function ModerneSection({ title }: { title: string }) {
@@ -328,7 +335,7 @@ export function ModernePDF({ cv, profile, photoBase64 }: { cv: any; profile: any
           ) : null}
         </View>
 
-        {cv.watermark ? <Text style={md.watermark}>drop-job.fr</Text> : null}
+        {cv.watermark ? <FreeFooter /> : null}
       </Page>
     </Document>
   )
@@ -394,14 +401,6 @@ const mn = StyleSheet.create({
     fontSize: 9,
     color: '#828285',
     marginBottom: 3,
-  },
-  watermark: {
-    position: 'absolute',
-    bottom: 28,
-    right: 79,
-    fontSize: 6.5,
-    color: '#c8c8cd',
-    fontFamily: 'Helvetica',
   },
 })
 
@@ -475,7 +474,7 @@ export function MinimalistePDF({ cv, profile, photoBase64 }: { cv: any; profile:
           </View>
         ) : null}
 
-        {cv.watermark ? <Text style={mn.watermark}>drop-job.fr</Text> : null}
+        {cv.watermark ? <FreeFooter /> : null}
       </Page>
     </Document>
   )
@@ -492,43 +491,56 @@ const lt = StyleSheet.create({
     paddingRight: 57,
     backgroundColor: '#ffffff',
   },
-  name: {
-    fontFamily: 'Times-Bold',
-    fontSize: 18,
-    color: '#000000',
-    marginBottom: 4,
-  },
-  nameLine: {
-    borderBottomWidth: 0.8,
-    borderBottomColor: '#000000',
-    marginBottom: 24,
-  },
+  sender: { marginBottom: 22 },
+  senderName: { fontFamily: 'Times-Bold', fontSize: 12, color: '#000000', marginBottom: 2 },
+  small: { fontFamily: 'Times-Roman', fontSize: 10.5, color: '#1a1a1a', lineHeight: 1.4 },
+  recipient: { alignSelf: 'flex-end', width: 220, marginBottom: 18 },
+  recipientName: { fontFamily: 'Times-Bold', fontSize: 11, color: '#000000', marginBottom: 2 },
+  placeDate: { alignSelf: 'flex-end', fontFamily: 'Times-Roman', fontSize: 10.5, color: '#1a1a1a', marginBottom: 22 },
+  subject: { fontFamily: 'Times-Bold', fontSize: 11, color: '#000000', marginBottom: 18 },
   paragraph: {
     fontFamily: 'Times-Roman',
     fontSize: 11,
     color: '#1a1a1a',
-    lineHeight: 1.75,
-    marginBottom: 14,
+    lineHeight: 1.6,
+    marginBottom: 11,
+    textAlign: 'justify',
   },
+  signature: { fontFamily: 'Times-Bold', fontSize: 11, color: '#000000', marginTop: 14, alignSelf: 'flex-end' },
 })
 
-export function LettrePDF({ letter, name }: { letter: string; name: string }) {
-  const paragraphs = letter.split('\n\n').filter(p => p.trim())
+// Format français : expéditeur à gauche, destinataire puis lieu et date à droite,
+// objet, appel, corps, formule de politesse et signature.
+export function LettrePDF({ parts }: { parts: LetterParts }) {
   return (
     <Document>
       <Page size="A4" style={lt.page}>
-        <Text style={lt.name}>{name}</Text>
-        <View style={lt.nameLine} />
-        {paragraphs.map((para, i) => (
+        <View style={lt.sender}>
+          {parts.sender.map((line, i) => (
+            <Text key={i} style={i === 0 ? lt.senderName : lt.small}>{line}</Text>
+          ))}
+        </View>
+        <View style={lt.recipient}>
+          {parts.recipient.map((line, i) => (
+            <Text key={i} style={i === 0 ? lt.recipientName : lt.small}>{line}</Text>
+          ))}
+        </View>
+        <Text style={lt.placeDate}>{parts.placeDate}</Text>
+        <Text style={lt.subject}>{parts.subject}</Text>
+        <Text style={lt.paragraph}>{parts.salutation}</Text>
+        {parts.paragraphs.map((para, i) => (
           <Text key={i} style={lt.paragraph}>{para}</Text>
         ))}
+        <Text style={lt.paragraph}>{parts.closing}</Text>
+        <Text style={lt.signature}>{parts.signature}</Text>
       </Page>
     </Document>
   )
 }
 
-export async function downloadLetter(letter: string, name: string, company: string) {
-  const element = <LettrePDF letter={letter} name={name} />
+export async function downloadLetter(parts: LetterParts, company: string) {
+  const name = parts.signature
+  const element = <LettrePDF parts={parts} />
   const blob = await pdf(element).toBlob()
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
