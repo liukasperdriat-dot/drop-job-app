@@ -33,10 +33,12 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   if (PROTECTED.some(r => path.startsWith(r)) && !user) {
-    // On garde la page demandée pour y revenir après la connexion
-    const login = new URL('/auth/login', request.url)
-    login.searchParams.set('next', path + request.nextUrl.search)
-    return NextResponse.redirect(login)
+    // On garde la page demandée pour y revenir après la connexion.
+    // /cv (offre choisie, outil, CTA) : surtout de nouveaux visiteurs → inscription,
+    // avec le lien « Se connecter » pour ceux qui ont déjà un compte.
+    const target = new URL(path.startsWith('/cv') ? '/auth/register' : '/auth/login', request.url)
+    target.searchParams.set('next', path + request.nextUrl.search)
+    return NextResponse.redirect(target)
   }
 
   if (AUTH_ONLY.some(r => path.startsWith(r)) && user) {

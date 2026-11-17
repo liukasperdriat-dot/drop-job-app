@@ -84,6 +84,9 @@ export default async function DashboardPage() {
                 <div style={{ fontSize: 12, color: cvPct >= 100 ? '#c0392b' : v.text3 }}>
                   {cvPct >= 100 ? 'Quota atteint ce mois-ci' : `${cvUsed} utilisé${cvUsed > 1 ? 's' : ''} sur 1`}
                 </div>
+                {cvPct >= 100 && (
+                  <Link href="/pricing?next=%2Fcv" style={{ display: 'inline-block', marginTop: 8, fontSize: 13, color: v.blue, textDecoration: 'none', fontWeight: 500 }}>Passer en illimité →</Link>
+                )}
               </>
             )}
             {isPremium && <div style={{ fontSize: 12, color: '#1d8348', fontWeight: 500 }}>✓ CV illimités</div>}

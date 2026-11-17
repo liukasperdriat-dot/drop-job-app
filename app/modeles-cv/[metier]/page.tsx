@@ -67,6 +67,7 @@ export default async function ModeleCvPage({ params }: { params: Promise<Params>
                 Personnaliser ce modèle avec mon profil
               </Link>
               <p className="mt-2 text-center text-xs text-white/70">1 CV gratuit par mois · sans carte bancaire</p>
+              <Link href="/pricing" className="mt-1 block text-center text-xs font-medium text-white no-underline hover:underline">Modèles Moderne et Minimaliste, CV illimités : voir les tarifs →</Link>
             </div>
             <div className="rounded-2xl border border-black/[0.08] bg-white p-5">
               <p className="text-sm font-semibold">Offres de {modele.metier.toLowerCase()}</p>

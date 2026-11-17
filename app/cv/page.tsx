@@ -409,6 +409,13 @@ function CVPageInner() {
     !!jobTitle && !!company && !!jobDescription &&
     profileState === 'loaded'
 
+  // Champs à remplir avant de pouvoir générer (affiché sous le bouton)
+  const missingFields = [
+    !jobTitle.trim() && 'le poste visé',
+    !company.trim() && "l'entreprise",
+    !jobDescription.trim() && "la description de l'offre",
+  ].filter(Boolean) as string[]
+
   return (
     <div style={{ minHeight: '100vh', background: v.bg, fontFamily: "var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif", WebkitFontSmoothing: 'antialiased' as any }}>
 
@@ -497,6 +504,11 @@ function CVPageInner() {
 
             <Field label="Description de l'offre">
               <textarea value={jobDescription} onChange={e => setJobDescription(e.target.value)} placeholder="Collez la description de l'offre ici…" rows={6} style={textareaStyle} />
+              {!jobDescription.trim() && (
+                <a href="/jobs" style={{ display: 'inline-block', marginTop: 6, fontSize: 12, color: v.blue, textDecoration: 'none', fontWeight: 500 }}>
+                  Pas d&apos;offre sous la main ? Choisir parmi les offres du moment →
+                </a>
+              )}
             </Field>
 
             {profileState === 'loading' && (
@@ -578,6 +590,12 @@ function CVPageInner() {
               {loading ? 'Génération en cours…' : 'Générer mon CV'}
             </button>
 
+            {!loading && profileState === 'loaded' && missingFields.length > 0 && (
+              <p style={{ textAlign: 'center', fontSize: 12, color: v.text3, margin: 0 }}>
+                Complétez {missingFields.join(', ').replace(/, ([^,]*)$/, ' et $1')} pour lancer la génération.
+              </p>
+            )}
+
             {!isPremium && (
               cvCount >= 1 ? (
                 <p style={{ textAlign: 'center', fontSize: 13, color: '#ff3b30', margin: 0 }}>
@@ -586,7 +604,8 @@ function CVPageInner() {
                 </p>
               ) : (
                 <p style={{ textAlign: 'center', fontSize: 13, color: '#6e6e73', margin: 0 }}>
-                  1 CV gratuit restant ce mois
+                  1 CV gratuit restant ce mois ·{' '}
+                  <a href={pricingUrl()} onClick={saveCvState} style={{ color: v.blue, fontWeight: 500, textDecoration: 'none' }}>illimité avec Premium</a>
                 </p>
               )
             )}

@@ -417,6 +417,9 @@ export default function HomePage() {
             <div style={{ fontSize:11, color:v.text3, textAlign:'center', marginTop:10 }}>{PAYMENT_REASSURANCE}</div>
           </div>
         </div>
+        <div style={{ textAlign:'center', marginTop:20 }}>
+          <Link href="/pricing" style={{ fontSize:14, color:v.blue, textDecoration:'none', fontWeight:500 }}>Comparer toutes les formules →</Link>
+        </div>
       </div>
 
       <SiteFooter />
@@ -439,6 +442,7 @@ export default function HomePage() {
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             <button onClick={() => startCheckout(billing, '/cv')} disabled={checkoutLoading !== null} aria-busy={checkoutLoading !== null} style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:checkoutLoading ? 'wait' : 'pointer', minHeight:44, opacity:checkoutLoading ? 0.75 : 1 }}>{checkoutLoading ? 'Ouverture du paiement sécurisé…' : <>Passer à Premium — {billing === 'weekly' ? '3,49€ / semaine' : '9,90€ / mois'}</>}</button>
             <div style={{ fontSize:12, color:'#6e6e73', textAlign:'center', margin:'2px 0 4px' }}>{PAYMENT_REASSURANCE}</div>
+            <Link href="/pricing" style={{ fontSize:13, color:'#0071e3', textDecoration:'none', fontWeight:500, textAlign:'center', padding:'4px 0' }}>Voir le détail des offres →</Link>
             <button onClick={()=>setPaywall(false)} style={{ width:'100%', padding:11, borderRadius:8, background:'transparent', color:'#6e6e73', border:'1px solid rgba(0,0,0,.14)', fontFamily:'inherit', fontSize:13, cursor:'pointer', minHeight:44 }}>Continuer avec le plan gratuit</button>
           </div>
         </div>

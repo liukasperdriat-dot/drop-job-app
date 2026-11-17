@@ -19,8 +19,10 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    // Sans page de retour demandée, un nouveau compte commence par son profil
-    const next = nextFromLocation('/profile')
+    // Sans page de retour demandée, un nouveau compte commence par son profil.
+    // Vers /cv : le profil d'abord (il est vide), puis retour automatique sur l'offre.
+    const requested = nextFromLocation('/profile')
+    const next = requested.startsWith('/cv') ? `/profile?next=${encodeURIComponent(requested)}` : requested
     rememberNext(next)
 
     try {
@@ -33,7 +35,7 @@ export default function RegisterPage() {
       })
 
       if (error) {
-        setError(error.message)
+        setError(frenchAuthError(error.message))
         setLoading(false)
         return
       }
@@ -185,4 +187,14 @@ const styles: Record<string, React.CSSProperties> = {
   link: { color: '#0071e3', textDecoration: 'none', fontWeight: 500 },
   cgLabel: { display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 13, color: '#6e6e73', cursor: 'pointer', marginTop: 14, lineHeight: 1.45 },
   backLink: { display: 'block', textAlign: 'center' as const, marginTop: 20, color: '#0071e3', fontSize: 14 },
+}
+// Messages d'erreur de Supabase (en anglais) traduits pour l'utilisateur
+function frenchAuthError(message: string): string {
+  const m = message.toLowerCase()
+  if (m.includes('password') && (m.includes('at least') || m.includes('characters'))) return 'Le mot de passe doit contenir au moins 6 caractères.'
+  if (m.includes('weak') || m.includes('pwned')) return 'Ce mot de passe est trop facile à deviner. Choisissez-en un autre.'
+  if (m.includes('invalid') && m.includes('email')) return 'Adresse e-mail invalide. Vérifiez-la puis réessayez.'
+  if (m.includes('already registered') || m.includes('already exists')) return 'Un compte existe déjà avec cet e-mail. Connectez-vous.'
+  if (m.includes('rate limit') || m.includes('too many') || m.includes('seconds')) return 'Trop de tentatives. Patientez une minute puis réessayez.'
+  return 'L’inscription n’a pas abouti. Réessayez dans un instant.'
 }

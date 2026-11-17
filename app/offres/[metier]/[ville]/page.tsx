@@ -123,6 +123,7 @@ export default async function OffresMetierVillePage({ params }: { params: Promis
               <ul className="mt-3 space-y-2">
                 {modele && <li><Link href={modelePath(modele.slug)} className="text-[#0071e3] no-underline hover:underline">Modèle de CV {metier.label.toLowerCase()} →</Link></li>}
                 <li><Link href="/score-ats" className="text-[#0071e3] no-underline hover:underline">Tester mon CV face à une offre (score ATS) →</Link></li>
+                <li><Link href="/pricing" className="text-[#0071e3] no-underline hover:underline">CV et lettres illimités : voir les tarifs →</Link></li>
               </ul>
             </div>
           </aside>

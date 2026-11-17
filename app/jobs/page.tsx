@@ -83,30 +83,6 @@ function JobsPageContent() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  useEffect(() => {
-    if (window.innerWidth >= 768) return
-    const fab = document.createElement('div')
-    Object.assign(fab.style, {
-      position: 'fixed', bottom: '24px', left: '50%',
-      transform: 'translateX(-50%)', zIndex: '9999',
-    })
-    const link = document.createElement('a')
-    link.href = '/cv'
-    Object.assign(link.style, {
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      gap: '8px', padding: '15px 32px', borderRadius: '16px',
-      background: '#0071e3', color: '#fff', textDecoration: 'none',
-      fontSize: '15px', fontWeight: '600',
-      boxShadow: '0 4px 24px rgba(0,113,227,.35)',
-      letterSpacing: '-0.01em', whiteSpace: 'nowrap',
-      fontFamily: "var(--font-inter),-apple-system,BlinkMacSystemFont,sans-serif",
-    })
-    link.textContent = 'Créer mon CV'
-    fab.appendChild(link)
-    document.body.appendChild(fab)
-    return () => { fab.remove() }
-  }, [])
-
   type Filters = {
     kw: string; loc: string; dept: string; dist: number
     src: 'tout' | 'francetravail' | 'adzuna'; contrat: string
@@ -214,7 +190,16 @@ function JobsPageContent() {
     searchJobs({ debutant: val })
   }
 
+  // Offre en cours d'ouverture sur /cv : bouton « Ouverture… » le temps de la navigation
+  const [openingJobId, setOpeningJobId] = useState<string | null>(null)
+  useEffect(() => {
+    const reset = (e: PageTransitionEvent) => { if (e.persisted) setOpeningJobId(null) }
+    window.addEventListener('pageshow', reset)
+    return () => window.removeEventListener('pageshow', reset)
+  }, [])
+
   function handleCVWithSave(job: any) {
+    setOpeningJobId(String(job.id ?? job.title))
     openCvForJob(job, url => router.push(url))
   }
 
@@ -570,7 +555,7 @@ function JobsPageContent() {
         {!loading && jobs.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
             {jobs.map(job => (
-              <JobCard key={job.id} job={job} onOpen={() => setSelectedJob(job)} onCV={() => handleCVWithSave(job)} />
+              <JobCard key={job.id} job={job} opening={openingJobId === String(job.id ?? job.title)} onOpen={() => setSelectedJob(job)} onCV={() => handleCVWithSave(job)} />
             ))}
           </div>
         )}
@@ -640,7 +625,7 @@ export default function JobsPage() {
   )
 }
 
-function JobCard({ job, onOpen, onCV }: { job: any; onOpen: () => void; onCV: () => void }) {
+function JobCard({ job, opening, onOpen, onCV }: { job: any; opening: boolean; onOpen: () => void; onCV: () => void }) {
   const [hovered, setHovered] = useState(false)
 
   return (
@@ -669,10 +654,12 @@ function JobCard({ job, onOpen, onCV }: { job: any; onOpen: () => void; onCV: ()
       </div>
 
       <button
-        onClick={e => { e.stopPropagation(); onCV(); }}
-        style={{ display: 'block', width: '100%', marginTop: 12, padding: 9, background: 'rgba(0,113,227,.07)', color: '#0071e3', border: '1px solid rgba(0,113,227,.14)', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
+        onClick={e => { e.stopPropagation(); if (!opening) onCV(); }}
+        disabled={opening}
+        aria-busy={opening}
+        style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 12, padding: 9, background: 'rgba(0,113,227,.07)', color: '#0071e3', border: '1px solid rgba(0,113,227,.14)', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: opening ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: opening ? 0.7 : 1 }}
       >
-        Générer mon CV pour cette offre
+        {opening ? 'Ouverture…' : 'Générer mon CV pour cette offre'}
       </button>
     </div>
   )
