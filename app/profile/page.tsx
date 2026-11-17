@@ -6,6 +6,7 @@ import { usePremiumCheckout, PAYMENT_REASSURANCE } from '@/lib/premium-link'
 import { peekAnyPendingJob, cvUrlFor } from '@/lib/cv-link'
 import { nextFromLocation } from '@/lib/safe-next'
 import ManageSubscriptionButton from '@/components/ManageSubscriptionButton'
+import SiteHeader from '@/components/SiteHeader'
 
 type Experience = {
   title: string; company: string; location: string
@@ -235,22 +236,11 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans antialiased">
 
-      {/* STICKY NAV */}
-      <nav className="sticky top-0 z-50 h-14 bg-white/90 backdrop-blur-xl border-b border-gray-100 shadow-sm">
+      <SiteHeader />
+      {/* Barre d'enregistrement, sous l'en-tête commun */}
+      <div className="sticky top-14 z-50 h-14 bg-white/90 backdrop-blur-xl border-b border-gray-100 shadow-sm">
         <div className="max-w-3xl mx-auto h-full px-6 flex items-center justify-between">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-2 text-gray-800 font-semibold text-[15px] tracking-tight hover:opacity-70 transition-opacity bg-transparent border-none cursor-pointer"
-          >
-            <svg viewBox="0 0 40 40" fill="none" width={26} height={26}>
-              <rect x="5" y="5" width="30" height="30" rx="7" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="2.2" fill="none"/>
-              <rect x="9" y="9" width="22" height="22" rx="5" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.45"/>
-              <circle cx="20" cy="20" r="7.5" stroke="currentColor" strokeWidth="1.8" fill="none"/>
-              <line x1="20" y1="15.5" x2="20" y2="22.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <polyline points="17,20.5 20,23.5 23,20.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            </svg>
-            drop-job
-          </button>
+          <p className="text-[15px] font-semibold tracking-tight text-gray-800">Mon profil</p>
 
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium text-blue-600 hidden sm:block">
@@ -263,12 +253,6 @@ export default function ProfilePage() {
               </span>
             )}
             {saveError && <span className="text-xs font-medium text-red-600">{saveError}</span>}
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="text-sm text-gray-500 hover:text-gray-800 transition-colors bg-transparent border-none cursor-pointer"
-            >
-              ← Dashboard
-            </button>
             <button
               onClick={handleSave}
               disabled={saving}
@@ -284,7 +268,7 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
-      </nav>
+      </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 pb-24 space-y-6">
 

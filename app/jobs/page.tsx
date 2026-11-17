@@ -3,11 +3,11 @@
 import { Suspense } from 'react'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import CompanyLogo from '@/components/CompanyLogo'
 import { openCvForJob } from '@/lib/cv-link'
 import { NIVEAUX } from '@/lib/niveaux'
 import { DEPARTEMENTS } from '@/lib/departements'
+import SiteHeader from '@/components/SiteHeader'
 
 const NIVEAU_KEY = 'dropjob:niveau-etudes'
 
@@ -223,28 +223,7 @@ function JobsPageContent() {
     <>
     <div style={{ background: v.bg, color: v.text, fontFamily: "var(--font-inter),-apple-system,BlinkMacSystemFont,sans-serif", minHeight: '100vh', WebkitFontSmoothing: 'antialiased' }}>
 
-      {/* NAV */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 200, height: 52, background: 'rgba(245,245,247,0.92)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: `1px solid ${v.line}` }}>
-        <div style={{ maxWidth: 1080, margin: '0 auto', height: '100%', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none', color: v.text, fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em' }}>
-            <svg viewBox="0 0 40 40" fill="none" width={26} height={26}>
-              <rect x="5" y="5" width="30" height="30" rx="7" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="2.2" fill="none"/>
-              <rect x="9" y="9" width="22" height="22" rx="5" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.45"/>
-              <circle cx="20" cy="20" r="7.5" stroke="currentColor" strokeWidth="1.8" fill="none"/>
-              <line x1="20" y1="15.5" x2="20" y2="22.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <polyline points="17,20.5 20,23.5 23,20.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            </svg>
-            drop-job
-          </Link>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Link href="/dashboard" style={{ fontSize: 13, color: v.text2, textDecoration: 'none', padding: '5px 13px', borderRadius: 100 }}>Dashboard</Link>
-            {!isMobile && (
-              <Link href="/cv" style={{ padding: '7px 17px', borderRadius: 100, fontSize: 13, fontWeight: 500, background: v.blue, color: '#fff', textDecoration: 'none' }}>Mon CV</Link>
-            )}
-          </div>
-        </div>
-      </nav>
+      <SiteHeader />
 
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '40px 24px 80px' }}>
 

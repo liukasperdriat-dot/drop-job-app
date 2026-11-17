@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { METIERS, offresPath, modelePath } from '@/lib/seo-catalog'
-import { Logo } from './SiteHeader'
+import { Logo } from './Logo'
 
 // Pied de page commun : maillage interne vers les outils, les modèles de CV
 // et les offres par ville (indexation rapide par les moteurs de recherche).

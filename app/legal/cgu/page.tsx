@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import SiteHeader from '@/components/SiteHeader'
 
 export const metadata = {
   title: 'Conditions Générales d\'Utilisation — Drop-Job',
@@ -58,17 +59,7 @@ export default function CGUPage() {
         }
       `}</style>
 
-      {/* Nav */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(245,245,247,0.92)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: `1px solid ${s.line}`, height: 52, display: 'flex', alignItems: 'center' }}>
-        <div style={{ maxWidth: 1080, margin: '0 auto', width: '100%', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{ fontWeight: 700, fontSize: 17, color: s.text, textDecoration: 'none', letterSpacing: '-0.02em' }}>
-            Drop-Job
-          </Link>
-          <Link href="/" style={{ fontSize: 14, color: s.blue, textDecoration: 'none', fontWeight: 500 }}>
-            ← Retour à l'accueil
-          </Link>
-        </div>
-      </nav>
+      <SiteHeader />
 
       {/* Content */}
       <div className="legal-wrap" style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px 80px' }}>

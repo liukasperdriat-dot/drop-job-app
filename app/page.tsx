@@ -7,6 +7,7 @@ import CompanyLogo from '@/components/CompanyLogo';
 import { createClient } from '@/lib/supabase/client';
 import { usePremiumCheckout, PAYMENT_REASSURANCE } from '@/lib/premium-link';
 import { openCvForJob } from '@/lib/cv-link';
+import SiteHeader from '@/components/SiteHeader'
 
 const v = {
   bg: '#f5f5f7', bg2: '#e8e8ed', white: '#fff',
@@ -28,7 +29,6 @@ export default function HomePage() {
   const [salaryTouched, setSalaryTouched] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
@@ -75,38 +75,7 @@ export default function HomePage() {
     <>
     <div style={{ background: v.bg, color: v.text, fontFamily:"var(--font-inter),-apple-system,BlinkMacSystemFont,sans-serif", minHeight:'100vh', WebkitFontSmoothing:'antialiased' }}>
 
-      {/* NAV */}
-      <nav style={{ position:'sticky', top:0, zIndex:200, height:52, background:'rgba(245,245,247,0.92)', backdropFilter:'blur(24px) saturate(180%)', borderBottom:`1px solid ${v.line}` }}>
-        <div style={{ maxWidth:1080, margin:'0 auto', height:'100%', padding:'0 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <a href="#" style={{ display:'flex', alignItems:'center', gap:7, textDecoration:'none', color:v.text, fontSize:15, fontWeight:600, letterSpacing:'-0.02em', whiteSpace:'nowrap' }}>
-            <svg viewBox="0 0 40 40" fill="none" width={26} height={26}>
-              <rect x="5" y="5" width="30" height="30" rx="7" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="2.2" fill="none"/>
-              <rect x="9" y="9" width="22" height="22" rx="5" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.45"/>
-              <circle cx="20" cy="20" r="7.5" stroke="currentColor" strokeWidth="1.8" fill="none"/>
-              <line x1="20" y1="15.5" x2="20" y2="22.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <polyline points="17,20.5 20,23.5 23,20.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            </svg>
-            drop-job
-          </a>
-          {!isMobile && (
-            <ul style={{ display:'flex', alignItems:'center', gap:0, listStyle:'none' }}>
-              {[['/jobs','Rechercher'],['#bento','CV IA'],['/pricing','Tarifs']].map(([h,l])=>(
-                <li key={h}><a href={h} style={{ padding:'5px 13px', fontSize:13, color:v.text2, textDecoration:'none', display:'block', borderRadius:100 }}>{l}</a></li>
-              ))}
-            </ul>
-          )}
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            {!isMobile && (isLoggedIn
-              ? <Link href="/dashboard" style={{ fontSize:13, color:v.text2, textDecoration:'none', padding:'5px 4px' }}>Dashboard</Link>
-              : <Link href="/auth/login" style={{ fontSize:13, color:v.text2, textDecoration:'none', padding:'5px 4px' }}>Connexion</Link>
-            )}
-            <button onClick={()=>window.location.href='/auth/register'} style={{ padding:'7px 17px', borderRadius:100, fontSize:13, fontWeight:500, background:v.blue, color:'#fff', border:'none', cursor:'pointer', fontFamily:'inherit', minHeight:44 }}>Commencer</button>
-            {isMobile && (
-              <button onClick={()=>setMenuOpen(true)} style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', cursor:'pointer', fontSize:20, color:v.text, flexShrink:0 }}>☰</button>
-            )}
-          </div>
-        </div>
-      </nav>
+      <SiteHeader />
 
       {/* HERO */}
       <div style={{ maxWidth:1080, margin:'0 auto', padding: isMobile ? '48px 16px 40px' : '88px 24px 56px', textAlign:'center' }}>
@@ -452,31 +421,6 @@ export default function HomePage() {
 
       <SiteFooter />
     </div>
-
-    {/* MOBILE MENU */}
-    {menuOpen && (
-      <div style={{ position:'fixed', inset:0, zIndex:250, background:'rgba(245,245,247,0.97)', backdropFilter:'blur(20px) saturate(180%)', display:'flex', flexDirection:'column' }}>
-        <div style={{ height:52, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', borderBottom:`1px solid ${v.line}` }}>
-          <a href="#" style={{ display:'flex', alignItems:'center', gap:7, textDecoration:'none', color:v.text, fontSize:15, fontWeight:600, letterSpacing:'-0.02em', whiteSpace:'nowrap' }}>
-            <svg viewBox="0 0 40 40" fill="none" width={26} height={26}><rect x="5" y="5" width="30" height="30" rx="7" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="2.2" fill="none"/><rect x="9" y="9" width="22" height="22" rx="5" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.45"/><circle cx="20" cy="20" r="7.5" stroke="currentColor" strokeWidth="1.8" fill="none"/><line x1="20" y1="15.5" x2="20" y2="22.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><polyline points="17,20.5 20,23.5 23,20.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-            drop-job
-          </a>
-          <button onClick={()=>setMenuOpen(false)} style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:`1px solid ${v.line2}`, borderRadius:'50%', cursor:'pointer', fontSize:18, color:v.text }}>✕</button>
-        </div>
-        <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'8px 24px' }}>
-          {[['/jobs','Rechercher'],['#bento','CV IA'],['/pricing','Tarifs']].map(([h,l])=>(
-            <a key={h} href={h} onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>{l}</a>
-          ))}
-          {isLoggedIn
-            ? <Link href="/dashboard" onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>Dashboard</Link>
-            : <Link href="/auth/login" onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>Connexion</Link>
-          }
-        </div>
-        <div style={{ padding:'24px' }}>
-          <button onClick={()=>{ setMenuOpen(false); window.location.href='/auth/register'; }} style={{ width:'100%', padding:'16px', borderRadius:14, background:v.blue, color:'#fff', border:'none', fontFamily:'inherit', fontSize:16, fontWeight:500, cursor:'pointer' }}>Commencer gratuitement</button>
-        </div>
-      </div>
-    )}
 
     {/* PAYWALL */}
     {paywall && (
