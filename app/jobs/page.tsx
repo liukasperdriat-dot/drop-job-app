@@ -7,7 +7,6 @@ import CompanyLogo from '@/components/CompanyLogo'
 import { openCvForJob } from '@/lib/cv-link'
 import { NIVEAUX } from '@/lib/niveaux'
 import { DEPARTEMENTS } from '@/lib/departements'
-import SiteHeader from '@/components/SiteHeader'
 
 const NIVEAU_KEY = 'dropjob:niveau-etudes'
 
@@ -223,7 +222,6 @@ function JobsPageContent() {
     <>
     <div style={{ background: v.bg, color: v.text, fontFamily: "var(--font-inter),-apple-system,BlinkMacSystemFont,sans-serif", minHeight: '100vh', WebkitFontSmoothing: 'antialiased' }}>
 
-      <SiteHeader />
 
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '40px 24px 80px' }}>
 

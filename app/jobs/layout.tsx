@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import SiteHeader from '@/components/SiteHeader'
 
 // La page /jobs est un composant client : son titre et son canonical
 // sont déclarés ici. Les pages /jobs/[slug] les remplacent par les leurs.
@@ -8,6 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/jobs' },
 }
 
+// En-tête commun dans le layout : présent dès le HTML initial (la page est rendue côté navigateur)
 export default function JobsLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return <><SiteHeader />{children}</>
 }
