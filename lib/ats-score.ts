@@ -9,7 +9,7 @@ export type AtsResult = {
   score: number                 // 0 à 100
   keywordScore: number          // part « mots-clés » sur 100
   matched: string[]             // mots-clés de l'offre présents dans le CV
-  missing: string[]             // 3 mots-clés critiques absents du CV
+  missing: string[]             // mots-clés absents du CV, les plus critiques d'abord (15 max)
   checks: { label: string; ok: boolean }[]
   totalKeywords: number
 }
@@ -163,7 +163,7 @@ export function analyzeAts(cvText: string, offerText: string): AtsResult {
     keywordScore,
     matched: list.filter(k => k.found).map(k => k.label).slice(0, 12),
     // Mots-clés critiques : compétences connues d'abord, puis les plus répétés
-    missing: list.filter(k => !k.found).sort((a, b) => Number(b.skill) - Number(a.skill) || b.weight - a.weight).map(k => k.label).slice(0, 3),
+    missing: list.filter(k => !k.found).sort((a, b) => Number(b.skill) - Number(a.skill) || b.weight - a.weight).map(k => k.label).slice(0, 15),
     checks,
     totalKeywords: list.length,
   }

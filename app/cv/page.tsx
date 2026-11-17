@@ -3,11 +3,55 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link'
+import { PAYMENT_REASSURANCE, PRICES, pricingUrl, usePremiumCheckout, type BillingPeriod } from '@/lib/premium-link'
 import { peekPendingJob, markPendingJobGenerated, peekOfferDraft } from '@/lib/cv-link'
 import type { LetterParts } from '@/lib/letter'
 
 type Template = 'classique' | 'moderne' | 'minimaliste'
+
+// Fenêtre Premium : le message dépend de ce que l'utilisateur essayait de faire
+type UpsellReason = 'quota' | 'download' | 'template' | 'letter'
+const UPSELL_COPY: Record<UpsellReason, { icon: string; title: string; text: string }> = {
+  quota: {
+    icon: '⏳',
+    title: 'Votre CV gratuit du mois est utilisé',
+    text: 'Passez à Premium pour générer un CV sur-mesure pour chaque offre, sans limite, avec la lettre de motivation complète.',
+  },
+  download: {
+    icon: '🚀',
+    title: 'Vous avez aimé votre CV ?',
+    text: 'Avec Premium, générez autant de CV que vous voulez sans mention en pied de page, obtenez votre lettre de motivation IA complète et accédez aux modèles Moderne et Minimaliste.',
+  },
+  template: {
+    icon: '🎨',
+    title: 'Débloquez les modèles Moderne et Minimaliste',
+    text: 'Démarquez-vous avec une mise en page plus moderne, des CV illimités sans mention en pied de page et la lettre de motivation complète.',
+  },
+  letter: {
+    icon: '✉️',
+    title: 'Votre lettre complète vous attend',
+    text: 'Débloquez la suite de votre lettre, la formule de politesse et le téléchargement en PDF, ainsi que des CV illimités pour chaque offre.',
+  },
+}
+
+// CV en cours gardé le temps du paiement (même onglet), pour le retrouver au retour de Stripe
+const CV_STATE_KEY = 'dropjob:cv-state'
+const CV_STATE_MAX_AGE = 60 * 60 * 1000
+type PaymentState = 'idle' | 'confirming' | 'active' | 'delayed'
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+type SavedCvState = { at: number; cv: unknown; letterParts: LetterParts | null }
+function readSavedCvState(): SavedCvState | null {
+  try {
+    const raw = typeof window === 'undefined' ? null : sessionStorage.getItem(CV_STATE_KEY)
+    if (!raw) return null
+    const saved = JSON.parse(raw) as Partial<SavedCvState>
+    if (!saved?.cv || typeof saved.at !== 'number' || Date.now() - saved.at > CV_STATE_MAX_AGE) return null
+    return { at: saved.at, cv: saved.cv, letterParts: saved.letterParts ?? null }
+  } catch {
+    return null
+  }
+}
 
 const v = {
   bg: '#f5f5f7', white: '#fff',
@@ -102,7 +146,9 @@ function CVPageInner() {
 
   const [profileData, setProfileData]   = useState<any>(null)
 
-  const [cv, setCv]             = useState<any>(null)
+  // CV gardé pendant le paiement Stripe : retrouvé au retour
+  const [savedCvState] = useState(readSavedCvState)
+  const [cv, setCv]             = useState<any>(() => savedCvState?.cv ?? null)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [downloading, setDownloading] = useState(false)
@@ -120,7 +166,7 @@ function CVPageInner() {
   const [profileState, setProfileState] = useState<ProfileState>('loading')
 
   const [letter, setLetter]               = useState<string | null>(null)
-  const [letterParts, setLetterParts]     = useState<LetterParts | null>(null)
+  const [letterParts, setLetterParts]     = useState<LetterParts | null>(() => savedCvState?.letterParts ?? null)
   // Aperçu gratuit : seuls l'en-tête et le premier paragraphe sont reçus
   const [letterLocked, setLetterLocked]   = useState(false)
   const [hiddenParagraphs, setHiddenParagraphs] = useState(0)
@@ -129,7 +175,64 @@ function CVPageInner() {
   const [activeTab, setActiveTab]         = useState<'cv' | 'letter'>('cv')
   const [copied, setCopied]               = useState(false)
   const [letterDownloading, setLetterDownloading] = useState(false)
-  const [showUpsell, setShowUpsell] = useState(false)
+  const [upsell, setUpsell] = useState<UpsellReason | null>(null)
+  const { start: startCheckout, loading: checkoutLoading } = usePremiumCheckout()
+  const [payment, setPayment] = useState<PaymentState>(() => params.get('success') === 'true' ? 'confirming' : 'idle')
+
+  function openUpsell(reason: UpsellReason) { setUpsell(reason) }
+
+  // Garde le CV généré pendant le détour par Stripe
+  function saveCvState() {
+    if (!cv) return
+    try {
+      sessionStorage.setItem(CV_STATE_KEY, JSON.stringify({ at: Date.now(), cv, letterParts: letterLocked ? null : letterParts }))
+    } catch { /* stockage indisponible : le CV sera à régénérer */ }
+  }
+
+  function checkout(period: BillingPeriod) {
+    saveCvState()
+    startCheckout(period)
+  }
+
+  // Retour de Stripe (?success=true) : CV en cours restauré, puis activation du Premium
+  // confirmée auprès de Stripe (sans attendre le webhook), avec relecture du statut en secours.
+  useEffect(() => {
+    // CV restauré à l'ouverture de la page (voir savedCvState) : la sauvegarde ne sert plus
+    try { sessionStorage.removeItem(CV_STATE_KEY) } catch { /* stockage indisponible */ }
+
+    if (params.get('success') !== 'true') return
+    const sessionId = params.get('session_id')
+    const url = new URL(window.location.href)
+    url.searchParams.delete('success')
+    url.searchParams.delete('session_id')
+    window.history.replaceState(null, '', url.pathname + url.search)
+
+    let cancelled = false
+    const activate = () => { if (!cancelled) { setIsPremium(true); setPayment('active') } }
+    ;(async () => {
+      if (sessionId) {
+        try {
+          const res = await fetch('/api/stripe/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (data.is_premium) { activate(); return }
+        } catch { /* le webhook prend le relais */ }
+      }
+      for (let i = 0; i < 8 && !cancelled; i++) {
+        await wait(1500)
+        try {
+          const data = await fetch('/api/me', { cache: 'no-store' }).then(r => r.json())
+          if (data.is_premium) { activate(); return }
+        } catch { /* nouvel essai */ }
+      }
+      if (!cancelled) setPayment('delayed')
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -200,7 +303,7 @@ function CVPageInner() {
         body: JSON.stringify({ jobTitle, company, jobDescription }),
       })
       const data = await res.json().catch(() => ({ error: 'La génération a pris trop de temps ou a échoué. Réessayez.' }))
-      if (data.error === 'QUOTA_EXCEEDED') { setShowUpsell(true); return }
+      if (data.error === 'QUOTA_EXCEEDED') { openUpsell('quota'); return }
       if (data.error || !data.cv) { setError(data.error || 'La génération a échoué. Réessayez.'); return }
       setCv(data.cv)
       setCvCount(c => c + 1)
@@ -218,7 +321,7 @@ function CVPageInner() {
     try {
       const { downloadCV } = await import('./pdf-templates')
       await downloadCV(template, cv, { ...profileData, photo_url: photoUrl }, company)
-      if (!isPremium) setShowUpsell(true)
+      if (!isPremium) openUpsell('download')
     } finally {
       setDownloading(false)
     }
@@ -337,6 +440,7 @@ function CVPageInner() {
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '48px 24px 80px' }}>
 
         <div style={{ marginBottom: 32 }}>
+          {payment !== 'idle' && <PaymentBanner state={payment} onClose={() => setPayment('idle')} />}
           <h1 style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.04em', color: v.text, marginBottom: 6 }}>Smart CV IA</h1>
           <p style={{ fontSize: 15, color: v.text2, fontWeight: 300 }}>Générez un CV adapté à chaque offre en quelques secondes.</p>
         </div>
@@ -351,13 +455,13 @@ function CVPageInner() {
               return (
                 <button
                   key={t.id}
-                  onClick={() => { if (!locked) setTemplate(t.id) }}
+                  onClick={() => { if (locked) openUpsell('template'); else setTemplate(t.id) }}
                   style={{
                     background: v.white,
                     border: selected ? `2px solid ${v.blue}` : `1.5px solid ${v.line2}`,
                     borderRadius: 14,
                     padding: '12px 14px',
-                    cursor: locked ? 'not-allowed' : 'pointer',
+                    cursor: 'pointer',
                     textAlign: 'left' as any,
                     boxShadow: selected ? `0 0 0 3px rgba(0,113,227,.08), ${v.shadow}` : v.shadow,
                     opacity: locked ? 0.72 : 1,
@@ -394,7 +498,7 @@ function CVPageInner() {
           {!isPremium && (
             <div style={{ marginTop: 10, padding: '9px 14px', background: 'rgba(0,113,227,.04)', border: '1px solid rgba(0,113,227,.12)', borderRadius: 10, fontSize: 12, color: v.blue, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Moderne et Minimaliste sont réservés aux membres Premium.</span>
-              <button type="button" onClick={() => goToPremium('monthly')} style={{ fontWeight: 600, color: v.blue, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, flexShrink: 0, marginLeft: 12 }}>Passer Premium →</button>
+              <button type="button" onClick={() => openUpsell('template')} style={{ fontWeight: 600, color: v.blue, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, flexShrink: 0, marginLeft: 12 }}>Passer Premium →</button>
             </div>
           )}
         </div>
@@ -500,7 +604,7 @@ function CVPageInner() {
               cvCount >= 1 ? (
                 <p style={{ textAlign: 'center', fontSize: 13, color: '#ff3b30', margin: 0 }}>
                   0 CV gratuit restant ce mois —{' '}
-                  <button type="button" onClick={() => goToPremium('monthly')} style={{ color: v.blue, fontWeight: 500, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Passez Premium</button>
+                  <button type="button" onClick={() => openUpsell('quota')} style={{ color: v.blue, fontWeight: 500, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Passez Premium</button>
                 </p>
               ) : (
                 <p style={{ textAlign: 'center', fontSize: 13, color: '#6e6e73', margin: 0 }}>
@@ -529,7 +633,7 @@ function CVPageInner() {
                   <div style={{ background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#c0392b' }}>
                     {letterError}
                     {!isPremium && (
-                      <button type="button" onClick={() => setShowUpsell(true)} style={{ display: 'block', marginTop: 6, color: v.blue, fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Voir les offres Premium →</button>
+                      <button type="button" onClick={() => openUpsell('letter')} style={{ display: 'block', marginTop: 6, color: v.blue, fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Voir les offres Premium →</button>
                     )}
                   </div>
                 )}
@@ -754,7 +858,7 @@ function CVPageInner() {
                           <div style={{ fontSize: 14, fontWeight: 600, color: v.text, marginBottom: 4 }}>Votre lettre est prête</div>
                           <div style={{ fontSize: 12, color: v.text2, marginBottom: 12 }}>{hiddenParagraphs > 0 ? `Encore ${hiddenParagraphs} paragraphes, la formule de politesse et la signature.` : 'La suite, la formule de politesse et la signature.'}</div>
                           <button
-                            onClick={() => setShowUpsell(true)}
+                            onClick={() => openUpsell('letter')}
                             style={{ padding: '11px 16px', borderRadius: 10, background: v.blue, color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.35 }}
                           >
                             Débloquer la lettre complète et les modèles Moderne &amp; Minimaliste
@@ -793,39 +897,55 @@ function CVPageInner() {
       </div>
 
       {/* UPSELL MODAL */}
-      {showUpsell && (
+      {upsell && (
         <div
-          onClick={() => setShowUpsell(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={() => { if (!checkoutLoading) setUpsell(null) }}
+          role="dialog" aria-modal="true" aria-labelledby="upsell-title"
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 24 }}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: '#fff', borderRadius: 20, padding: isMobile ? '32px 24px' : '40px 40px', maxWidth: 460, width: '100%', boxShadow: '0 8px 48px rgba(0,0,0,0.18)', textAlign: 'center' as const }}
+            style={{ background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '28px 20px 32px' : '40px 40px', maxWidth: 460, width: '100%', boxShadow: '0 8px 48px rgba(0,0,0,0.18)', textAlign: 'center' as const }}
           >
-            <div style={{ fontSize: 36, marginBottom: 16 }}>🚀</div>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: '#1d1d1f', marginBottom: 12 }}>
-              Vous avez aimé votre CV ?
+            <div style={{ fontSize: 36, marginBottom: 14 }} aria-hidden="true">{UPSELL_COPY[upsell].icon}</div>
+            <div id="upsell-title" style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: '#1d1d1f', marginBottom: 12 }}>
+              {UPSELL_COPY[upsell].title}
             </div>
             <p style={{ fontSize: 14, color: '#6e6e73', lineHeight: 1.7, marginBottom: 20 }}>
-              Avec Premium, générez autant de CV que vous voulez, obtenez votre lettre de motivation IA, et accédez aux templates Moderne et Minimaliste.
+              {UPSELL_COPY[upsell].text}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button
-                onClick={() => { setShowUpsell(false); goToPremium('weekly') }}
-                style={{ padding: '13px', borderRadius: 12, background: v.blue, color: '#fff', border: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Premium — 3,49 € / semaine
-              </button>
-              <button
-                onClick={() => { setShowUpsell(false); goToPremium('monthly') }}
-                style={{ padding: '13px', borderRadius: 12, background: 'rgba(0,113,227,.07)', color: v.blue, border: '1px solid rgba(0,113,227,.18)', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Premium — 9,90 € / mois
-              </button>
+              {(['weekly', 'monthly'] as const).map((period, i) => {
+                const busy = checkoutLoading === period
+                return (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => checkout(period)}
+                    disabled={checkoutLoading !== null}
+                    aria-busy={busy}
+                    style={{
+                      minHeight: 48, padding: '13px', borderRadius: 12, fontSize: 15, fontWeight: 600, fontFamily: 'inherit',
+                      cursor: checkoutLoading ? 'wait' : 'pointer', opacity: checkoutLoading && !busy ? 0.6 : 1,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      ...(i === 0
+                        ? { background: v.blue, color: '#fff', border: 'none' }
+                        : { background: 'rgba(0,113,227,.07)', color: v.blue, border: '1px solid rgba(0,113,227,.18)' }),
+                    }}
+                  >
+                    {busy
+                      ? <><span aria-hidden="true" style={{ width: 15, height: 15, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} /> Ouverture du paiement sécurisé…</>
+                      : `Premium — ${PRICES[period].amount} / ${PRICES[period].unit}`}
+                  </button>
+                )
+              })}
               <div style={{ fontSize: 12, color: '#6e6e73', margin: '2px 0 4px' }}>{PAYMENT_REASSURANCE}</div>
+              <a href={pricingUrl()} onClick={saveCvState} style={{ fontSize: 13, color: v.blue, textDecoration: 'none', fontWeight: 500, padding: '4px 0' }}>Comparer les offres →</a>
               <button
-                onClick={() => setShowUpsell(false)}
-                style={{ padding: '13px', borderRadius: 12, background: '#f5f5f7', color: '#6e6e73', border: 'none', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
+                type="button"
+                onClick={() => setUpsell(null)}
+                disabled={checkoutLoading !== null}
+                style={{ minHeight: 44, padding: '13px', borderRadius: 12, background: '#f5f5f7', color: '#6e6e73', border: 'none', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 Plus tard
               </button>
@@ -949,5 +1069,29 @@ export default function CVPage() {
     <Suspense fallback={<div style={{ minHeight: '100vh', background: '#f5f5f7' }} />}>
       <CVPageInner />
     </Suspense>
+  )
+}
+
+// Bandeau affiché au retour de Stripe
+function PaymentBanner({ state, onClose }: { state: PaymentState; onClose: () => void }) {
+  const base: React.CSSProperties = { display: 'flex', alignItems: 'flex-start', gap: 10, borderRadius: 14, padding: '12px 16px', marginBottom: 20, fontSize: 14, lineHeight: 1.5 }
+  if (state === 'confirming') {
+    return (
+      <div role="status" style={{ ...base, background: 'rgba(0,113,227,.06)', border: '1px solid rgba(0,113,227,.18)', color: v.text }}>
+        <span aria-hidden="true" style={{ flexShrink: 0, marginTop: 3, width: 14, height: 14, border: `2px solid ${v.blue}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
+        <span>Paiement reçu, activation de votre compte Premium…</span>
+      </div>
+    )
+  }
+  const active = state === 'active'
+  return (
+    <div role="status" style={{ ...base, background: active ? 'rgba(29,131,72,.07)' : 'rgba(180,83,9,.07)', border: `1px solid ${active ? 'rgba(29,131,72,.25)' : 'rgba(180,83,9,.25)'}`, color: v.text }}>
+      <span style={{ flex: 1 }}>
+        {active
+          ? <><strong>Bienvenue dans Premium ✓</strong> CV illimités, lettre complète et tous les modèles sont débloqués.</>
+          : <><strong>Paiement bien reçu.</strong> L&apos;activation prend un peu plus de temps que prévu : rechargez la page dans une minute. En cas de souci, écrivez-nous à dropjob.contact@gmail.com.</>}
+      </span>
+      <button type="button" onClick={onClose} aria-label="Fermer" style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: v.text2, fontSize: 14, padding: 2 }}>✕</button>
+    </div>
   )
 }

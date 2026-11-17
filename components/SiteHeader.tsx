@@ -13,6 +13,7 @@ export default function SiteHeader() {
           <Link href="/jobs" className="rounded-full px-3 py-1.5 text-[#6e6e73] no-underline hover:text-[#1d1d1f]">Offres</Link>
           <Link href="/modeles-cv" className="rounded-full px-3 py-1.5 text-[#6e6e73] no-underline hover:text-[#1d1d1f]">Modèles de CV</Link>
           <Link href="/score-ats" className="rounded-full px-3 py-1.5 text-[#6e6e73] no-underline hover:text-[#1d1d1f]">Score ATS gratuit</Link>
+          <Link href="/pricing" className="rounded-full px-3 py-1.5 text-[#6e6e73] no-underline hover:text-[#1d1d1f]">Tarifs</Link>
         </nav>
         <Link
           href="/auth/register?next=/cv"

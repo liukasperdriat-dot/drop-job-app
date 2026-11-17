@@ -29,6 +29,7 @@ export default function SiteFooter() {
             <li><Link href="/jobs" className={linkClass}>Recherche d&apos;offres</Link></li>
             <li><Link href="/modeles-cv" className={linkClass}>Modèles de CV par métier</Link></li>
             <li><Link href="/offres" className={linkClass}>Offres par métier et ville</Link></li>
+            <li><Link href="/pricing" className={linkClass}>Tarifs Premium</Link></li>
           </ul>
         </div>
         <div>

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link'
+import { usePremiumCheckout, PAYMENT_REASSURANCE } from '@/lib/premium-link'
 
 export default function CheckoutButton() {
   const [period, setPeriod] = useState<'monthly' | 'weekly'>('monthly')
+  const { start, loading } = usePremiumCheckout()
 
   return (
     <div style={styles.wrap}>
@@ -22,8 +23,13 @@ export default function CheckoutButton() {
           3,49€/semaine
         </button>
       </div>
-      <button onClick={() => goToPremium(period)} style={styles.btn}>
-        Passer Premium →
+      <button
+        onClick={() => start(period, '/cv')}
+        disabled={loading !== null}
+        aria-busy={loading !== null}
+        style={{ ...styles.btn, ...(loading ? { opacity: 0.75, cursor: 'wait' } : {}) }}
+      >
+        {loading ? 'Ouverture du paiement sécurisé…' : 'Passer Premium →'}
       </button>
       <p style={styles.reassure}>{PAYMENT_REASSURANCE}</p>
       <p style={styles.legal}>

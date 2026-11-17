@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link'
+import { usePremiumCheckout, PAYMENT_REASSURANCE } from '@/lib/premium-link'
 import { peekAnyPendingJob, cvUrlFor } from '@/lib/cv-link'
 import { nextFromLocation } from '@/lib/safe-next'
 import ManageSubscriptionButton from '@/components/ManageSubscriptionButton'
@@ -69,6 +69,7 @@ function scoreMessage(score: number): string {
 
 export default function ProfilePage() {
   const router = useRouter()
+  const { start: startCheckout, loading: checkoutLoading } = usePremiumCheckout()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -394,10 +395,12 @@ export default function ProfilePage() {
             <div className="shrink-0 flex flex-col items-start sm:items-end gap-1.5">
               <button
                 type="button"
-                onClick={() => goToPremium('monthly')}
-                className="inline-block px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
+                onClick={() => startCheckout('monthly', '/cv')}
+                disabled={checkoutLoading !== null}
+                aria-busy={checkoutLoading !== null}
+                className="inline-block min-h-[44px] px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-70 disabled:cursor-wait text-white text-sm font-semibold transition-colors"
               >
-                Passer Premium → 9,90€/mois
+                {checkoutLoading ? 'Ouverture du paiement…' : 'Passer Premium → 9,90€/mois'}
               </button>
               <p className="text-[11px] text-gray-500">{PAYMENT_REASSURANCE}</p>
             </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { analyzeAts } from '@/lib/ats-score'
+import { createClient } from '@/lib/supabase/server'
 
 // Outil public « Score ATS » : accessible sans compte.
 // L'analyse est faite sur le serveur, sans IA externe ni enregistrement :
@@ -7,6 +8,7 @@ import { analyzeAts } from '@/lib/ats-score'
 
 const MIN_CHARS = 50
 const MAX_CHARS = 15000
+const FREE_MISSING = 3
 
 // Limite anti-abus par adresse IP (mémoire de l'instance, au mieux)
 const WINDOW_MS = 10 * 60 * 1000
@@ -49,9 +51,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Aucun mot-clé exploitable dans cette offre. Collez le texte complet de l’annonce.' }, { status: 422 })
     }
 
-    return NextResponse.json({ result }, { headers: { 'Cache-Control': 'no-store' } })
+    // Gratuit : les 3 mots-clés manquants les plus critiques ; Premium : la liste complète.
+    // Le reste n'est pas envoyé au navigateur (seul leur nombre l'est).
+    const premium = await isPremiumUser()
+    const lockedMissing = premium ? 0 : Math.max(0, result.missing.length - FREE_MISSING)
+    return NextResponse.json(
+      { result: premium ? result : { ...result, missing: result.missing.slice(0, FREE_MISSING) }, lockedMissing, premium },
+      { headers: { 'Cache-Control': 'no-store' } },
+    )
   } catch (err) {
     console.error('[score-ats]', err instanceof Error ? err.message : err)
     return NextResponse.json({ error: 'L’analyse a échoué. Réessayez dans un instant.' }, { status: 500 })
+  }
+}
+
+// Visiteur anonyme ou erreur de lecture : traité comme gratuit
+async function isPremiumUser(): Promise<boolean> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return false
+    const { data } = await supabase.from('profiles').select('is_premium').eq('id', user.id).maybeSingle()
+    return !!data?.is_premium
+  } catch {
+    return false
   }
 }

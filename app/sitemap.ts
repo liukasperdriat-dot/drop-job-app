@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/score-ats`,              lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${BASE}/modeles-cv`,             lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE}/offres`,                 lastModified: now, changeFrequency: 'weekly',  priority: 0.8 },
+    { url: `${BASE}/pricing`,                lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE}/legal/cgu`,              lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
     { url: `${BASE}/legal/mentions-legales`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
     { url: `${BASE}/legal/confidentialite`,  lastModified: now, changeFrequency: 'monthly', priority: 0.3 },

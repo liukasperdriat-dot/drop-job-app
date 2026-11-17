@@ -5,7 +5,7 @@ import Link from 'next/link';
 import SiteFooter from '@/components/SiteFooter';
 import CompanyLogo from '@/components/CompanyLogo';
 import { createClient } from '@/lib/supabase/client';
-import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link';
+import { usePremiumCheckout, PAYMENT_REASSURANCE } from '@/lib/premium-link';
 import { openCvForJob } from '@/lib/cv-link';
 
 const v = {
@@ -21,6 +21,7 @@ export default function HomePage() {
   const [search, setSearch]   = useState('');
   const [city, setCity]       = useState('Lyon');
   const [billing, setBilling] = useState<'monthly'|'weekly'>('monthly');
+  const { start: startCheckout, loading: checkoutLoading } = usePremiumCheckout();
   const [salMin, setSalMin]   = useState(40);
   const [salMax, setSalMax]   = useState(70);
   // Le filtre salaire n'est appliqué que si le visiteur a touché au curseur
@@ -492,7 +493,7 @@ export default function HomePage() {
             ))}
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <button onClick={() => goToPremium(billing)} style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:'pointer', minHeight:44 }}>Passer à Premium — {billing === 'weekly' ? '3,49€ / semaine' : '9,90€ / mois'}</button>
+            <button onClick={() => startCheckout(billing, '/cv')} disabled={checkoutLoading !== null} aria-busy={checkoutLoading !== null} style={{ width:'100%', padding:13, borderRadius:8, background:'#0071e3', color:'#fff', border:'none', fontFamily:'inherit', fontSize:15, fontWeight:500, cursor:checkoutLoading ? 'wait' : 'pointer', minHeight:44, opacity:checkoutLoading ? 0.75 : 1 }}>{checkoutLoading ? 'Ouverture du paiement sécurisé…' : <>Passer à Premium — {billing === 'weekly' ? '3,49€ / semaine' : '9,90€ / mois'}</>}</button>
             <div style={{ fontSize:12, color:'#6e6e73', textAlign:'center', margin:'2px 0 4px' }}>{PAYMENT_REASSURANCE}</div>
             <button onClick={()=>setPaywall(false)} style={{ width:'100%', padding:11, borderRadius:8, background:'transparent', color:'#6e6e73', border:'1px solid rgba(0,0,0,.14)', fontFamily:'inherit', fontSize:13, cursor:'pointer', minHeight:44 }}>Continuer avec le plan gratuit</button>
           </div>

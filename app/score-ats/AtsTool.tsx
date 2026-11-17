@@ -26,6 +26,9 @@ export default function AtsTool() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<AtsResult | null>(null)
+  // Mots-clés manquants réservés au Premium (seul leur nombre est reçu)
+  const [lockedMissing, setLockedMissing] = useState(0)
+  const [premium, setPremium] = useState(false)
 
   async function analyze(e: React.FormEvent) {
     e.preventDefault()
@@ -42,6 +45,8 @@ export default function AtsTool() {
       const data = await res.json().catch(() => ({ error: 'L’analyse a échoué. Réessayez.' }))
       if (!res.ok || !data.result) { setError(data.error || 'L’analyse a échoué. Réessayez.'); return }
       setResult(data.result)
+      setLockedMissing(typeof data.lockedMissing === 'number' ? data.lockedMissing : 0)
+      setPremium(data.premium === true)
       // Affiche le résultat sur mobile, où il se trouve sous le formulaire
       requestAnimationFrame(() => document.getElementById('resultat-ats')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     } catch {
@@ -80,7 +85,7 @@ export default function AtsTool() {
       </form>
 
       <div id="resultat-ats" className="scroll-mt-20 min-h-[320px] rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm sm:p-6" aria-live="polite">
-        {loading ? <ResultSkeleton /> : result ? <ResultView result={result} offer={offer} /> : <ResultEmpty />}
+        {loading ? <ResultSkeleton /> : result ? <ResultView result={result} offer={offer} lockedMissing={lockedMissing} premium={premium} /> : <ResultEmpty />}
       </div>
     </div>
   )
@@ -108,7 +113,7 @@ function ResultSkeleton() {
   )
 }
 
-function ResultView({ result, offer }: { result: AtsResult; offer: string }) {
+function ResultView({ result, offer, lockedMissing, premium }: { result: AtsResult; offer: string; lockedMissing: number; premium: boolean }) {
   const color = scoreColor(result.score)
   const circumference = 2 * Math.PI * 52
   return (
@@ -126,12 +131,15 @@ function ResultView({ result, offer }: { result: AtsResult; offer: string }) {
 
       {result.missing.length > 0 && (
         <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <h3 className="mb-2 text-sm font-semibold text-amber-800">Mots-clés critiques absents de votre CV</h3>
+          <h3 className="mb-2 text-sm font-semibold text-amber-800">
+            {premium ? `Mots-clés absents de votre CV (${result.missing.length})` : 'Mots-clés critiques absents de votre CV'}
+          </h3>
           <ul className="flex flex-wrap gap-2">
             {result.missing.map(k => (
               <li key={k} className="rounded-full border border-amber-300 bg-white px-3 py-1 text-sm font-medium text-amber-900">{k}</li>
             ))}
           </ul>
+          {lockedMissing > 0 && <LockedKeywords count={lockedMissing} offer={offer} />}
         </div>
       )}
 
@@ -161,6 +169,31 @@ function ResultView({ result, offer }: { result: AtsResult; offer: string }) {
         Corriger automatiquement mon CV pour atteindre 90 %+ avec l&apos;IA
       </Link>
       <p className="mt-2 text-center text-xs text-[#6e6e73]">Gratuit · L&apos;IA réécrit votre CV avec les mots-clés de cette offre, sans rien inventer.</p>
+    </div>
+  )
+}
+
+// Aperçu flouté des autres mots-clés manquants (réservés au Premium).
+// Les étiquettes affichées sont factices : les vrais mots-clés ne sont pas envoyés au navigateur.
+const FILLER = ['Gestion des priorités', 'Outils bureautiques', 'Suivi qualité', 'Planification', 'Relation fournisseurs', 'Reporting hebdo', 'Esprit d’équipe', 'Normes sécurité']
+
+function LockedKeywords({ count, offer }: { count: number; offer: string }) {
+  return (
+    <div className="relative mt-3 overflow-hidden rounded-lg">
+      <ul aria-hidden="true" className="pointer-events-none flex select-none flex-wrap gap-2 blur-[5px]">
+        {FILLER.slice(0, Math.min(count, FILLER.length)).map(k => (
+          <li key={k} className="rounded-full border border-amber-300 bg-white px-3 py-1 text-sm font-medium text-amber-900">{k}</li>
+        ))}
+      </ul>
+      <div className="absolute inset-0 flex items-center justify-center bg-amber-50/40 p-2">
+        <Link
+          href="/pricing?next=%2Fcv"
+          onClick={() => saveOfferDraft(offer)}
+          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-[#1d1d1f] px-4 text-center text-[13px] font-semibold text-white no-underline shadow-md hover:bg-black"
+        >
+          🔒 Voir {count === 1 ? 'l’autre mot-clé manquant' : `les ${count} autres mots-clés manquants`}
+        </Link>
+      </div>
     </div>
   )
 }
