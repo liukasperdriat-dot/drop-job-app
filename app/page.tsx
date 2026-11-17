@@ -90,7 +90,7 @@ export default function HomePage() {
           </a>
           {!isMobile && (
             <ul style={{ display:'flex', alignItems:'center', gap:0, listStyle:'none' }}>
-              {[['/jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
+              {[['/jobs','Rechercher'],['#bento','CV IA'],['/pricing','Tarifs']].map(([h,l])=>(
                 <li key={h}><a href={h} style={{ padding:'5px 13px', fontSize:13, color:v.text2, textDecoration:'none', display:'block', borderRadius:100 }}>{l}</a></li>
               ))}
             </ul>
@@ -464,7 +464,7 @@ export default function HomePage() {
           <button onClick={()=>setMenuOpen(false)} style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:`1px solid ${v.line2}`, borderRadius:'50%', cursor:'pointer', fontSize:18, color:v.text }}>✕</button>
         </div>
         <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'8px 24px' }}>
-          {[['/jobs','Rechercher'],['#bento','CV IA'],['#pricing','Prix']].map(([h,l])=>(
+          {[['/jobs','Rechercher'],['#bento','CV IA'],['/pricing','Tarifs']].map(([h,l])=>(
             <a key={h} href={h} onClick={()=>setMenuOpen(false)} style={{ display:'block', padding:'18px 0', fontSize:22, fontWeight:500, letterSpacing:'-0.03em', color:v.text, textDecoration:'none', borderBottom:`1px solid ${v.line}` }}>{l}</a>
           ))}
           {isLoggedIn
