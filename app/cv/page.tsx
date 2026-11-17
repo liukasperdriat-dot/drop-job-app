@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link'
-import { peekPendingJob, markPendingJobGenerated } from '@/lib/cv-link'
+import { peekPendingJob, markPendingJobGenerated, peekOfferDraft } from '@/lib/cv-link'
 import type { LetterParts } from '@/lib/letter'
 
 type Template = 'classique' | 'moderne' | 'minimaliste'
@@ -95,7 +95,10 @@ function CVPageInner() {
 
   const [jobTitle, setJobTitle]         = useState(params.get('title') || '')
   const [company, setCompany]           = useState(params.get('company') || '')
-  const [jobDescription, setJobDescription] = useState(params.get('description') || pending?.description || '')
+  const [jobDescription, setJobDescription] = useState(() =>
+    params.get('description') || pending?.description ||
+    // Offre collée dans l'outil « Score ATS » (sans offre choisie dans la liste)
+    (params.get('title') ? '' : peekOfferDraft()))
 
   const [profileData, setProfileData]   = useState<any>(null)
 

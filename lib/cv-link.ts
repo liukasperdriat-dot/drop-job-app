@@ -1,5 +1,7 @@
 'use client'
 
+import { getApplyUrl } from './apply-url'
+
 // Passage d'une offre vers la page /cv.
 //
 // La description complète est gardée dans le navigateur (localStorage, 24 h)
@@ -24,13 +26,29 @@ export type PendingJob = {
   generated?: boolean   // CV déjà généré pour cette offre
 }
 
-export function getApplyUrl(job: { source?: string; id?: string; url?: string; redirect_url?: string }): string {
-  const src = (job.source || '').toLowerCase()
-  if (src.includes('adzuna')) return job.redirect_url || job.url || ''
-  if (src.includes('francetravail') || src.includes('france travail')) {
-    return `https://candidat.francetravail.fr/offres/recherche/detail/${job.id}`
+export { getApplyUrl }
+
+// Texte d'offre collé dans l'outil « Score ATS » : repris sur /cv après l'inscription
+const OFFER_DRAFT_KEY = 'dropjob:offer-draft'
+
+export function saveOfferDraft(description: string) {
+  try {
+    localStorage.setItem(OFFER_DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), description: description.slice(0, 15000) }))
+  } catch {
+    // stockage indisponible : l'offre sera à recoller sur /cv
   }
-  return ''
+}
+
+export function peekOfferDraft(): string {
+  try {
+    const raw = localStorage.getItem(OFFER_DRAFT_KEY)
+    if (!raw) return ''
+    const draft = JSON.parse(raw) as { savedAt?: number; description?: string }
+    if (!draft.savedAt || Date.now() - draft.savedAt > MAX_AGE_MS) return ''
+    return draft.description || ''
+  } catch {
+    return ''
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

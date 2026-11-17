@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import SiteFooter from '@/components/SiteFooter';
 import CompanyLogo from '@/components/CompanyLogo';
 import { createClient } from '@/lib/supabase/client';
 import { goToPremium, PAYMENT_REASSURANCE } from '@/lib/premium-link';
@@ -448,22 +449,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* FOOTER */}
-      <footer style={{ borderTop:`1px solid ${v.line}`, padding:'22px 24px' }}>
-        <div style={{ maxWidth:1080, margin:'0 auto', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, fontWeight:600, letterSpacing:'-0.02em' }}>
-            <svg viewBox="0 0 40 40" fill="none" width={22} height={22}><rect x="5" y="5" width="30" height="30" rx="7" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="2.2" fill="none"/><rect x="9" y="9" width="22" height="22" rx="5" transform="rotate(45 20 20)" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.45"/><circle cx="20" cy="20" r="7.5" stroke="currentColor" strokeWidth="1.8" fill="none"/><line x1="20" y1="15.5" x2="20" y2="22.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><polyline points="17,20.5 20,23.5 23,20.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-            drop-job
-          </div>
-          <div style={{ display:'flex', gap:18, flexWrap:'wrap' }}>
-            <a href="/legal/mentions-legales" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>Mentions légales</a>
-            <a href="/legal/confidentialite" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>Confidentialité</a>
-            <a href="/legal/cgu" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>CGU</a>
-            <Link href="/jobs" style={{ fontSize:12, color:v.text3, textDecoration:'none' }}>Offres d&apos;emploi</Link>
-          </div>
-          <div style={{ fontSize:12, color:v.text3 }}>© 2026 Drop-Job</div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
 
     {/* MOBILE MENU */}
