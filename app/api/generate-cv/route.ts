@@ -65,15 +65,23 @@ export async function POST(request: Request) {
     const hasPeriod = 'cv_count_period' in quota
     const cvCount = currentCvCount(quota)
 
-    if (!quota.is_premium && cvCount >= 1) {
-      return NextResponse.json(
-        { error: 'QUOTA_EXCEEDED', message: 'Vous avez utilisé votre CV gratuit ce mois-ci. Passez à Premium pour en générer plus.' },
-        { status: 403 }
-      )
+    const quotaExceeded = () => NextResponse.json(
+      { error: 'QUOTA_EXCEEDED', message: 'Vous avez utilisé votre CV gratuit ce mois-ci. Passez à Premium pour en générer plus.' },
+      { status: 403 }
+    )
+    if (!quota.is_premium && cvCount >= 1) return quotaExceeded()
+
+    // ── Offre ─────────────────────────────────────────────────────────────
+    const body = await request.json().catch(() => null) as { jobTitle?: unknown; company?: unknown; jobDescription?: unknown } | null
+    const field = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+    const jobTitle = field(body?.jobTitle, 200)
+    const company = field(body?.company, 200)
+    const jobDescription = field(body?.jobDescription, 15000)
+    if (!jobTitle || !company || !jobDescription) {
+      return NextResponse.json({ error: 'Renseignez le poste, l’entreprise et la description de l’offre.' }, { status: 400 })
     }
 
     // ── Profil structuré ──────────────────────────────────────────────────
-    const { jobTitle, company, jobDescription } = await request.json()
 
     const { data: structuredProfile, error: spError } = await supabase
       .from('user_profiles')
@@ -84,6 +92,32 @@ export async function POST(request: Request) {
     if (spError || !structuredProfile) {
       if (spError && spError.code !== 'PGRST116') console.error('[generate-cv] user_profiles error:', spError.code, spError.message)
       return NextResponse.json({ error: 'Profil introuvable. Complétez votre profil avant de générer un CV.' }, { status: 404 })
+    }
+
+    // ── Réservation du CV gratuit ─────────────────────────────────────────
+    // Mise à jour conditionnelle : si une autre génération vient de consommer le
+    // quota, aucune ligne n'est modifiée et la demande est refusée.
+    const storedCount = quota.cv_count_this_month ?? 0
+    const reserve = hasPeriod
+      ? { cv_count_this_month: cvCount + 1, cv_count_period: currentPeriod }
+      : { cv_count_this_month: cvCount + 1 }
+    if (!quota.is_premium) {
+      let reservation = admin.from('profiles').update(reserve).eq('id', user.id)
+      reservation = storedCount === 0 && quota.cv_count_this_month == null
+        ? reservation.is('cv_count_this_month', null)
+        : reservation.eq('cv_count_this_month', storedCount)
+      const { data: reserved, error: reserveError } = await reservation.select('id')
+      if (reserveError) {
+        console.error('[generate-cv] quota reserve error:', reserveError.code, reserveError.message)
+        return NextResponse.json({ error: 'Erreur lors de la vérification du quota.' }, { status: 500 })
+      }
+      if (!reserved?.length) return quotaExceeded()
+    }
+    // CV gratuit rendu si la génération n'aboutit pas
+    const refund = async () => {
+      if (quota.is_premium) return
+      const { error } = await admin.from('profiles').update({ cv_count_this_month: cvCount }).eq('id', user.id)
+      if (error) console.error('[generate-cv] quota refund error:', error.code, error.message)
     }
 
     // ── Génération ────────────────────────────────────────────────────────
@@ -141,7 +175,9 @@ Réponds avec cette structure JSON exacte :
   "matchGaps": ["Point à renforcer 1"]
 }`
 
-    const completion = await openai.chat.completions.create({
+    let completion: OpenAI.Chat.Completions.ChatCompletion
+    try {
+      completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       temperature: 0.3,
       response_format: { type: 'json_object' },
@@ -149,24 +185,26 @@ Réponds avec cette structure JSON exacte :
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
-    })
+      })
+    } catch (err) {
+      await refund()
+      throw err
+    }
 
-    const content = completion.choices[0].message.content || '{}'
+    const content = completion.choices[0]?.message.content || '{}'
     let cv: any
     try {
       cv = JSON.parse(content)
     } catch {
+      await refund()
       return NextResponse.json({ error: 'Réponse IA invalide, réessayez.' }, { status: 500 })
     }
 
-    // ── Incrémenter le compteur ────────────────────────────────────────────
-    const { error: countError } = await admin
-      .from('profiles')
-      .update(hasPeriod
-        ? { cv_count_this_month: cvCount + 1, cv_count_period: currentPeriod }
-        : { cv_count_this_month: cvCount + 1 })
-      .eq('id', user.id)
-    if (countError) console.error('[generate-cv] quota update error:', countError.code, countError.message)
+    // ── Compteur des comptes Premium (statistiques, sans limite) ──────────
+    if (quota.is_premium) {
+      const { error: countError } = await admin.from('profiles').update(reserve).eq('id', user.id)
+      if (countError) console.error('[generate-cv] quota update error:', countError.code, countError.message)
+    }
 
     // Score de matching nettoyé (affiché à tous les utilisateurs)
     const shortList = (value: unknown) => Array.isArray(value)

@@ -1,9 +1,29 @@
 'use client'
 
 import React from 'react'
-import { Document, Page, View, Text, StyleSheet, pdf, Image } from '@react-pdf/renderer'
+import { Document, Page, View, Text, StyleSheet, pdf, Image, Font } from '@react-pdf/renderer'
 import type { DocumentProps } from '@react-pdf/renderer'
 import type { LetterParts } from '@/lib/letter'
+
+// Pas de césure automatique : les règles par défaut sont anglaises et coupaient
+// des mots français en fin de ligne (« Fidéli-sation », « commer-ciales »).
+Font.registerHyphenationCallback(word => [word])
+
+// Téléchargement d'un PDF généré dans le navigateur. L'adresse temporaire n'est
+// libérée qu'après le démarrage du téléchargement (sinon Safari et Firefox l'annulent).
+function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
+}
+
+// Nom de fichier sans caractères refusés par Windows ou macOS
+const fileSafe = (value: string) => value.replace(/[\\/:*?"<>|]+/g, '').trim().replace(/\s+/g, '_').slice(0, 60)
 
 async function toBase64(url: string): Promise<string | null> {
   try {
@@ -110,7 +130,7 @@ const cl = StyleSheet.create({
 })
 
 export function ClassiquePDF({ cv, profile, photoBase64 }: { cv: any; profile: any; photoBase64: string | null }) {
-  const contact = [profile?.email, profile?.phone, profile?.location]
+  const contact = [profile?.email, profile?.phone, profile?.location, profile?.linkedin]
     .filter(Boolean).join('   ·   ')
 
   return (
@@ -405,7 +425,7 @@ const mn = StyleSheet.create({
 })
 
 export function MinimalistePDF({ cv, profile, photoBase64 }: { cv: any; profile: any; photoBase64: string | null }) {
-  const contact = [profile?.email, profile?.phone, profile?.location]
+  const contact = [profile?.email, profile?.phone, profile?.location, profile?.linkedin]
     .filter(Boolean).join('   ·   ')
 
   return (
@@ -542,14 +562,7 @@ export async function downloadLetter(parts: LetterParts, company: string) {
   const name = parts.signature
   const element = <LettrePDF parts={parts} />
   const blob = await pdf(element).toBlob()
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `Lettre_${(name || 'lettre').replace(/\s+/g, '_')}_${(company || 'entreprise').replace(/\s+/g, '_')}.pdf`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  saveBlob(blob, `Lettre_${fileSafe(name || 'lettre')}_${fileSafe(company || 'entreprise')}.pdf`)
 }
 
 // ── Téléchargement CV ───────────────────────────────────────────────────────
@@ -573,12 +586,5 @@ export async function downloadCV(
   }
 
   const blob = await pdf(element).toBlob()
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `CV_${(cv.name || 'cv').replace(/\s+/g, '_')}_${company || 'drop-job'}.pdf`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  saveBlob(blob, `CV_${fileSafe(cv.name || 'cv')}_${fileSafe(company || 'drop-job')}.pdf`)
 }

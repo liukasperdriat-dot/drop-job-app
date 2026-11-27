@@ -57,19 +57,42 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  // Message d'échec affiché au-dessus de la liste
+  const [actionError, setActionError] = useState('')
+
+  // Suppression confirmée ; en cas d'échec côté serveur, la candidature réapparaît
   async function handleDelete(id: string) {
+    const app = apps.find(a => a.id === id)
+    if (!app || !window.confirm(`Supprimer la candidature « ${app.job_title} » ?`)) return
+    setActionError('')
+    const previous = apps
     setApps(prev => prev.filter(a => a.id !== id))
-    fetch(`/api/applications/${id}`, { method: 'DELETE' }).catch(() => {})
+    try {
+      const res = await fetch(`/api/applications/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(String(res.status))
+    } catch {
+      setApps(previous)
+      setActionError('La suppression a échoué. Réessayez dans un instant.')
+    }
   }
 
+  // Changement de statut ; en cas d'échec, l'ancien statut est rétabli
   async function handleStatusChange(id: string, newStatus: string) {
     setOpenMenuId(null)
+    setActionError('')
+    const oldStatus = apps.find(a => a.id === id)?.status
     setApps(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
-    fetch(`/api/applications/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    }).catch(() => {})
+    try {
+      const res = await fetch(`/api/applications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (!res.ok) throw new Error(String(res.status))
+    } catch {
+      setApps(prev => prev.map(a => a.id === id ? { ...a, status: oldStatus } : a))
+      setActionError('Le statut n’a pas pu être enregistré. Réessayez dans un instant.')
+    }
   }
 
   return (
@@ -81,6 +104,12 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
           <div style={{ fontSize: 13, color: v.text3 }}>{apps.length} candidature{apps.length > 1 ? 's' : ''}</div>
         )}
       </div>
+
+      {actionError && (
+        <div role="alert" style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 10, background: 'rgba(192,57,43,.05)', border: '1px solid rgba(192,57,43,.15)', fontSize: 13, color: '#c0392b' }}>
+          {actionError}
+        </div>
+      )}
 
       {apps.length === 0 ? (
         <div style={{ background: v.white, borderRadius: 18, border: `1px solid ${v.line}`, padding: '48px 24px', textAlign: 'center', boxShadow: v.shadow }}>
@@ -119,7 +148,7 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
                       </div>
                       <button
                         onClick={() => handleDelete(app.id)}
-                        title="Supprimer"
+                        title="Supprimer" aria-label="Supprimer la candidature"
                         style={{ width: 32, height: 32, borderRadius: 8, background: 'none', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: v.text3, flexShrink: 0 }}
                         onMouseEnter={e => { const b = e.currentTarget; b.style.color = '#c0392b'; b.style.background = 'rgba(192,57,43,.07)' }}
                         onMouseLeave={e => { const b = e.currentTarget; b.style.color = v.text3; b.style.background = 'none' }}
@@ -235,7 +264,7 @@ export default function ApplicationsTable({ initialApps }: { initialApps: any[] 
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <button
                           onClick={() => handleDelete(app.id)}
-                          title="Supprimer"
+                          title="Supprimer" aria-label="Supprimer la candidature"
                           style={{ width: 28, height: 28, borderRadius: 8, background: 'none', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: v.text3, opacity: isHovered ? 1 : 0, transition: 'opacity .15s' }}
                           onMouseEnter={e => { const b = e.currentTarget; b.style.color = '#c0392b'; b.style.background = 'rgba(192,57,43,.07)' }}
                           onMouseLeave={e => { const b = e.currentTarget; b.style.color = v.text3; b.style.background = 'none' }}

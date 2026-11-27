@@ -41,14 +41,18 @@ const CV_STATE_MAX_AGE = 60 * 60 * 1000
 type PaymentState = 'idle' | 'confirming' | 'active' | 'delayed'
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-type SavedCvState = { at: number; cv: unknown; letterParts: LetterParts | null }
+type SavedCvState = { at: number; cv: unknown; letterParts: LetterParts | null; jobTitle?: string; company?: string; jobDescription?: string }
 function readSavedCvState(): SavedCvState | null {
   try {
     const raw = typeof window === 'undefined' ? null : sessionStorage.getItem(CV_STATE_KEY)
     if (!raw) return null
     const saved = JSON.parse(raw) as Partial<SavedCvState>
     if (!saved?.cv || typeof saved.at !== 'number' || Date.now() - saved.at > CV_STATE_MAX_AGE) return null
-    return { at: saved.at, cv: saved.cv, letterParts: saved.letterParts ?? null }
+    const text = (v: unknown) => (typeof v === 'string' ? v : '')
+    return {
+      at: saved.at, cv: saved.cv, letterParts: saved.letterParts ?? null,
+      jobTitle: text(saved.jobTitle), company: text(saved.company), jobDescription: text(saved.jobDescription),
+    }
   } catch {
     return null
   }
@@ -138,17 +142,17 @@ function CVPageInner() {
   const [pending] = useState(() => peekPendingJob(params.get('title') || '', params.get('company') || '', params.get('jobId')))
   const applyUrl = params.get('applyUrl') || pending?.applyUrl || ''
 
-  const [jobTitle, setJobTitle]         = useState(params.get('title') || '')
-  const [company, setCompany]           = useState(params.get('company') || '')
+  // CV et offre gardés pendant le paiement Stripe : retrouvés au retour
+  const [savedCvState] = useState(readSavedCvState)
+  const [jobTitle, setJobTitle]         = useState(params.get('title') || savedCvState?.jobTitle || '')
+  const [company, setCompany]           = useState(params.get('company') || savedCvState?.company || '')
   const [jobDescription, setJobDescription] = useState(() =>
-    params.get('description') || pending?.description ||
+    params.get('description') || pending?.description || savedCvState?.jobDescription ||
     // Offre collée dans l'outil « Score ATS » (sans offre choisie dans la liste)
     (params.get('title') ? '' : peekOfferDraft()))
 
   const [profileData, setProfileData]   = useState<any>(null)
 
-  // CV gardé pendant le paiement Stripe : retrouvé au retour
-  const [savedCvState] = useState(readSavedCvState)
   const [cv, setCv]             = useState<any>(() => savedCvState?.cv ?? null)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
@@ -186,7 +190,10 @@ function CVPageInner() {
   function saveCvState() {
     if (!cv) return
     try {
-      sessionStorage.setItem(CV_STATE_KEY, JSON.stringify({ at: Date.now(), cv, letterParts: letterLocked ? null : letterParts }))
+      sessionStorage.setItem(CV_STATE_KEY, JSON.stringify({
+        at: Date.now(), cv, letterParts: letterLocked ? null : letterParts,
+        jobTitle, company, jobDescription: jobDescription.slice(0, 15000),
+      }))
     } catch { /* stockage indisponible : le CV sera à régénérer */ }
   }
 
@@ -321,8 +328,13 @@ function CVPageInner() {
     setDownloading(true)
     try {
       const { downloadCV } = await import('./pdf-templates')
-      await downloadCV(template, cv, { ...profileData, photo_url: photoUrl }, company)
+      // Statut actuel (et non celui du moment de la génération) : après un passage
+      // en Premium, le CV déjà généré se télécharge sans mention ni restriction de modèle.
+      await downloadCV(isPremium ? template : 'classique', { ...cv, watermark: !isPremium }, { ...profileData, photo_url: photoUrl }, company)
       if (!isPremium) openUpsell('download')
+    } catch (err) {
+      console.error('[cv] téléchargement PDF', err)
+      setError('Le téléchargement du PDF a échoué. Réessayez ; si le problème persiste, retirez la photo puis réessayez.')
     } finally {
       setDownloading(false)
     }
@@ -399,6 +411,9 @@ function CVPageInner() {
     try {
       const { downloadLetter } = await import('./pdf-templates')
       await downloadLetter(letterParts, company)
+    } catch (err) {
+      console.error('[cv] téléchargement lettre', err)
+      setLetterError('Le téléchargement de la lettre a échoué. Réessayez, ou copiez le texte.')
     } finally {
       setLetterDownloading(false)
     }

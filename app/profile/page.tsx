@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePremiumCheckout, PAYMENT_REASSURANCE } from '@/lib/premium-link'
-import { peekAnyPendingJob, cvUrlFor } from '@/lib/cv-link'
+import { peekAnyPendingJob, cvUrlFor, peekCvDraft, clearCvDraft } from '@/lib/cv-link'
 import { nextFromLocation } from '@/lib/safe-next'
 import ManageSubscriptionButton from '@/components/ManageSubscriptionButton'
 import SiteHeader from '@/components/SiteHeader'
@@ -110,16 +110,25 @@ export default function ProfilePage() {
 
   const firstName = fullName.trim().split(' ')[0] || ''
 
-  useEffect(() => {
+  // Profil illisible (réseau, serveur) : formulaire bloqué pour ne pas écraser le vrai profil
+  const [loadError, setLoadError] = useState(false)
+
+  function fetchProfile() {
     Promise.all([
-      fetch('/api/profile').then(r => r.json()),
-      fetch('/api/me').then(r => r.json()),
+      fetch('/api/profile').then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() }),
+      fetch('/api/me').then(r => r.json()).catch(() => ({})),
     ]).then(([{ profile }, me]) => {
       const target = cvReturnTarget()
       setReturnTo(target)
       if (target) setReturnJobTitle(new URLSearchParams(target.split('?')[1] || '').get('title') || '')
-      // Nouveau profil : le remplissage express est proposé d'emblée
-      if (!profile) setImportOpen(true)
+      // Nouveau profil : le remplissage express est proposé d'emblée, pré-rempli
+      // avec le CV collé dans l'outil Score ATS s'il y en a un, et l'e-mail du compte
+      if (!profile) {
+        setImportOpen(true)
+        const draft = peekCvDraft()
+        if (draft) setImportText(draft)
+        if (typeof me?.email === 'string') setEmail(me.email)
+      }
       if (profile) {
         setFullName(profile.full_name || '')
         setEmail(profile.email || '')
@@ -134,10 +143,22 @@ export default function ProfilePage() {
         setLanguages(profile.languages || [])
       }
       setIsPremium(me?.is_premium === true)
-    }).finally(() => setLoading(false))
+    }).catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetchProfile()
   }, [])
 
+  function retryLoad() {
+    setLoading(true)
+    setLoadError(false)
+    fetchProfile()
+  }
+
   async function handleSave() {
+    if (loadError) return
     setSaving(true)
     setSaveError('')
     setSaved(false)
@@ -197,6 +218,7 @@ export default function ProfilePage() {
       setImportDone(true)
       setImportOpen(false)
       setImportText('')
+      clearCvDraft()
     } catch {
       setImportError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
     } finally {
@@ -229,6 +251,25 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-blue-600 animate-spin" />
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] font-sans antialiased">
+        <SiteHeader />
+        <div className="mx-auto max-w-md px-6 py-20 text-center">
+          <p className="text-lg font-semibold text-gray-800">Impossible de charger votre profil</p>
+          <p className="mt-2 text-sm text-gray-500">Vérifiez votre connexion Internet. Vos informations enregistrées ne sont pas perdues.</p>
+          <button
+            type="button"
+            onClick={retryLoad}
+            className="mt-6 min-h-[44px] rounded-full bg-blue-600 px-6 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Réessayer
+          </button>
+        </div>
       </div>
     )
   }

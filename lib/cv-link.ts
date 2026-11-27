@@ -39,6 +39,34 @@ export function saveOfferDraft(description: string) {
   }
 }
 
+// CV collé dans l'outil « Score ATS » : proposé pour le remplissage express du profil
+// après l'inscription (gardé 24 h sur l'appareil, effacé une fois utilisé)
+const CV_DRAFT_KEY = 'dropjob:cv-draft'
+
+export function saveCvDraft(text: string) {
+  try {
+    localStorage.setItem(CV_DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), text: text.slice(0, 15000) }))
+  } catch {
+    // stockage indisponible : le CV sera à recoller dans le profil
+  }
+}
+
+export function peekCvDraft(): string {
+  try {
+    const raw = localStorage.getItem(CV_DRAFT_KEY)
+    if (!raw) return ''
+    const draft = JSON.parse(raw) as { savedAt?: number; text?: string }
+    if (!draft.savedAt || Date.now() - draft.savedAt > MAX_AGE_MS) return ''
+    return draft.text || ''
+  } catch {
+    return ''
+  }
+}
+
+export function clearCvDraft() {
+  try { localStorage.removeItem(CV_DRAFT_KEY) } catch { /* stockage indisponible */ }
+}
+
 export function peekOfferDraft(): string {
   try {
     const raw = localStorage.getItem(OFFER_DRAFT_KEY)

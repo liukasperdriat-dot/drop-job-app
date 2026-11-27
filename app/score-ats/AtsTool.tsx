@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import type { AtsResult } from '@/lib/ats-score'
-import { saveOfferDraft } from '@/lib/cv-link'
+import { saveOfferDraft, saveCvDraft } from '@/lib/cv-link'
 
 const MAX = 15000
 
@@ -85,7 +85,7 @@ export default function AtsTool() {
       </form>
 
       <div id="resultat-ats" className="scroll-mt-20 min-h-[320px] rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm sm:p-6" aria-live="polite">
-        {loading ? <ResultSkeleton /> : result ? <ResultView result={result} offer={offer} lockedMissing={lockedMissing} premium={premium} /> : <ResultEmpty />}
+        {loading ? <ResultSkeleton /> : result ? <ResultView result={result} offer={offer} cvText={cv} lockedMissing={lockedMissing} premium={premium} /> : <ResultEmpty />}
       </div>
     </div>
   )
@@ -113,7 +113,9 @@ function ResultSkeleton() {
   )
 }
 
-function ResultView({ result, offer, lockedMissing, premium }: { result: AtsResult; offer: string; lockedMissing: number; premium: boolean }) {
+function ResultView({ result, offer, cvText, lockedMissing, premium }: { result: AtsResult; offer: string; cvText: string; lockedMissing: number; premium: boolean }) {
+  // Offre et CV gardés sur l'appareil : offre reprise sur /cv, CV proposé pour remplir le profil
+  const keepDrafts = () => { saveOfferDraft(offer); saveCvDraft(cvText) }
   const color = scoreColor(result.score)
   const circumference = 2 * Math.PI * 52
   return (
@@ -139,7 +141,7 @@ function ResultView({ result, offer, lockedMissing, premium }: { result: AtsResu
               <li key={k} className="rounded-full border border-amber-300 bg-white px-3 py-1 text-sm font-medium text-amber-900">{k}</li>
             ))}
           </ul>
-          {lockedMissing > 0 && <LockedKeywords count={lockedMissing} offer={offer} />}
+          {lockedMissing > 0 && <LockedKeywords count={lockedMissing} onOpen={keepDrafts} />}
         </div>
       )}
 
@@ -163,7 +165,7 @@ function ResultView({ result, offer, lockedMissing, premium }: { result: AtsResu
 
       <Link
         href="/auth/register?next=/cv"
-        onClick={() => saveOfferDraft(offer)}
+        onClick={keepDrafts}
         className="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-xl bg-[#0071e3] px-4 py-3 text-center text-[15px] font-semibold leading-snug text-white no-underline shadow-md shadow-[#0071e3]/25 hover:bg-[#0062c4]"
       >
         Corriger automatiquement mon CV pour atteindre 90 %+ avec l&apos;IA
@@ -177,7 +179,7 @@ function ResultView({ result, offer, lockedMissing, premium }: { result: AtsResu
 // Les étiquettes affichées sont factices : les vrais mots-clés ne sont pas envoyés au navigateur.
 const FILLER = ['Gestion des priorités', 'Outils bureautiques', 'Suivi qualité', 'Planification', 'Relation fournisseurs', 'Reporting hebdo', 'Esprit d’équipe', 'Normes sécurité']
 
-function LockedKeywords({ count, offer }: { count: number; offer: string }) {
+function LockedKeywords({ count, onOpen }: { count: number; onOpen: () => void }) {
   return (
     <div className="relative mt-3 overflow-hidden rounded-lg">
       <ul aria-hidden="true" className="pointer-events-none flex select-none flex-wrap gap-2 blur-[5px]">
@@ -188,7 +190,7 @@ function LockedKeywords({ count, offer }: { count: number; offer: string }) {
       <div className="absolute inset-0 flex items-center justify-center bg-amber-50/40 p-2">
         <Link
           href="/pricing?next=%2Fcv"
-          onClick={() => saveOfferDraft(offer)}
+          onClick={onOpen}
           className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-[#1d1d1f] px-4 text-center text-[13px] font-semibold text-white no-underline shadow-md hover:bg-black"
         >
           🔒 Voir {count === 1 ? 'l’autre mot-clé manquant' : `les ${count} autres mots-clés manquants`}

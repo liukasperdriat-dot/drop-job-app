@@ -16,6 +16,7 @@ export async function GET() {
 
     return NextResponse.json({
       logged_in: true,
+      email: user.email ?? null,
       is_premium: data?.is_premium ?? false,
       cv_count_this_month: currentCvCount(data),
     }, { headers: { 'Cache-Control': 'no-store' } })
