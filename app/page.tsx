@@ -38,7 +38,9 @@ export default function HomePage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user));
+    supabase.auth.getUser()
+      .then(({ data }) => setIsLoggedIn(!!data.user))
+      .catch(() => setIsLoggedIn(false));
   }, []);
 
   useEffect(() => {

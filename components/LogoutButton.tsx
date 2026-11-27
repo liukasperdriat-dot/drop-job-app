@@ -8,9 +8,9 @@ export default function LogoutButton() {
   const supabase = createClient()
 
   async function handleLogout() {
-    await supabase.auth.signOut()
     // Efface les copies de pages gardées par le service worker sur cet appareil
     try {
+      await supabase.auth.signOut()
       if ('caches' in window) {
         const keys = await caches.keys()
         await Promise.all(keys.map(k => caches.delete(k)))

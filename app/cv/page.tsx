@@ -302,7 +302,11 @@ function CVPageInner() {
       .catch(() => {})
   }, [])
 
+  const generatingRef = useRef(false)
   async function handleGenerate() {
+    // Une seule génération à la fois, même sur un double clic très rapide
+    if (generatingRef.current) return
+    generatingRef.current = true
     setLoading(true); setError(''); setCv(null); setLetter(null); setLetterParts(null); setLetterLocked(false); setActiveTab('cv')
     try {
       const res = await fetch('/api/generate-cv', {
@@ -319,6 +323,7 @@ function CVPageInner() {
     } catch {
       setError('Connexion impossible. Vérifiez votre accès à Internet puis réessayez.')
     } finally {
+      generatingRef.current = false
       setLoading(false)
     }
   }

@@ -21,6 +21,8 @@ RÈGLES ABSOLUES — à respecter impérativement :
 - Tu réponds UNIQUEMENT en JSON valide selon le schéma demandé, sans markdown ni backticks.`
 
 export async function POST(request: Request) {
+  // Restitution du CV gratuit réservé, appelée sur toute erreur après la réservation
+  let refundReservation: (() => Promise<void>) | null = null
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -95,17 +97,27 @@ export async function POST(request: Request) {
     }
 
     // ── Réservation du CV gratuit ─────────────────────────────────────────
-    // Mise à jour conditionnelle : si une autre génération vient de consommer le
-    // quota, aucune ligne n'est modifiée et la demande est refusée.
-    const storedCount = quota.cv_count_this_month ?? 0
+    // Mise à jour conditionnelle (« compare-and-swap ») : elle n'aboutit que si la
+    // ligne est restée exactement dans l'état lu plus haut — compteur ET période.
+    // Deux générations simultanées (double clic, deux onglets) : la seconde ne
+    // modifie aucune ligne et reçoit QUOTA_EXCEEDED. La période fait partie de la
+    // condition : sans elle, deux demandes lancées au changement de mois (compteur
+    // encore à 1 sur le mois précédent) réussissaient toutes les deux.
+    const storedCount = quota.cv_count_this_month ?? null
+    const storedPeriod = hasPeriod ? (quota.cv_count_period ?? null) : undefined
     const reserve = hasPeriod
       ? { cv_count_this_month: cvCount + 1, cv_count_period: currentPeriod }
       : { cv_count_this_month: cvCount + 1 }
     if (!quota.is_premium) {
       let reservation = admin.from('profiles').update(reserve).eq('id', user.id)
-      reservation = storedCount === 0 && quota.cv_count_this_month == null
+      reservation = storedCount === null
         ? reservation.is('cv_count_this_month', null)
         : reservation.eq('cv_count_this_month', storedCount)
+      if (storedPeriod !== undefined) {
+        reservation = storedPeriod === null
+          ? reservation.is('cv_count_period', null)
+          : reservation.eq('cv_count_period', storedPeriod)
+      }
       const { data: reserved, error: reserveError } = await reservation.select('id')
       if (reserveError) {
         console.error('[generate-cv] quota reserve error:', reserveError.code, reserveError.message)
@@ -113,12 +125,18 @@ export async function POST(request: Request) {
       }
       if (!reserved?.length) return quotaExceeded()
     }
-    // CV gratuit rendu si la génération n'aboutit pas
+    // CV gratuit rendu si la génération n'aboutit pas. Conditionnel lui aussi :
+    // il n'annule que SA réservation (ligne encore à cvCount + 1 sur ce mois).
+    let refunded = false
     const refund = async () => {
-      if (quota.is_premium) return
-      const { error } = await admin.from('profiles').update({ cv_count_this_month: cvCount }).eq('id', user.id)
+      if (quota.is_premium || refunded) return
+      refunded = true
+      let undo = admin.from('profiles').update({ cv_count_this_month: cvCount }).eq('id', user.id).eq('cv_count_this_month', cvCount + 1)
+      if (hasPeriod) undo = undo.eq('cv_count_period', currentPeriod)
+      const { error } = await undo
       if (error) console.error('[generate-cv] quota refund error:', error.code, error.message)
     }
+    refundReservation = refund
 
     // ── Génération ────────────────────────────────────────────────────────
     const userPrompt = `Génère un CV optimisé pour cette offre à partir du profil structuré ci-dessous.
@@ -196,6 +214,10 @@ Réponds avec cette structure JSON exacte :
     try {
       cv = JSON.parse(content)
     } catch {
+      cv = null
+    }
+    // Réponse vide ou incomplète : rien d'utilisable, le CV gratuit est rendu
+    if (!cv || typeof cv !== 'object' || typeof cv.name !== 'string' || !Array.isArray(cv.experience)) {
       await refund()
       return NextResponse.json({ error: 'Réponse IA invalide, réessayez.' }, { status: 500 })
     }
@@ -222,6 +244,7 @@ Réponds avec cette structure JSON exacte :
   } catch (err) {
     const e = err as Error
     console.error('[generate-cv] FATAL ERROR:', e?.message, '| stack:', e?.stack)
+    if (refundReservation) await refundReservation().catch(() => {})
     return NextResponse.json({ error: 'La génération du CV a échoué. Réessayez dans un instant.' }, { status: 500 })
   }
 }
