@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import { GET as searchJobsRoute } from '@/app/api/jobs/route'
 import { getApplyUrl } from '@/lib/apply-url'
@@ -14,6 +15,8 @@ export type PageJob = {
   location: string
   contract: string
   salary: string
+  salaryMin: number | null   // brut annuel, en euros
+  salaryMax: number | null
   source: string
   description: string
   applyUrl: string
@@ -24,6 +27,7 @@ export type PageJob = {
 type RawJob = Record<string, unknown>
 
 const str = (v: unknown) => (typeof v === 'string' ? v : v == null ? '' : String(v))
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null)
 
 function toPageJob(j: RawJob): PageJob {
   return {
@@ -33,6 +37,8 @@ function toPageJob(j: RawJob): PageJob {
     location: str(j.location),
     contract: str(j.contract),
     salary: str(j.salary),
+    salaryMin: num(j.salaryMin),
+    salaryMax: num(j.salaryMax),
     source: str(j.source),
     // Description raccourcie : suffisante pour l'aperçu et la génération du CV
     description: str(j.description).slice(0, 4000),
@@ -53,13 +59,14 @@ async function loadJobs(keyword: string, location: string): Promise<PageJob[]> {
   return jobs
 }
 
-const cachedJobs = unstable_cache(loadJobs, ['offres-metier-ville-v1'], { revalidate: 3600 })
+const cachedJobs = unstable_cache(loadJobs, ['offres-metier-ville-v2'], { revalidate: 3600 })
 
-export async function getJobsForPage(keyword: string, location: string): Promise<{ jobs: PageJob[]; failed: boolean }> {
+// cache() : generateMetadata et la page partagent le même résultat pendant un rendu
+export const getJobsForPage = cache(async (keyword: string, location: string): Promise<{ jobs: PageJob[]; failed: boolean }> => {
   try {
     return { jobs: await cachedJobs(keyword, location), failed: false }
   } catch (err) {
     console.error('[offres] recherche impossible:', err instanceof Error ? err.message : err)
     return { jobs: [], failed: true }
   }
-}
+})

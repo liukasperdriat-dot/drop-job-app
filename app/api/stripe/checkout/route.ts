@@ -3,6 +3,7 @@ import type Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { safeNext } from '@/lib/safe-next'
 import { getStripe, isBillingPeriod, priceIdFor } from '@/lib/stripe/server'
+import { trackConversion } from '@/lib/analytics/server'
 
 // Crée une session de paiement Stripe Checkout pour l'abonnement Premium.
 // Le compte est rattaché à la session (client_reference_id + metadata) :
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
     }
 
     if (!session.url) throw new Error('session sans URL')
+    await trackConversion('checkout_opened', user.id, { period, checkout_session: session.id })
     return NextResponse.json({ url: session.url })
   } catch (err) {
     console.error('[stripe/checkout]', err instanceof Error ? err.message : err)

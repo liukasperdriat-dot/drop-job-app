@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
+import { Analytics } from '@vercel/analytics/next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
@@ -37,6 +38,9 @@ export const metadata: Metadata = {
     // Icône d'écran d'accueil iPhone/iPad (180×180, fond opaque comme l'exige iOS)
     apple: { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
   },
+  // Aperçus de partage : image générée par app/opengraph-image.tsx (et par page
+  // métier × ville) ; X reprend la même image en grand format.
+  twitter: { card: 'summary_large_image' },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -52,6 +56,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {children}
+        {/* Mesure d'audience Vercel : sans cookie ni identifiant stocké sur l'appareil */}
+        <Analytics />
         <Script
           id="register-sw"
           strategy="afterInteractive"

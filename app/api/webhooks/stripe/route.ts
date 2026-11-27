@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { activatePremiumFromSession, getStripe } from '@/lib/stripe/server'
+import { trackConversion } from '@/lib/analytics/server'
 
 // Webhook Stripe : met à jour le statut Premium dans Supabase.
 //
@@ -68,7 +69,16 @@ async function handleEvent(admin: Admin, event: Stripe.Event): Promise<Outcome> 
     case 'checkout.session.async_payment_succeeded': {
       const session = event.data.object as Stripe.Checkout.Session
       const result = await activatePremiumFromSession(admin, session)
-      if (result.ok) return { status: 'processed', note: `premium:${result.profileId}` }
+      if (result.ok) {
+        // Source de vérité des abonnements payés (une ligne par session, même si Stripe rejoue l'événement)
+        await trackConversion('subscription_paid', result.profileId, {
+          checkout_session: session.id,
+          amount_total: session.amount_total ?? null,
+          currency: session.currency ?? null,
+          livemode: event.livemode,
+        })
+        return { status: 'processed', note: `premium:${result.profileId}` }
+      }
       if (result.reason === 'not_paid') return { status: 'ignored', note: `paiement ${session.payment_status}` }
       // Paiement reçu mais compte introuvable : à rattacher à la main depuis Stripe.
       return { status: 'needs_review', note: `compte introuvable pour la session ${session.id}` }

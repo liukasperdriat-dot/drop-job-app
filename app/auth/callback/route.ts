@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { sendWelcomeEmailOnce } from '@/lib/email/welcome'
 import { safeNext, NEXT_COOKIE } from '@/lib/safe-next'
+import { trackConversion, isNewAccount } from '@/lib/analytics/server'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -39,6 +40,11 @@ export async function GET(request: NextRequest) {
     if (!error) {
       // E-mail de bienvenue (une seule fois par compte, sans bloquer la connexion)
       if (data?.user) await sendWelcomeEmailOnce(supabase, data.user)
+      // Inscription : compte créé il y a moins d'une heure (une simple reconnexion n'est pas comptée)
+      if (data?.user && isNewAccount(data.user.created_at)) {
+        const provider = typeof data.user.app_metadata?.provider === 'string' ? data.user.app_metadata.provider : 'email'
+        await trackConversion('signup', data.user.id, { method: provider })
+      }
 
       const response = NextResponse.redirect(`${origin}${next}`)
       if (rememberedNext) response.cookies.delete(NEXT_COOKIE)

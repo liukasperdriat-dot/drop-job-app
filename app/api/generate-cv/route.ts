@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { currentCvCount } from '@/lib/quota'
+import { trackConversion } from '@/lib/analytics/server'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -238,6 +239,8 @@ Réponds avec cette structure JSON exacte :
     cv.matchGaps = shortList(cv.matchGaps)
 
     cv.watermark = !quota.is_premium
+
+    await trackConversion('cv_generated', user.id, { premium: !!quota.is_premium })
 
     return NextResponse.json({ cv, isPremium: quota.is_premium })
 

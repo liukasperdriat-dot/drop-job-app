@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { trackConversion, isProfileComplete } from '@/lib/analytics/server'
 
 export async function GET() {
   const supabase = await createClient()
@@ -52,6 +53,9 @@ export async function PUT(request: Request) {
     console.error('[profile] upsert error:', error.code, error.message)
     return NextResponse.json({ error: 'La sauvegarde du profil a échoué. Réessayez.' }, { status: 500 })
   }
+
+  // Profil complété : compté une seule fois par compte (index unique en base)
+  if (isProfileComplete(data)) await trackConversion('profile_completed', user.id)
 
   return NextResponse.json({ profile: data })
 }

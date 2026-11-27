@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import SiteHeader from '@/components/SiteHeader'
 import SiteFooter from '@/components/SiteFooter'
 import JsonLd, { breadcrumb } from '@/components/JsonLd'
+import { computeOffresStats, formatAnnual, formatK, type OffresStats } from '@/lib/offres-stats'
 import CvForJobButton from '@/components/CvForJobButton'
 import { METIERS, VILLES, findMetier, findVille, offresPath, modelePath } from '@/lib/seo-catalog'
 import { findModele } from '@/lib/cv-modeles'
@@ -29,13 +30,23 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   if (!found) return {}
   const { metier, ville } = found
   const path = offresPath(metier.slug, ville.slug)
+  const { jobs } = await getJobsForPage(metier.keyword, ville.label)
+  const stats = computeOffresStats(jobs)
   const title = `Offres d'emploi ${metier.label} à ${ville.label} | Drop-Job`
-  const description = `Les dernières offres d'emploi ${metier.label} à ${ville.label}, réunies depuis France Travail et Adzuna. Postulez avec un CV adapté à chaque offre par l'IA, gratuitement.`
+  const details = [
+    jobs.length > 0 ? `${jobs.length} offres récentes` : '',
+    stats.salary ? `salaire médian annoncé ${formatK(stats.salary.median)} brut/an` : '',
+    stats.contracts[0] ? `${stats.contracts[0].pct} % en ${stats.contracts[0].label}` : '',
+  ].filter(Boolean).join(', ')
+  const description = `Offres d'emploi ${metier.label} à ${ville.label}${details ? ` : ${details}` : ''}. Réunies depuis France Travail et Adzuna, avec un CV adapté à chaque offre par l'IA, gratuitement.`
   return {
     title,
     description,
     alternates: { canonical: path },
-    openGraph: { title, description, url: path, type: 'website' },
+    // Aucune offre en ce moment (ou sources en panne) : page à ne pas indexer,
+    // mais ses liens restent suivis. Elle redevient indexable dès qu'il y a des offres.
+    ...(jobs.length === 0 ? { robots: { index: false, follow: true } } : {}),
+    openGraph: { title, description, url: path, type: 'website', siteName: 'Drop-Job', locale: 'fr_FR' },
   }
 }
 
@@ -45,6 +56,11 @@ export default async function OffresMetierVillePage({ params }: { params: Promis
   const { metier, ville } = found
   const modele = metier.hasCvModel ? findModele(metier.slug) : undefined
   const { jobs, failed } = await getJobsForPage(metier.keyword, ville.label)
+  // Sources d'offres en panne : on lève une erreur plutôt que d'enregistrer une
+  // page vide. Next.js garde alors la dernière version valide en cache (ou affiche
+  // error.tsx à la toute première visite), et retente à la visite suivante.
+  if (failed) throw new Error(`Sources d'offres indisponibles (${metier.slug}/${ville.slug})`)
+  const stats = computeOffresStats(jobs)
   const searchUrl = `/jobs?${new URLSearchParams({ q: metier.keyword, location: ville.label })}`
   const path = offresPath(metier.slug, ville.slug)
 
@@ -55,6 +71,21 @@ export default async function OffresMetierVillePage({ params }: { params: Promis
         { name: 'Offres par métier', path: '/offres' },
         { name: `${metier.label} à ${ville.label}`, path },
       ])} />
+      {jobs.length > 0 && (
+        // Page de liste : ItemList (et non JobPosting, réservé par Google à la page d'une offre unique)
+        <JsonLd data={{
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: `Offres d'emploi ${metier.label} à ${ville.label}`,
+          numberOfItems: jobs.length,
+          itemListElement: jobs.map((job, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: [job.title, job.company].filter(Boolean).join(' — '),
+            ...(job.applyUrl ? { url: job.applyUrl } : {}),
+          })),
+        }} />
+      )}
       <SiteHeader />
 
       <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
@@ -92,9 +123,7 @@ export default async function OffresMetierVillePage({ params }: { params: Promis
             ) : (
               <div className="rounded-2xl border border-black/[0.08] bg-white p-6 text-center">
                 <p className="text-[15px] text-[#6e6e73]">
-                  {failed
-                    ? 'Les sources d’offres ne répondent pas pour le moment.'
-                    : `Aucune offre de ${metier.label.toLowerCase()} trouvée à ${ville.label} en ce moment.`}
+                  {`Aucune offre de ${metier.label.toLowerCase()} trouvée à ${ville.label} en ce moment.`}
                 </p>
                 <Link href={searchUrl} className="mt-4 inline-flex min-h-[44px] items-center rounded-full bg-[#0071e3] px-5 text-sm font-semibold text-white no-underline hover:bg-[#0062c4]">
                   Lancer la recherche en direct →
@@ -128,6 +157,8 @@ export default async function OffresMetierVillePage({ params }: { params: Promis
             </div>
           </aside>
         </div>
+
+        <MarcheSection metierLabel={metier.label} villeLabel={ville.label} stats={stats} modele={modele} />
 
         <section className="mt-14 grid gap-8 sm:grid-cols-2">
           <div>
@@ -186,5 +217,92 @@ function JobCard({ job }: { job: PageJob }) {
         )}
       </div>
     </li>
+  )
+}
+
+// Contenu propre à chaque page : chiffres tirés des offres affichées, puis
+// compétences et conseils du métier (repris du modèle de CV correspondant).
+function MarcheSection({ metierLabel, villeLabel, stats, modele }: {
+  metierLabel: string
+  villeLabel: string
+  stats: OffresStats
+  modele: ReturnType<typeof findModele>
+}) {
+  const metierLower = metierLabel.toLowerCase()
+  const hasFigures = stats.total > 0
+  if (!hasFigures && !modele) return null
+  return (
+    <section className="mt-14" aria-labelledby="marche-titre">
+      <h2 id="marche-titre" className="text-xl font-semibold tracking-tight">
+        Le marché {metierLower} à {villeLabel}
+      </h2>
+
+      {hasFigures && (
+        <>
+          <p className="mt-1 text-xs text-[#aeaeb2]">D&apos;après les {stats.total} offres affichées ci-dessus, mises à jour toutes les heures.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-black/[0.08] bg-white p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#aeaeb2]">Salaire annoncé</h3>
+              {stats.salary ? (
+                <>
+                  <p className="mt-2 text-[22px] font-semibold tracking-tight">{formatK(stats.salary.median)} <span className="text-sm font-normal text-[#6e6e73]">médian brut/an</span></p>
+                  <p className="mt-1 text-sm text-[#6e6e73]">
+                    Soit {formatAnnual(stats.salary.median)}. Fourchette observée : {formatK(stats.salary.low)} à {formatK(stats.salary.high)}, sur {stats.salary.count} offres qui précisent le salaire (temps partiels compris).
+                  </p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-[#6e6e73]">Trop peu d&apos;offres de {metierLower} à {villeLabel} indiquent un salaire en ce moment pour publier une médiane fiable.</p>
+              )}
+            </div>
+            <div className="rounded-2xl border border-black/[0.08] bg-white p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#aeaeb2]">Types de contrat</h3>
+              {stats.contracts.length > 0 ? (
+                <ul className="mt-2 space-y-1.5 text-sm">
+                  {stats.contracts.slice(0, 4).map(c => (
+                    <li key={c.label} className="flex items-center gap-2">
+                      <span className="w-24 shrink-0 text-[#3a3a3c]">{c.label}</span>
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e8e8ed]" aria-hidden="true">
+                        <span className="block h-full rounded-full bg-[#0071e3]" style={{ width: `${c.pct}%` }} />
+                      </span>
+                      <span className="w-10 shrink-0 text-right tabular-nums text-[#6e6e73]">{c.pct} %</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-[#6e6e73]">Type de contrat non précisé dans les offres actuelles.</p>
+              )}
+            </div>
+            <div className="rounded-2xl border border-black/[0.08] bg-white p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#aeaeb2]">Profils recherchés</h3>
+              <p className="mt-2 text-[22px] font-semibold tracking-tight">{stats.debutantPct} % <span className="text-sm font-normal text-[#6e6e73]">ouvertes aux débutants</span></p>
+              {stats.diplomas.length > 0 && (
+                <p className="mt-1 text-sm text-[#6e6e73]">
+                  Niveaux demandés le plus souvent : {stats.diplomas.map(d => `${d.label} (${d.count})`).join(', ')}.
+                </p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {modele && (
+        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+          <div>
+            <h3 className="text-[15px] font-semibold">Compétences attendues</h3>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {[...modele.competences, ...modele.qualites].map(c => (
+                <li key={c} className="rounded-full border border-black/[0.08] bg-white px-3 py-1 text-xs text-[#3a3a3c]">{c}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-[15px] font-semibold">Réussir sa candidature de {metierLower} à {villeLabel}</h3>
+            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-[#3a3a3c]">
+              {modele.conseils.map(c => <li key={c}>{c}</li>)}
+            </ul>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

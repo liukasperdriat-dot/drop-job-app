@@ -76,7 +76,7 @@ export default function ConfidentialitePage() {
             Politique de Confidentialité
           </h1>
           <p style={{ fontSize: 14, color: s.text2, marginBottom: 12 }}>
-            Dernière mise à jour : 12 novembre 2026
+            Dernière mise à jour : 27 novembre 2026
           </p>
           <p style={{ fontSize: 14, color: s.text2, marginBottom: 40 }}>
             Conforme au Règlement (UE) 2016/679 (RGPD) et à la loi n°78-17 du 6 janvier 1978 modifiée (loi Informatique et Libertés).
@@ -270,7 +270,15 @@ export default function ConfidentialitePage() {
               Aucun cookie publicitaire, de ciblage comportemental ou de suivi tiers n'est déposé sur votre navigateur. Stripe peut déposer des cookies lors du processus de paiement, dans le cadre de sa politique propre de sécurité et de prévention des fraudes.
             </P>
 
-            <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>8.3. Gestion des cookies</P>
+            <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>8.3. Mesure d&apos;audience</P>
+            <P>
+              Pour connaître la fréquentation du site, nous utilisons Vercel Web Analytics, notre hébergeur. Cet outil ne dépose aucun cookie et n&apos;enregistre aucun identifiant sur votre appareil : il compte les pages vues de façon agrégée, sans suivi d&apos;un site à l&apos;autre. Il ne nécessite donc pas votre consentement.
+            </P>
+            <P>
+              Nous mesurons aussi, sur nos propres serveurs, les grandes étapes d&apos;utilisation de votre compte (inscription, profil complété, CV généré, ouverture du paiement, abonnement souscrit), afin d&apos;améliorer le Service. Ces informations ne sont ni revendues ni partagées, et sont supprimées avec votre compte.
+            </P>
+
+            <P style={{ fontWeight: 600, color: s.text, marginTop: 16 }}>8.4. Gestion des cookies</P>
             <P>
               Vous pouvez configurer votre navigateur pour refuser tout ou partie des cookies. Le refus des cookies strictement nécessaires peut altérer le fonctionnement du Service.
             </P>
